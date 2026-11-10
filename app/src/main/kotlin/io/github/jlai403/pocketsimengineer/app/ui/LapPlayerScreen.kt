@@ -81,9 +81,22 @@ fun LapPlayerScreen(
     var positionMs by remember { mutableLongStateOf(0L) }
     var syncOffset by remember { mutableIntStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
+    var playing by remember { mutableStateOf(false) }
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                playing = isPlaying
+            }
+
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int,
+            ) {
+                positionMs = newPosition.positionMs
+            }
+
             override fun onPlayerError(error: PlaybackException) {
                 message = "Playback failed: ${error.message}"
             }
@@ -104,8 +117,8 @@ fun LapPlayerScreen(
         player.playWhenReady = true
     }
 
-    LaunchedEffect(player) {
-        while (true) {
+    LaunchedEffect(player, playing) {
+        while (playing) {
             positionMs = player.currentPosition
             delay(50)
         }
