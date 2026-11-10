@@ -1415,9 +1415,75 @@ git commit -m "docs: record spike verification results"
 
 ---
 
+---
+
+### Task 13: Per-lap remux and v0.1 playback
+
+**Files:**
+- Create: `core/.../session/RemuxPlanner.kt`, `core/.../session/CsvExporter.kt`, `core/.../session/SessionStore.kt`
+- Create: `app/.../recording/LapRemuxer.kt`, `app/.../recording/SessionFinalizer.kt`
+- Create: `app/.../ui/LibraryScreen.kt`, `SessionScreen.kt`, `LapPlayerScreen.kt`, `TelemetryCharts.kt`
+- Create: `app/.../settings/SettingsStore.kt`, `app/.../share/Sharing.kt`
+
+**Interfaces:**
+- `RemuxPlanner.requestedRange(lapStartUs, lapEndUs, fileDurationUs): ClipRange?`
+- `RemuxPlanner.alignToKeyframe(requestedStartUs, keyframeUs, lapStartUs): AlignedClip`
+- `SessionStore(rootDir)` with `list`, `load`, `save`, `rename`, `setSyncOffset`, `delete`, `readSamples`, `updateLap`, `groups`
+- `LapRemuxer(sessionDir).remux(laps, rawVideo, audio): RemuxResult`
+- `SessionFinalizer.finish(writer, keepRaw)` and `recover(store, keepRaw)`
+
+**Scope note:** The spike deferred per-lap MP4 remux because `MediaMuxer` finalizes the index only on stop. This task does the cut after the raw file is finalized, copies video and audio without re-encoding, and normalizes timestamps to the clip start. Raw video and the separate `.m4a` are deleted only when every lap is cut and `keepRaw` is off.
+
+- [x] **Step 1: Plan the clip in pure Kotlin**
+
+`RemuxPlanner` clamps 2 s pre-roll and 1 s post-roll to the file, aligns the start to the preceding keyframe, and returns `videoStartOffsetMs`. Unit tests cover clamping, empty laps, and keyframe growth.
+
+- [x] **Step 2: Cut and mux the clip**
+
+`LapRemuxer` probes the first PTS of video and audio, maps `startNanos`/`endNanos` onto extractor microseconds, seeks video to `SEEK_TO_PREVIOUS_SYNC`, copies both tracks into `laps/lap-XXX.mp4`, and marks the lap `needsCut` on failure. Audio is optional.
+
+- [x] **Step 3: Finalize and recover**
+
+`SessionFinalizer` runs after the recorder stops. It is idempotent and retries on the next launch for sessions whose laps still point at `raw.mp4`. Empty sessions are deleted.
+
+- [x] **Step 4: Add the library, session, and player screens**
+
+Session library groups consecutive sessions with the same car and track within 10 minutes. The player uses Media3 as the master clock, maps playhead to `cursorMs = position - videoStartOffsetMs + syncOffsetMs`, and draws speed, throttle, brake, RPM, gear, and the X/Z track map. Sync nudges are saved per session.
+
+- [x] **Step 5: Add settings, share, and CSV export**
+
+Settings persist the PS5 IP, resolution, codec, bitrate, keep-raw, and units. MP4s and CSVs are shared through a `FileProvider`.
+
+- [x] **Step 6: Build and test**
+
+Run: `./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug`
+Expected: PASS + BUILD SUCCESSFUL.
+
+---
+
+### Task 14: v0.1 on-device verification
+
+**Status:** blocked — no `adb` device is attached to the implementation environment.
+
+- [ ] **Step 1: Verify the cut**
+
+Record two laps, stop, and confirm `sessions/<id>/laps/lap-001.mp4` and `lap-002.mp4` exist with video and audio tracks, and that `raw.mp4` is gone unless `Keep raw` is on.
+
+- [ ] **Step 2: Verify playback sync**
+
+Open each lap. Confirm the cursor reaches the line at `position == videoStartOffsetMs`, and the charts, map dot, and video agree within a few frames.
+
+- [ ] **Step 3: Verify CSV and share**
+
+Export a lap and confirm the CSV opens with a header plus one row per sample. Share an MP4 and confirm the receiving app can read it.
+
+- [ ] **Step 4: Re-run the spike checks in Task 12**
+
+The packet, audio, lifecycle, and thermal checks still require a real console and device.
+
 ## Self-Review
 
-- **Spec coverage:** The spike covers telemetry ingest/decrypt/parse, lap detection, session JSON, binary telemetry, screen recording, internal audio, arm/auto-start, notification Stop, and on-device verification. v0.1 items (library, playback, charts, map, CSV, F-Droid) are intentionally out of scope for this plan and remain in the spec.
+- **Spec coverage:** Tasks 1–12 cover telemetry ingest/decrypt/parse, lap detection, session JSON, binary telemetry, screen recording, internal audio, arm/auto-start, notification Stop, and spike verification. Tasks 13–14 extend the plan with v0.1 per-lap remux, playback, charts, map, CSV, sharing, settings, and their device checks. F-Droid metadata and reproducible-build setup remain in the spec.
 - **Type consistency:** `Sample`, `LapBoundary`, `DecodeResult`, `Recorder`, `RecordingState`, and `RecordingEvent` names are consistent across tasks.
 - **Review Focus tests:** Real packet verification is Task 12 Step 3; audio silence is Task 9 Step 4 and Task 12 Step 4; lap boundary accuracy is Task 12 Step 5; projection/lifecycle is Task 10 Step 4 and Task 12 Step 5; thermal load is Task 12 Step 5.
 - **Proportion:** The plan is longer than the spec because the spike has many platform-specific verification steps, but each task has a single deliverable and a check.

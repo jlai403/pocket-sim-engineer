@@ -28,8 +28,11 @@ fun ChartColumn(
     samples: List<Sample>,
     lap: LapMetadata,
     cursorMs: Int,
+    imperial: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val speedFactor = if (imperial) 2.23694f else 3.6f
+    val speedUnit = if (imperial) "mph" else "km/h"
     val window = remember(samples, lap) { samples.lapWindow(lap) }
     if (window.isEmpty()) {
         Text("No telemetry for this lap", modifier = modifier)
@@ -39,7 +42,10 @@ fun ChartColumn(
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         current?.let { sample ->
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("%.0f km/h".format(sample.speedMps * 3.6f), style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "%.0f %s".format(sample.speedMps * speedFactor, speedUnit),
+                    style = MaterialTheme.typography.labelLarge,
+                )
                 Text("Gear %d".format(sample.gear), style = MaterialTheme.typography.labelLarge)
                 Text("Thr %d%%".format(sample.throttle * 100 / 255), style = MaterialTheme.typography.labelLarge)
                 Text("Brk %d%%".format(sample.brake * 100 / 255), style = MaterialTheme.typography.labelLarge)
@@ -50,8 +56,8 @@ fun ChartColumn(
             window = window,
             lap = lap,
             cursorMs = cursorMs,
-            maxValue = window.maxOf { it.speedMps * 3.6f }.coerceAtLeast(1f),
-            valueOf = { it.speedMps * 3.6f },
+            maxValue = window.maxOf { it.speedMps * speedFactor }.coerceAtLeast(1f),
+            valueOf = { it.speedMps * speedFactor },
             color = Color(0xFF4FC3F7),
             label = "Speed",
         )

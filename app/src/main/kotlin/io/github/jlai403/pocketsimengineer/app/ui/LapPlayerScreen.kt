@@ -190,6 +190,7 @@ fun LapPlayerScreen(
                 samples = samples,
                 lap = lap,
                 cursorMs = cursorMs,
+                imperial = settings.imperialUnits,
                 modifier = Modifier.fillMaxWidth(),
             )
 

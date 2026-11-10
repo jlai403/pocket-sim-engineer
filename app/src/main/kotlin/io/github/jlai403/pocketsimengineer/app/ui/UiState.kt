@@ -12,6 +12,7 @@ data class CaptureUiState(
     val speedMps: Float = 0f,
     val recording: Boolean = false,
     val audioWarning: String? = null,
+    val notice: String? = null,
 )
 
 sealed interface Screen {

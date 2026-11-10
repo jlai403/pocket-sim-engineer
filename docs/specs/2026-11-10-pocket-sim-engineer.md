@@ -323,16 +323,20 @@ currentLapTimeMs: Int // 0 for packet A; populated from C later
   "carName": "BRZ GT300 '21",
   "syncOffsetMs": 0,
   "rawFile": "raw.mp4",
+  "audioFile": "audio.m4a",
   "rawDeleted": false,
   "keepRaw": false,
   "laps": [
     {
       "index": 1,
       "lapTimeMs": 123456,
+      "startNanos": 123456789,
+      "endNanos": 123456789,
+      "sampleCount": 5400,
       "videoFile": "laps/lap-001.mp4",
       "videoStartOffsetMs": 2000,
-      "telemetryFile": "laps/lap-001.gt7lap",
-      "metadataFile": "laps/lap-001.json"
+      "syncOffsetMs": 0,
+      "needsCut": false
     }
   ]
 }
@@ -348,9 +352,10 @@ currentLapTimeMs: Int // 0 for packet A; populated from C later
   "startNanos": 123456789,
   "endNanos": 123456789,
   "sampleCount": 5400,
-  "videoFile": "lap-001.mp4",
+  "videoFile": "laps/lap-001.mp4",
   "videoStartOffsetMs": 2000,
-  "syncOffsetMs": 0
+  "syncOffsetMs": 0,
+  "needsCut": false
 }
 ```
 

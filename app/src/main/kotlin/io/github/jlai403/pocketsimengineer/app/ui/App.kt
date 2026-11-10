@@ -109,6 +109,9 @@ private fun CaptureScreen(
         state.audioWarning?.let {
             Text(it, color = MaterialTheme.colorScheme.error)
         }
+        state.notice?.let {
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
 
         OutlinedTextField(
             value = ip,

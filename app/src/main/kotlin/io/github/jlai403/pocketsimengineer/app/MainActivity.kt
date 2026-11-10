@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
             val serviceState by TelemetryService.state.collectAsStateWithLifecycle()
             val recording by RecordingService.isRecording.collectAsStateWithLifecycle()
             val audioSilent by RecordingService.audioSilent.collectAsStateWithLifecycle()
+            val notice by RecordingService.notice.collectAsStateWithLifecycle()
             var ip by rememberSaveable { mutableStateOf(settings.ps5Ip) }
 
             PocketSimEngineerTheme {
@@ -82,6 +83,7 @@ class MainActivity : ComponentActivity() {
                         } else {
                             null
                         },
+                        notice = notice,
                     ),
                     onIpChanged = {
                         ip = it

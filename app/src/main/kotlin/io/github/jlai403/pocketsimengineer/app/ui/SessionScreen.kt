@@ -49,6 +49,7 @@ fun SessionScreen(
     val store = remember { SessionStore(context.filesDir) }
     var session by remember { mutableStateOf<SessionMetadata?>(null) }
     var renaming by remember { mutableStateOf(false) }
+    var confirmingDelete by remember { mutableStateOf(false) }
     var trackName by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
 
@@ -67,12 +68,7 @@ fun SessionScreen(
                 TextButton(onClick = onBack) { Text("Back") }
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = { renaming = true }) { Text("Rename") }
-                TextButton(onClick = {
-                    scope.launch {
-                        withContext(Dispatchers.IO) { store.delete(sessionId) }
-                        onDeleted()
-                    }
-                }) { Text("Delete") }
+                TextButton(onClick = { confirmingDelete = true }) { Text("Delete") }
             }
         },
     ) { padding ->
@@ -124,6 +120,26 @@ fun SessionScreen(
                 }
             }
         }
+    }
+
+    if (confirmingDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmingDelete = false },
+            title = { Text("Delete session?") },
+            text = { Text("This session and all its laps will be removed.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingDelete = false
+                    scope.launch {
+                        withContext(Dispatchers.IO) { store.delete(sessionId) }
+                        onDeleted()
+                    }
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmingDelete = false }) { Text("Cancel") }
+            },
+        )
     }
 
     if (renaming) {

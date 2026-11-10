@@ -51,6 +51,9 @@ class RecordingService : Service() {
         val lastOutput = MutableStateFlow<String?>(null)
         val lastAudioOutput = MutableStateFlow<String?>(null)
         val audioSilent = MutableStateFlow<Boolean?>(null)
+        val notice = MutableStateFlow<String?>(null)
+
+        private const val MIN_FREE_BYTES = 2_000_000_000L
 
         @Volatile
         var instance: RecordingService? = null
@@ -107,6 +110,7 @@ class RecordingService : Service() {
     }
 
     fun onLap(boundary: LapBoundary) {
+        if (!isRecording.value) return
         sessionWriter?.writeLap(
             boundary = boundary,
             videoFile = "raw.mp4",
@@ -125,6 +129,8 @@ class RecordingService : Service() {
             return
         }
         projection = mediaProjection
+        notice.value = null
+        audioSilent.value = null
         val sessionId = "session-${Instant.now().epochSecond}"
         val sessionDir = File(filesDir, "sessions/$sessionId")
         sessionWriter = SessionWriter(
@@ -169,6 +175,7 @@ class RecordingService : Service() {
             return
         }
         projection = mediaProjection
+        notice.value = null
         startCapture()
         if (autoStopMs > 0) {
             autoStopJob = scope.launch {
@@ -252,8 +259,13 @@ class RecordingService : Service() {
         tickJob?.cancel()
         tickJob = scope.launch {
             while (isActive) {
-                delay(500)
+                delay(1_000)
                 controller?.tick()
+                if (isRecording.value && filesDir.usableSpace < MIN_FREE_BYTES) {
+                    notice.value = "Storage below 2 GB — recording stopped."
+                    stopEverything()
+                    break
+                }
                 updateNotification()
             }
         }
