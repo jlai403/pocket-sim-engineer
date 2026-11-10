@@ -35,7 +35,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Unit tests
+      - name: Unit and Compose UI tests
         run: ./gradlew :core:test :app:testDebugUnitTest --stacktrace
 
       - name: Build debug APK

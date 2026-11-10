@@ -48,6 +48,18 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - Packet C (steering, live lap timer) is not parsed yet.
 - The desktop/Rust core and cloud backup remain future work.
 
+## Tests
+
+```bash
+./gradlew :core:test :app:testDebugUnitTest
+```
+
+- `:core` — protocol/decrypt/decode, lap detection, codecs, library grouping, CSV, remux planning, playback cursor math.
+- `:app` (JVM) — recording controller, session finalizer, telemetry stats.
+- `:app` Compose UI (Robolectric, no emulator) — session library grouping and open, session lap list and uncut marker, player charts/map/uncut-video path, settings persistence.
+
+Not covered by JVM tests: MediaProjection capture, real `MediaExtractor`/`MediaMuxer` remux, internal audio, real GT7 packets, and actual video decode. Those stay device checks.
+
 ## Builds from GitHub Actions
 
 Push the repository to GitHub; `.github/workflows/android.yml` then runs on every push and pull request:

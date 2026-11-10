@@ -1461,6 +1461,21 @@ Expected: PASS + BUILD SUCCESSFUL.
 
 ---
 
+### Task 15: JVM Compose UI tests
+
+**Files:**
+- Create: `app/src/test/.../ui/SessionFixtures.kt`, `LibraryScreenTest.kt`, `SessionScreenTest.kt`, `LapPlayerScreenTest.kt`, `SettingsScreenTest.kt`
+- Modify: `app/build.gradle.kts`, `.github/workflows/android.yml`
+
+- [x] Install real session fixtures (JSON + `.gt7lap`) into the test app's `filesDir`.
+- [x] Test the library: grouping, lap count, best lap, tapping a session.
+- [x] Test the session screen: lap times, best lap, opening a lap, uncut-video marker.
+- [x] Test the player: charts, track map, uncut-video refusal.
+- [x] Test settings persistence.
+- [x] Run under Robolectric with native graphics so no emulator is needed; CI runs the same task.
+
+---
+
 ### Task 14: v0.1 on-device verification
 
 **Status:** blocked — no `adb` device is attached to the implementation environment.
@@ -1483,7 +1498,7 @@ The packet, audio, lifecycle, and thermal checks still require a real console an
 
 ## Self-Review
 
-- **Spec coverage:** Tasks 1–12 cover telemetry ingest/decrypt/parse, lap detection, session JSON, binary telemetry, screen recording, internal audio, arm/auto-start, notification Stop, and spike verification. Tasks 13–14 extend the plan with v0.1 per-lap remux, playback, charts, map, CSV, sharing, settings, and their device checks. F-Droid metadata and reproducible-build setup remain in the spec.
+- **Spec coverage:** Tasks 1–12 cover telemetry ingest/decrypt/parse, lap detection, session JSON, binary telemetry, screen recording, internal audio, arm/auto-start, notification Stop, and spike verification. Tasks 13–15 extend the plan with v0.1 per-lap remux, playback, charts, map, CSV, sharing, settings, JVM Compose UI tests, and their device checks. F-Droid metadata and reproducible-build setup remain in the spec.
 - **Type consistency:** `Sample`, `LapBoundary`, `DecodeResult`, `Recorder`, `RecordingState`, and `RecordingEvent` names are consistent across tasks.
 - **Review Focus tests:** Real packet verification is Task 12 Step 3; audio silence is Task 9 Step 4 and Task 12 Step 4; lap boundary accuracy is Task 12 Step 5; projection/lifecycle is Task 10 Step 4 and Task 12 Step 5; thermal load is Task 12 Step 5.
 - **Proportion:** The plan is longer than the spec because the spike has many platform-specific verification steps, but each task has a single deliverable and a check.
