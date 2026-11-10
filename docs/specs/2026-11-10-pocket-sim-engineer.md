@@ -382,16 +382,17 @@ After the header, fixed little-endian arrays in this order:
 9. `positionZ` f32
 10. `lapCount` i16
 11. `lastLapTimeMs` i32
-12. `flags` u16
-13. `carCode` i32
-14. `fuel` f32
-15. `tyreTempFL` f32
-16. `tyreTempFR` f32
-17. `tyreTempRL` f32
-18. `tyreTempRR` f32
-19. `packetId` i32
-20. `steering` f32
-21. `currentLapTimeMs` i32
+12. `bestLapTimeMs` i32
+13. `flags` u16
+14. `carCode` i32
+15. `fuel` f32
+16. `tyreTempFL` f32
+17. `tyreTempFR` f32
+18. `tyreTempRL` f32
+19. `tyreTempRR` f32
+20. `packetId` i32
+21. `steering` f32
+22. `currentLapTimeMs` i32
 
 No compression in v0.1.
 
