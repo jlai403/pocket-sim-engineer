@@ -53,6 +53,12 @@ class TelemetryService : Service() {
                     state.value = TelemetryUiState(
                         status = "Enter a valid PS5 IPv4 address, for example 192.168.1.50",
                     )
+                    startForeground(
+                        NOTIFICATION_ID,
+                        notification(),
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                    )
+                    stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                     return START_NOT_STICKY
                 }
