@@ -27,15 +27,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
 import io.github.jlai403.pocketsimengineer.core.session.SessionGroup
 import io.github.jlai403.pocketsimengineer.core.session.SessionMetadata
 import io.github.jlai403.pocketsimengineer.core.session.SessionStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun LibraryScreen(
@@ -48,15 +46,32 @@ fun LibraryScreen(
     val store = remember { SessionStore(context.filesDir) }
     var groups by remember { mutableStateOf<List<SessionGroup>?>(null) }
     var pendingDelete by remember { mutableStateOf<SessionMetadata?>(null) }
+    var reload by remember { mutableStateOf(0) }
 
-    LaunchedEffect(Unit) {
-        groups = withContext(Dispatchers.IO) { store.groups() }
+    LaunchedEffect(reload) {
+        val active = RecordingService.activeSessionDir.value
+        groups = withContext(Dispatchers.IO) {
+            if (active == null) {
+                store.groups()
+            } else {
+                store.groups()
+                    .map { group ->
+                        group.copy(
+                            sessions = group.sessions.filter {
+                                store.sessionDir(it.sessionId).absolutePath != active
+                            },
+                        )
+                    }
+                    .filter { it.sessions.isNotEmpty() }
+            }
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Sessions", style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.weight(1f))
+            TextButton(onClick = { reload++ }) { Text("Refresh") }
             TextButton(onClick = onCapture) { Text("Record") }
             TextButton(onClick = onSettings) { Text("Settings") }
         }
@@ -84,7 +99,7 @@ fun LibraryScreen(
                     pendingDelete = null
                     scope.launch {
                         withContext(Dispatchers.IO) { store.delete(session.sessionId) }
-                        groups = withContext(Dispatchers.IO) { store.groups() }
+                        reload++
                     }
                 }) { Text("Delete") }
             },
@@ -124,9 +139,3 @@ private fun GroupCard(
         }
     }
 }
-
-private fun formatDate(iso: String): String = runCatching {
-    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-        .withZone(ZoneId.systemDefault())
-        .format(Instant.parse(iso))
-}.getOrDefault(iso)

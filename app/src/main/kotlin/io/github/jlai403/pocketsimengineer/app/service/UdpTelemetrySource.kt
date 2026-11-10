@@ -5,6 +5,7 @@ import io.github.jlai403.pocketsimengineer.core.lap.LapDetector
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.protocol.DecodeResult
 import io.github.jlai403.pocketsimengineer.core.protocol.Gt7Decoder
+import io.github.jlai403.pocketsimengineer.core.protocol.Gt7Protocol
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -27,8 +28,9 @@ class UdpTelemetrySource(
     private val onSample: (Sample) -> Unit,
     private val onLap: (LapBoundary) -> Unit,
     private val onState: (TelemetryUiState) -> Unit,
+    private val onStatus: (String) -> Unit = {},
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var scope: CoroutineScope? = null
     private var socket: DatagramSocket? = null
     private var receiveJob: Job? = null
     private var heartbeatJob: Job? = null
@@ -36,27 +38,33 @@ class UdpTelemetrySource(
     private var lastSample: Sample? = null
     private var lastPublishNanos = 0L
 
-    fun start() {
+    /** Returns false when the address cannot be resolved or UDP 33740 cannot be bound. */
+    fun start(): Boolean {
         stop()
-        val address = InetAddress.getByName(host)
-        val newSocket = DatagramSocket(null).apply {
-            reuseAddress = true
-            bind(InetSocketAddress(33740))
-            soTimeout = 500
-        }
+        val address = runCatching { InetAddress.getByName(host) }.getOrNull() ?: return false
+        val newSocket = runCatching {
+            DatagramSocket(null).apply {
+                reuseAddress = true
+                bind(InetSocketAddress(Gt7Protocol.PORT_RECEIVE))
+                soTimeout = 500
+            }
+        }.getOrNull() ?: return false
+        val newScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope = newScope
         socket = newSocket
-        heartbeatJob = scope.launch {
+
+        heartbeatJob = newScope.launch {
             while (isActive) {
                 try {
                     val payload = "A".toByteArray()
-                    newSocket.send(DatagramPacket(payload, payload.size, address, 33739))
-                } catch (e: Exception) {
-                    if (isActive) onState(TelemetryUiState(status = "Heartbeat failed: ${e.message}"))
+                    newSocket.send(DatagramPacket(payload, payload.size, address, Gt7Protocol.PORT_SEND))
+                } catch (error: Exception) {
+                    if (isActive) onStatus("Heartbeat failed: ${error.message}")
                 }
                 delay(100)
             }
         }
-        receiveJob = scope.launch {
+        receiveJob = newScope.launch {
             val buffer = ByteArray(2048)
             while (isActive) {
                 try {
@@ -69,8 +77,8 @@ class UdpTelemetrySource(
                             stats.onPacket(now)
                             lastPacketNanos = now
                             lastSample = result.sample
-                            onSample(result.sample)
-                            lapDetector.onSample(result.sample)?.let(onLap)
+                            runCatching { onSample(result.sample) }
+                            runCatching { lapDetector.onSample(result.sample)?.let(onLap) }
                             publish(now)
                         }
                         is DecodeResult.Invalid -> {
@@ -80,14 +88,13 @@ class UdpTelemetrySource(
                     }
                 } catch (_: SocketTimeoutException) {
                     publish(System.nanoTime())
-                } catch (e: Exception) {
-                    if (isActive) {
-                        onState(TelemetryUiState(status = "Telemetry socket error: ${e.message}"))
-                    }
+                } catch (error: Exception) {
+                    if (isActive) onStatus("Telemetry socket error: ${error.message}")
                     break
                 }
             }
         }
+        return true
     }
 
     fun stop() {
@@ -95,7 +102,8 @@ class UdpTelemetrySource(
         heartbeatJob?.cancel()
         socket?.close()
         socket = null
-        scope.cancel()
+        scope?.cancel()
+        scope = null
     }
 
     private fun publish(nowNanos: Long) {

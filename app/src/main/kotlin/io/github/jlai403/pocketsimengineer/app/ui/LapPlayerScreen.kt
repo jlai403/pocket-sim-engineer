@@ -32,12 +32,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import io.github.jlai403.pocketsimengineer.app.share.Sharing
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.core.model.Sample
+import io.github.jlai403.pocketsimengineer.core.playback.PlaybackCursor
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
 import io.github.jlai403.pocketsimengineer.core.session.SessionMetadata
 import io.github.jlai403.pocketsimengineer.core.session.SessionStore
@@ -69,13 +72,28 @@ fun LapPlayerScreen(
         }
     }
 
-    val videoFile = lap?.let { File(store.sessionDir(sessionId), it.videoFile) }?.takeIf { it.isFile }
+    val videoFile = lap
+        ?.takeIf { !it.needsCut && it.videoFile != session?.rawFile }
+        ?.let { File(store.sessionDir(sessionId), it.videoFile) }
+        ?.takeIf { it.isFile }
     val player = remember(sessionId, lapIndex) { ExoPlayer.Builder(context).build() }
-    DisposableEffect(player) { onDispose { player.release() } }
 
     var positionMs by remember { mutableLongStateOf(0L) }
     var syncOffset by remember { mutableIntStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
+
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                message = "Playback failed: ${error.message}"
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.release()
+        }
+    }
 
     LaunchedEffect(session) { session?.let { syncOffset = it.syncOffsetMs } }
 
@@ -94,7 +112,7 @@ fun LapPlayerScreen(
     }
 
     val cursorMs = lap?.let {
-        (positionMs - it.videoStartOffsetMs + syncOffset).toInt().coerceIn(0, it.lapTimeMs)
+        PlaybackCursor.telemetryMs(positionMs, it.videoStartOffsetMs, syncOffset, it.lapTimeMs)
     } ?: 0
 
     Column(modifier = Modifier.fillMaxSize()) {

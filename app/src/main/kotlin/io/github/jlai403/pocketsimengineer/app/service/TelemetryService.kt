@@ -49,8 +49,10 @@ class TelemetryService : Service() {
             }
             ACTION_START -> {
                 val host = intent.getStringExtra(EXTRA_IP)?.trim().orEmpty()
-                if (host.isEmpty()) {
-                    state.value = TelemetryUiState(status = "Enter the PS5 IPv4 address")
+                if (!isIpv4(host)) {
+                    state.value = TelemetryUiState(
+                        status = "Enter a valid PS5 IPv4 address, for example 192.168.1.50",
+                    )
                     stopSelf()
                     return START_NOT_STICKY
                 }
@@ -59,9 +61,10 @@ class TelemetryService : Service() {
                     notification(),
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
                 )
-                acquireLocks()
                 source?.stop()
-                source = UdpTelemetrySource(
+                releaseLocks()
+                acquireLocks()
+                val newSource = UdpTelemetrySource(
                     host = host,
                     decoder = Gt7Decoder(),
                     lapDetector = LapDetector(),
@@ -72,8 +75,19 @@ class TelemetryService : Service() {
                         state.value = it
                         if (!it.connected) RecordingService.instance?.onNoPackets()
                     },
-                ).also { it.start() }
-                return START_STICKY
+                    onStatus = { state.value = state.value.copy(status = it) },
+                )
+                if (!newSource.start()) {
+                    releaseLocks()
+                    state.value = TelemetryUiState(
+                        status = "Could not open UDP 33740. Another app may be using it.",
+                    )
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                source = newSource
+                return START_NOT_STICKY
             }
         }
         return START_NOT_STICKY
@@ -87,6 +101,11 @@ class TelemetryService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun isIpv4(value: String): Boolean {
+        if (!Regex("""^(\d{1,3}\.){3}\d{1,3}$""").matches(value)) return false
+        return value.split('.').all { it.toIntOrNull()?.let { part -> part in 0..255 } == true }
+    }
 
     private fun notification(): Notification {
         val open = PendingIntent.getActivity(

@@ -319,6 +319,7 @@ currentLapTimeMs: Int // 0 for packet A; populated from C later
   "sessionId": "2026-11-10T18-42-11Z",
   "createdAt": "2026-11-10T18:42:11Z",
   "trackLabel": "Suzuka",
+  "recordingStartNanos": 123456789,
   "carCode": 3474,
   "carName": "BRZ GT300 '21",
   "syncOffsetMs": 0,
@@ -341,6 +342,8 @@ currentLapTimeMs: Int // 0 for packet A; populated from C later
   ]
 }
 ```
+
+`recordingStartNanos` is the `System.nanoTime()` value immediately before the first captured frame. Remux uses it to map lap bounds into each file's PTS domain, including files whose muxer rebased timestamps to zero.
 
 ### 9.3 Lap metadata (`lap-001.json`)
 

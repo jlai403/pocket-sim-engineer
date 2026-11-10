@@ -15,6 +15,7 @@ class ScreenRecorder(
     private val projection: MediaProjection,
     private val outputFile: File,
     private val config: VideoEncoderConfig = VideoEncoderConfig(),
+    private val onError: (String) -> Unit = {},
 ) : Recorder {
     private var codec: MediaCodec? = null
     private var muxer: MediaMuxer? = null
@@ -29,6 +30,7 @@ class ScreenRecorder(
 
     override val isRecording: Boolean get() = running
 
+    @Synchronized
     override fun start() {
         if (running) return
         outputFile.parentFile?.mkdirs()
@@ -67,6 +69,15 @@ class ScreenRecorder(
     private fun drainLoop() {
         val encoder = codec ?: return
         val bufferInfo = MediaCodec.BufferInfo()
+        try {
+            drain(encoder, bufferInfo)
+        } catch (error: Exception) {
+            running = false
+            onError("Video encoder failed: ${error.message}")
+        }
+    }
+
+    private fun drain(encoder: MediaCodec, bufferInfo: MediaCodec.BufferInfo) {
         while (running) {
             val index = encoder.dequeueOutputBuffer(bufferInfo, 10_000)
             when {
@@ -91,15 +102,16 @@ class ScreenRecorder(
         }
     }
 
+    @Synchronized
     override fun stop() {
         if (!running) return
-        running = false
         try {
             codec?.signalEndOfInputStream()
             drainThread?.join(2_000)
         } catch (_: Exception) {
             // Encoder may already be gone.
         }
+        running = false
         drainThread = null
 
         virtualDisplay?.release()

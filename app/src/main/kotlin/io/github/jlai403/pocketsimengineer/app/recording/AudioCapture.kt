@@ -17,6 +17,7 @@ class AudioCapture(
     private val projection: MediaProjection,
     private val outputFile: File,
     private val config: AudioEncoderConfig = AudioEncoderConfig(),
+    private val onError: (String) -> Unit = {},
 ) : Recorder {
     private var audioRecord: AudioRecord? = null
     private var codec: MediaCodec? = null
@@ -32,8 +33,13 @@ class AudioCapture(
     var silent = true
         private set
 
+    @Volatile
+    var frames = 0L
+        private set
+
     override val isRecording: Boolean get() = running
 
+    @Synchronized
     override fun start() {
         if (running) return
         outputFile.parentFile?.mkdirs()
@@ -80,6 +86,15 @@ class AudioCapture(
     }
 
     private fun drainLoop(record: AudioRecord, encoder: MediaCodec) {
+        try {
+            drain(record, encoder)
+        } catch (error: Exception) {
+            running = false
+            onError("Audio capture failed: ${error.message}")
+        }
+    }
+
+    private fun drain(record: AudioRecord, encoder: MediaCodec) {
         val pcm = ByteArray(4_096)
         val info = MediaCodec.BufferInfo()
 
@@ -91,6 +106,7 @@ class AudioCapture(
                     input.clear()
                     val read = record.read(pcm, 0, minOf(pcm.size, input.remaining()))
                     if (read > 0) {
+                        frames++
                         input.put(pcm, 0, read)
                         encoder.queueInputBuffer(
                             inputIndex,
@@ -140,6 +156,7 @@ class AudioCapture(
         if (max > 100) silent = false
     }
 
+    @Synchronized
     override fun stop() {
         if (!running) return
         running = false

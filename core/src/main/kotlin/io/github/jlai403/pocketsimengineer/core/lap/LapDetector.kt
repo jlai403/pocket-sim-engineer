@@ -1,6 +1,7 @@
 package io.github.jlai403.pocketsimengineer.core.lap
 
 import io.github.jlai403.pocketsimengineer.core.model.Sample
+import kotlin.math.abs
 
 data class LapBoundary(
     val lapNumber: Int,
@@ -40,12 +41,16 @@ class LapDetector {
         if (sample.lapCount > previous) {
             val lapNumber = sample.lapCount - 1
             if (lapNumber > 0) {
+                val measuredMs = ((sample.timeNanos - lapStartNanos) / 1_000_000L).toInt()
                 val lapTimeMs = if (sample.lastLapTimeMs > 0) {
                     sample.lastLapTimeMs
                 } else {
-                    ((sample.timeNanos - lapStartNanos) / 1_000_000L).toInt()
+                    measuredMs
                 }
-                if (lapTimeMs in MIN_PLAUSIBLE_LAP_MS..MAX_PLAUSIBLE_LAP_MS) {
+                // A clock jump, or arming mid-lap, means this lap has no complete telemetry.
+                val complete = sample.lastLapTimeMs <= 0 ||
+                    abs(measuredMs - sample.lastLapTimeMs) <= LAP_SPAN_TOLERANCE_MS
+                if (complete && lapTimeMs in MIN_PLAUSIBLE_LAP_MS..MAX_PLAUSIBLE_LAP_MS) {
                     boundary = LapBoundary(
                         lapNumber = lapNumber,
                         startNanos = lapStartNanos,
@@ -66,5 +71,6 @@ class LapDetector {
     private companion object {
         const val MIN_PLAUSIBLE_LAP_MS = 10_000
         const val MAX_PLAUSIBLE_LAP_MS = 1_800_000
+        const val LAP_SPAN_TOLERANCE_MS = 2_000
     }
 }

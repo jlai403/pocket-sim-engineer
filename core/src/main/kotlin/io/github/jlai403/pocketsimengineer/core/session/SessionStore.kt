@@ -1,5 +1,6 @@
 package io.github.jlai403.pocketsimengineer.core.session
 
+import io.github.jlai403.pocketsimengineer.core.io.AtomicFiles
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import java.io.File
 import java.time.Duration
@@ -32,7 +33,7 @@ class SessionStore(private val rootDir: File) {
     fun save(metadata: SessionMetadata) {
         val dir = File(sessionsDir, metadata.sessionId)
         dir.mkdirs()
-        File(dir, "session.json").writeText(SessionJsonCodec.encodeSession(metadata))
+        AtomicFiles.writeText(File(dir, "session.json"), SessionJsonCodec.encodeSession(metadata))
     }
 
     fun updateLap(sessionId: String, lap: LapMetadata): SessionMetadata? {
@@ -41,8 +42,10 @@ class SessionStore(private val rootDir: File) {
         if (laps.none { it.index == lap.index }) return null
         val updated = metadata.copy(laps = laps)
         save(updated)
-        File(sessionDir(sessionId), "laps/lap-%03d.json".format(lap.index))
-            .writeText(SessionJsonCodec.encodeLap(lap))
+        AtomicFiles.writeText(
+            File(sessionDir(sessionId), "laps/lap-%03d.json".format(lap.index)),
+            SessionJsonCodec.encodeLap(lap),
+        )
         return updated
     }
 
@@ -61,8 +64,10 @@ class SessionStore(private val rootDir: File) {
         save(updated)
         val lapsDir = File(sessionsDir, "$sessionId/laps")
         for (lap in updatedLaps) {
-            File(lapsDir, "lap-%03d.json".format(lap.index))
-                .writeText(SessionJsonCodec.encodeLap(lap))
+            AtomicFiles.writeText(
+                File(lapsDir, "lap-%03d.json".format(lap.index)),
+                SessionJsonCodec.encodeLap(lap),
+            )
         }
         return updated
     }

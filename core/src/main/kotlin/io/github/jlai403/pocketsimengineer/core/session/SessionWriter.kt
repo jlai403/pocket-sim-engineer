@@ -1,5 +1,6 @@
 package io.github.jlai403.pocketsimengineer.core.session
 
+import io.github.jlai403.pocketsimengineer.core.io.AtomicFiles
 import io.github.jlai403.pocketsimengineer.core.lap.LapBoundary
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import java.io.File
@@ -17,6 +18,8 @@ class SessionWriter(
     }
 
     fun sessionDir(): File = rootDir
+
+    fun metadata(): SessionMetadata = metadata
 
     @Synchronized
     fun addSample(sample: Sample) {
@@ -48,10 +51,17 @@ class SessionWriter(
         )
 
         val lapsDir = File(rootDir, "laps").apply { mkdirs() }
-        File(lapsDir, "lap-%03d.gt7lap".format(lap.index)).writeBytes(LapTelemetryCodec.encode(selected))
-        File(lapsDir, "lap-%03d.json".format(lap.index)).writeText(SessionJsonCodec.encodeLap(lap))
+        AtomicFiles.writeBytes(
+            File(lapsDir, "lap-%03d.gt7lap".format(lap.index)),
+            LapTelemetryCodec.encode(selected),
+        )
+        AtomicFiles.writeText(
+            File(lapsDir, "lap-%03d.json".format(lap.index)),
+            SessionJsonCodec.encodeLap(lap),
+        )
 
         laps.add(lap)
+        samples.removeAll { it.timeNanos < boundary.startNanos - preRollNanos }
         metadata = metadata.copy(laps = laps.toList())
         writeSession()
         return lap
@@ -65,8 +75,10 @@ class SessionWriter(
     fun updateLap(lap: LapMetadata) {
         val index = laps.indexOfFirst { it.index == lap.index }
         if (index >= 0) laps[index] = lap else laps.add(lap)
-        File(rootDir, "laps/lap-%03d.json".format(lap.index))
-            .writeText(SessionJsonCodec.encodeLap(lap))
+        AtomicFiles.writeText(
+            File(rootDir, "laps/lap-%03d.json".format(lap.index)),
+            SessionJsonCodec.encodeLap(lap),
+        )
         metadata = metadata.copy(laps = laps.toList())
         writeSession()
     }
@@ -85,6 +97,6 @@ class SessionWriter(
     }
 
     private fun writeSession() {
-        File(rootDir, "session.json").writeText(SessionJsonCodec.encodeSession(metadata))
+        AtomicFiles.writeText(File(rootDir, "session.json"), SessionJsonCodec.encodeSession(metadata))
     }
 }

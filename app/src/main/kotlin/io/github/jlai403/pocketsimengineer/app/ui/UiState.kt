@@ -3,6 +3,9 @@ package io.github.jlai403.pocketsimengineer.app.ui
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
 import kotlin.math.abs
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 data class CaptureUiState(
     val ps5Ip: String = "",
@@ -31,6 +34,12 @@ fun List<Sample>.lapWindow(lap: LapMetadata): List<Sample> =
 
 fun List<Sample>.nearest(lap: LapMetadata, timeMs: Int): Sample? =
     minByOrNull { abs(it.lapTimeMs(lap) - timeMs) }
+
+fun formatDate(iso: String): String = runCatching {
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        .withZone(ZoneId.systemDefault())
+        .format(Instant.parse(iso))
+}.getOrDefault(iso)
 
 fun lapTimeLabel(ms: Int): String {
     if (ms <= 0) return "-"

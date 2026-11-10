@@ -82,7 +82,7 @@ fun SessionScreen(
         ) {
             Text(current.trackLabel, style = MaterialTheme.typography.headlineMedium)
             Text(current.carName, style = MaterialTheme.typography.titleMedium)
-            Text("Recorded ${current.createdAt}", style = MaterialTheme.typography.bodySmall)
+            Text("Recorded ${formatDate(current.createdAt)}", style = MaterialTheme.typography.bodySmall)
             val best = current.laps.minOfOrNull { it.lapTimeMs }
             Text(
                 "${current.laps.size} laps" + (best?.let { " · best ${lapTimeLabel(it)}" } ?: ""),

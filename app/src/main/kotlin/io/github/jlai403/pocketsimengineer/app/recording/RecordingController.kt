@@ -16,6 +16,7 @@ class RecordingController(
     private var currentCarCode: Int? = null
     private var recording = false
 
+    @Synchronized
     fun onEvent(event: RecordingEvent) {
         when (event) {
             RecordingEvent.Arm -> {
@@ -65,6 +66,7 @@ class RecordingController(
         }
     }
 
+    @Synchronized
     fun tick() {
         val since = offTrackSinceNanos ?: return
         if (recording && clock.nanoTime() - since >= 5_000_000_000L) {

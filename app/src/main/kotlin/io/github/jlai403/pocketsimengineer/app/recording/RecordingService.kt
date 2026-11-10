@@ -52,6 +52,7 @@ class RecordingService : Service() {
         val lastAudioOutput = MutableStateFlow<String?>(null)
         val audioSilent = MutableStateFlow<Boolean?>(null)
         val notice = MutableStateFlow<String?>(null)
+        val activeSessionDir = MutableStateFlow<String?>(null)
 
         private const val MIN_FREE_BYTES = 2_000_000_000L
 
@@ -72,6 +73,8 @@ class RecordingService : Service() {
     private var projection: MediaProjection? = null
     private var sessionWriter: SessionWriter? = null
     private var lastNotificationText: String? = null
+    private var lastCarCode = 0
+    private var audioStartedNanos = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -93,13 +96,19 @@ class RecordingService : Service() {
 
     fun onTelemetry(sample: Sample) {
         val current = controller ?: return
-        if (sample.flags and 1 != 0) {
-            current.onEvent(RecordingEvent.CarOnTrack(sample.lapCount, sample.carCode))
-        } else {
-            current.onEvent(RecordingEvent.OffTrack)
-        }
-        if (current.state.value is RecordingState.Recording) {
-            sessionWriter?.addSample(sample)
+        try {
+            if (sample.flags and 1 != 0) {
+                current.onEvent(RecordingEvent.CarOnTrack(sample.lapCount, sample.carCode))
+            } else {
+                current.onEvent(RecordingEvent.OffTrack)
+            }
+            if (current.state.value is RecordingState.Recording) {
+                sessionWriter?.addSample(sample)
+                if (sample.carCode > 0) updateCar(sample.carCode)
+            }
+        } catch (error: Exception) {
+            notice.value = "Recorder failed: ${error.message}"
+            current.onEvent(RecordingEvent.RecorderError(error.message ?: "recorder-failed"))
         }
         updateNotification()
     }
@@ -111,14 +120,27 @@ class RecordingService : Service() {
 
     fun onLap(boundary: LapBoundary) {
         if (!isRecording.value) return
-        sessionWriter?.writeLap(
-            boundary = boundary,
-            videoFile = "raw.mp4",
-            videoStartOffsetMs = 0,
-        )
+        runCatching {
+            sessionWriter?.writeLap(
+                boundary = boundary,
+                videoFile = "raw.mp4",
+                videoStartOffsetMs = 0,
+            )
+        }.onFailure { notice.value = "Lap write failed: ${it.message}" }
+    }
+
+    private fun updateCar(carCode: Int) {
+        if (carCode == lastCarCode) return
+        lastCarCode = carCode
+        runCatching {
+            sessionWriter?.updateMetadata {
+                it.copy(carCode = carCode, carName = "Car #$carCode")
+            }
+        }
     }
 
     private fun arm(intent: Intent) {
+        if (finishing || projection != null || sessionWriter != null) return
         startForeground(
             NOTIFICATION_ID,
             notification("Armed"),
@@ -131,7 +153,9 @@ class RecordingService : Service() {
         projection = mediaProjection
         notice.value = null
         audioSilent.value = null
-        val sessionId = "session-${Instant.now().epochSecond}"
+        lastCarCode = 0
+        val settings = SettingsStore(this)
+        val sessionId = "session-${System.currentTimeMillis()}"
         val sessionDir = File(filesDir, "sessions/$sessionId")
         sessionWriter = SessionWriter(
             sessionDir,
@@ -143,9 +167,12 @@ class RecordingService : Service() {
                 carName = "Unknown",
                 rawFile = "raw.mp4",
                 audioFile = "audio.m4a",
+                keepRaw = settings.keepRaw,
             ),
         )
+        File(sessionDir, SessionFinalizer.IN_PROGRESS).createNewFile()
         lastOutput.value = sessionDir.absolutePath
+        activeSessionDir.value = sessionDir.absolutePath
         controller = RecordingController(
             clock = object : Clock {
                 override fun nanoTime(): Long = System.nanoTime()
@@ -153,7 +180,7 @@ class RecordingService : Service() {
             recorder = object : Recorder {
                 override val isRecording: Boolean get() = recorder?.isRecording == true
                 override fun start() = startCapture()
-                override fun stop() = stopCapture()
+                override fun stop() = stopEverything()
             },
         ).also {
             it.onEvent(RecordingEvent.Arm)
@@ -164,6 +191,7 @@ class RecordingService : Service() {
     }
 
     private fun recordTest(intent: Intent) {
+        if (finishing || projection != null) return
         val autoStopMs = intent.getLongExtra(EXTRA_AUTO_STOP_MS, 0L)
         startForeground(
             NOTIFICATION_ID,
@@ -176,7 +204,8 @@ class RecordingService : Service() {
         }
         projection = mediaProjection
         notice.value = null
-        startCapture()
+        runCatching { startCapture() }
+            .onFailure { notice.value = "Recording failed: ${it.message}" }
         if (autoStopMs > 0) {
             autoStopJob = scope.launch {
                 delay(autoStopMs)
@@ -205,7 +234,7 @@ class RecordingService : Service() {
     private fun startCapture() {
         if (recorder != null) return
         val mediaProjection = projection ?: return
-        val stamp = Instant.now().epochSecond
+        val stamp = System.currentTimeMillis()
         val sessionDir = sessionWriter?.sessionDir()
         val file = if (sessionDir != null) {
             File(sessionDir, "raw.mp4")
@@ -222,7 +251,13 @@ class RecordingService : Service() {
             bitrate = settings.bitrateMbps * 1_000_000,
             mime = settings.codec.mime,
         )
-        recorder = ScreenRecorder(mediaProjection, file, config).also { it.start() }
+        val captureStartNanos = System.nanoTime()
+        recorder = ScreenRecorder(mediaProjection, file, config) { message ->
+            onRecorderError(message)
+        }.also { it.start() }
+        sessionWriter?.updateMetadata {
+            it.copy(recordingStartNanos = captureStartNanos)
+        }
 
         audioSilent.value = null
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
@@ -235,7 +270,10 @@ class RecordingService : Service() {
             }
             lastAudioOutput.value = audioFile.absolutePath
             try {
-                audioCapture = AudioCapture(mediaProjection, audioFile).also { it.start() }
+                audioCapture = AudioCapture(mediaProjection, audioFile) { message ->
+                    onRecorderError(message)
+                }.also { it.start() }
+                audioStartedNanos = System.nanoTime()
             } catch (_: Exception) {
                 audioSilent.value = true
             }
@@ -250,9 +288,15 @@ class RecordingService : Service() {
         audioCapture?.stop()
         audioSilent.value = audioCapture?.silent ?: true
         audioCapture = null
+        audioStartedNanos = 0
         recorder?.stop()
         recorder = null
         isRecording.value = false
+    }
+
+    private fun onRecorderError(message: String) {
+        notice.value = message
+        controller?.onEvent(RecordingEvent.RecorderError(message))
     }
 
     private fun startTicking() {
@@ -261,6 +305,17 @@ class RecordingService : Service() {
             while (isActive) {
                 delay(1_000)
                 controller?.tick()
+                val audio = audioCapture
+                if (isRecording.value && audio != null && audioStartedNanos > 0 &&
+                    System.nanoTime() - audioStartedNanos > 2_000_000_000L && audio.frames == 0L
+                ) {
+                    audioSilent.value = true
+                    notice.value = "No audio frames — continuing with silent video."
+                    finalizeScope.launch {
+                        audio.stop()
+                        if (audioCapture === audio) audioCapture = null
+                    }
+                }
                 if (isRecording.value && filesDir.usableSpace < MIN_FREE_BYTES) {
                     notice.value = "Storage below 2 GB — recording stopped."
                     stopEverything()
@@ -285,18 +340,26 @@ class RecordingService : Service() {
         val projectionToStop = projection
         projection = null
         val keepRaw = SettingsStore(this).keepRaw
+        setNotification("Finalizing…")
 
         finalizeScope.launch {
-            controllerToStop?.onEvent(RecordingEvent.Stop)
-            stopCapture()
-            if (writer != null) {
-                writer.finalize(rawDeleted = false)
-                SessionFinalizer.finish(writer, keepRaw)
-            }
-            withContext(Dispatchers.Main) {
-                projectionToStop?.stop()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+            try {
+                controllerToStop?.onEvent(RecordingEvent.Stop)
+                stopCapture()
+                withContext(Dispatchers.Main) { projectionToStop?.stop() }
+                if (writer != null) {
+                    writer.finalize(rawDeleted = false)
+                    SessionFinalizer.finish(writer, keepRaw)
+                }
+            } catch (error: Exception) {
+                notice.value = "Finalize failed: ${error.message}"
+                runCatching { writer?.finalize(rawDeleted = false) }
+            } finally {
+                activeSessionDir.value = null
+                withContext(Dispatchers.Main) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
             }
         }
     }
@@ -318,6 +381,10 @@ class RecordingService : Service() {
             is RecordingState.Stopping -> "Stopping"
             else -> if (isRecording.value) "Recording" else "Armed"
         }
+        setNotification(text)
+    }
+
+    private fun setNotification(text: String) {
         if (text == lastNotificationText) return
         lastNotificationText = text
         val manager = getSystemService(NotificationManager::class.java)
