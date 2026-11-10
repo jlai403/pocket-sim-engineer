@@ -17,7 +17,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
 import io.github.jlai403.pocketsimengineer.core.clock.Clock
+import io.github.jlai403.pocketsimengineer.core.lap.LapBoundary
 import io.github.jlai403.pocketsimengineer.core.model.Sample
+import io.github.jlai403.pocketsimengineer.core.session.SessionMetadata
+import io.github.jlai403.pocketsimengineer.core.session.SessionWriter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -57,6 +60,7 @@ class RecordingService : Service() {
     private var recorder: ScreenRecorder? = null
     private var audioCapture: AudioCapture? = null
     private var projection: MediaProjection? = null
+    private var sessionWriter: SessionWriter? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -77,6 +81,7 @@ class RecordingService : Service() {
     }
 
     fun onTelemetry(sample: Sample) {
+        sessionWriter?.addSample(sample)
         val current = controller ?: return
         if (sample.flags and 1 != 0) {
             current.onEvent(RecordingEvent.CarOnTrack(sample.lapCount, sample.carCode))
@@ -91,6 +96,14 @@ class RecordingService : Service() {
         updateNotification()
     }
 
+    fun onLap(boundary: LapBoundary) {
+        sessionWriter?.writeLap(
+            boundary = boundary,
+            videoFile = "raw.mp4",
+            videoStartOffsetMs = 0,
+        )
+    }
+
     private fun arm(intent: Intent) {
         startForeground(
             NOTIFICATION_ID,
@@ -102,6 +115,20 @@ class RecordingService : Service() {
             return
         }
         projection = mediaProjection
+        val sessionId = "session-${Instant.now().epochSecond}"
+        val sessionDir = File(filesDir, "sessions/$sessionId")
+        sessionWriter = SessionWriter(
+            sessionDir,
+            SessionMetadata(
+                sessionId = sessionId,
+                createdAt = Instant.now().toString(),
+                trackLabel = "Unknown",
+                carCode = 0,
+                carName = "Unknown",
+                rawFile = "raw.mp4",
+            ),
+        )
+        lastOutput.value = sessionDir.absolutePath
         controller = RecordingController(
             clock = object : Clock {
                 override fun nanoTime(): Long = System.nanoTime()
@@ -161,7 +188,12 @@ class RecordingService : Service() {
         if (recorder != null) return
         val mediaProjection = projection ?: return
         val stamp = Instant.now().epochSecond
-        val file = File(filesDir, "raw-$stamp.mp4")
+        val sessionDir = sessionWriter?.sessionDir()
+        val file = if (sessionDir != null) {
+            File(sessionDir, "raw.mp4")
+        } else {
+            File(filesDir, "raw-$stamp.mp4")
+        }
         lastOutput.value = file.absolutePath
         recorder = ScreenRecorder(mediaProjection, file).also { it.start() }
 
@@ -211,6 +243,8 @@ class RecordingService : Service() {
         controller?.onEvent(RecordingEvent.Stop)
         controller = null
         stopCapture()
+        sessionWriter?.finalize(rawDeleted = false)
+        sessionWriter = null
         val currentProjection = projection
         projection = null
         currentProjection?.stop()
@@ -225,6 +259,8 @@ class RecordingService : Service() {
         controller?.onEvent(RecordingEvent.Stop)
         controller = null
         stopCapture()
+        sessionWriter?.finalize(rawDeleted = false)
+        sessionWriter = null
         val currentProjection = projection
         projection = null
         currentProjection?.stop()

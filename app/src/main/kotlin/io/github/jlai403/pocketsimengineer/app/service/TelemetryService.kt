@@ -67,7 +67,7 @@ class TelemetryService : Service() {
                     lapDetector = LapDetector(),
                     stats = TelemetryStats(),
                     onSample = { RecordingService.instance?.onTelemetry(it) },
-                    onLap = { },
+                    onLap = { RecordingService.instance?.onLap(it) },
                     onState = {
                         state.value = it
                         if (!it.connected) RecordingService.instance?.onNoPackets()
