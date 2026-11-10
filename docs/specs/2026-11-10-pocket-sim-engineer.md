@@ -86,7 +86,7 @@ Primary device: Pixel 10, Android 16.
 
 - Continuous raw MP4 underneath.
 - No internal recording segments; a process crash may corrupt the raw file, but completed per-lap files remain.
-- Per-lap files are produced by immediate remux after each lap.
+- Per-lap video files are produced by remux **after recording stops**. `MediaMuxer` writes the MP4 index at finalize, so an in-progress raw file cannot be cut lap-by-lap. If immediate per-lap files are required later, use fragmented MP4 or a segmenting recorder.
 - Each lap clip includes about 2 s pre-roll and 1 s post-roll, with `lapStartOffsetMs` stored so playback starts at the line.
 - Raw file is deleted after all laps split successfully. Keep it automatically if a split failed. User-facing "Keep raw" toggle.
 - Free-space guard: stop recording and warn below ~2 GB.
@@ -239,7 +239,7 @@ All fields little-endian.
 
 ### 8.6 Per-lap remux
 
-- After a lap boundary, a background worker remuxes the relevant range of the raw MP4 into `lap-XXX.mp4`.
+- After the recording stops, a background worker remuxes the relevant range of the finalized raw MP4 into `lap-XXX.mp4`.
 - Include 2 s before the lap start and 1 s after the lap end.
 - Store `lapStartOffsetMs` = 2000 ms (plus any keyframe alignment adjustment).
 - Copy both video and audio tracks without re-encoding.

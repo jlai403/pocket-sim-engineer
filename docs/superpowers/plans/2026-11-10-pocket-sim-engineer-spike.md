@@ -30,11 +30,11 @@
 
 These are the inputs/failure modes most likely to bite a user, and the spec does not fully pin them down. Each is tested in the task that owns it.
 
-1. **Real GT7 packets differ from synthetic test packets.** A synthetic Salsa20 round-trip can pass while the real IV placement, XOR constant, or packet size is wrong. Task 11 must verify against a live console.
+1. **Real GT7 packets differ from synthetic test packets.** A synthetic Salsa20 round-trip can pass while the real IV placement, XOR constant, or packet size is wrong. Task 12 must verify against a live console.
 2. **Chiaki-Up may opt out of audio playback capture.** The app can record silence without error. Task 9 must detect silence and Task 10 must surface the fallback.
-3. **Lap boundaries fall between 60 Hz samples.** A marker can be one or more frames late. Task 11 must check the marker against the visible lap line, not just against the code's own timestamp.
+3. **Lap boundaries fall between 60 Hz samples.** A marker can be one or more frames late. Task 12 must check the marker against the visible lap line, not just against the code's own timestamp.
 4. **MediaProjection/foreground-service lifecycle on Android 16.** Switching to Chiaki-Up, pulling the notification shade, locking the screen, or stopping projection can end recording. Tasks 8, 10, and 11 must exercise each transition.
-5. **1080p60 encode plus Chiaki-Up decode thermal load.** The Pixel 10 may throttle after minutes. Task 11 must run a 10-minute test and confirm the 720p60 fallback.
+5. **1080p60 encode plus Chiaki-Up decode thermal load.** The Pixel 10 may throttle after minutes. Task 12 must run a 10-minute test and confirm the 720p60 fallback.
 
 ---
 
@@ -1265,7 +1265,72 @@ git commit -m "feat: arm and auto-start recording from telemetry"
 
 ---
 
-### Task 11: End-to-end spike verification
+### Task 11: Session persistence
+
+**Files:**
+- Create: `core/src/main/kotlin/io/github/jlai403/pocketsimengineer/core/session/SessionWriter.kt`
+- Create: `core/src/test/kotlin/io/github/jlai403/pocketsimengineer/core/session/SessionWriterTest.kt`
+- Modify: `app/src/main/kotlin/io/github/jlai403/pocketsimengineer/app/recording/RecordingService.kt`
+- Modify: `app/src/main/kotlin/io/github/jlai403/pocketsimengineer/app/service/TelemetryService.kt`
+
+**Interfaces:**
+- Consumes: `Sample`, `LapBoundary`, `LapTelemetryCodec`, `SessionJsonCodec`.
+- Produces:
+  - `class SessionWriter(rootDir: File, metadata: SessionMetadata)` with:
+    - `fun addSample(sample: Sample)`
+    - `fun writeLap(boundary: LapBoundary, videoFile: String, videoStartOffsetMs: Int): LapMetadata`
+    - `fun finalize(rawDeleted: Boolean): SessionMetadata`
+    - `fun sessionDir(): File`
+
+**Scope note:** The spike writes the raw MP4 plus per-lap `.gt7lap` telemetry and JSON. It does **not** cut per-lap MP4s, because `MediaMuxer` writes the MP4 index only on stop. Per-lap video remux moves to v0.1 and must happen after the raw file is finalized, or use fragmented MP4.
+
+- [ ] **Step 1: Write the failing session writer test**
+
+Create `SessionWriterTest.kt` with a temp directory, feed three samples across a lap boundary, call `writeLap`, and assert:
+- `session.json` exists and contains one lap.
+- `laps/lap-001.gt7lap` decodes to three samples.
+- `laps/lap-001.json` exists.
+- `finalize(rawDeleted = true)` persists `rawDeleted`.
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `./gradlew :core:test --tests '*SessionWriterTest*'`
+Expected: FAIL because `SessionWriter` does not exist.
+
+- [ ] **Step 3: Implement `SessionWriter`**
+
+- Create `rootDir/laps`.
+- `addSample` appends to an in-memory list.
+- `writeLap` selects samples in `[startNanos - 2 s, endNanos + 1 s]`, writes `lap-%03d.gt7lap` and `lap-%03d.json`, updates `session.json`.
+- `finalize` writes `rawDeleted` and returns the updated metadata.
+
+- [ ] **Step 4: Run the test to verify it passes**
+
+Run: `./gradlew :core:test --tests '*SessionWriterTest*'`
+Expected: PASS.
+
+- [ ] **Step 5: Integrate with the recording service**
+
+- On `ACTION_ARM`, create `files/sessions/<sessionId>/` and a `SessionWriter`.
+- Record the raw video to `sessions/<sessionId>/raw.mp4` and audio to `sessions/<sessionId>/audio.m4a`.
+- `onTelemetry` adds each sample to the writer.
+- `TelemetryService` forwards lap boundaries to `RecordingService.onLap`.
+- `onLap` calls `writeLap(boundary, videoFile = "raw.mp4", videoStartOffsetMs = 0)`.
+- On stop, call `finalize(rawDeleted = false)` and keep the raw file.
+
+- [ ] **Step 6: Build and commit**
+
+Run: `./gradlew :core:test :app:assembleDebug`
+Expected: PASS + BUILD SUCCESSFUL.
+
+```bash
+git add core/src/main core/src/test app/src/main app/src/test
+git commit -m "feat: persist session and per-lap telemetry"
+```
+
+---
+
+### Task 12: End-to-end spike verification
 
 **Files:**
 - Modify: `README.md` with the verification commands and known limitations.
@@ -1316,7 +1381,7 @@ Expected:
 - [ ] **Step 4: Verify video and audio**
 
 ```bash
-ffprobe -v error -show_entries stream=codec_type,codec_name,width,height,r_frame_rate,sample_rate,channels -of default=nw=1 sessions/*/laps/*.mp4
+ffprobe -v error -show_entries stream=codec_type,codec_name,width,height,r_frame_rate,sample_rate,channels -of default=nw=1 sessions/*/raw.mp4 sessions/*/audio.m4a
 ```
 Expected:
 - H.264 video, 1920×1080, ~60 fps.
@@ -1326,10 +1391,9 @@ Expected:
 
 - [ ] **Step 5: Verify sync and lifecycle**
 
-- Open a lap in the app.
-- Pause at the start/finish line; compare the playhead to the visible line.
-- Adjust the sync nudge until the chart cursor and the line agree.
-- Confirm the marker lands within a few frames.
+- Open `sessions/*/raw.mp4` in a desktop player.
+- Read `laps/lap-001.json` and compute the lap start as `(startNanos - recordingStartNanos) / 1e6`; compare that point to the visible start/finish line.
+- Confirm the marker lands within a few frames. The spike has no playback UI yet; this is a manual video review.
 - While recording, pull down the notification shade, lock and unlock the screen, and stop projection from the system UI. Confirm the app stops cleanly and does not crash.
 - Run 10 minutes at 1080p60. Confirm no unacceptable thermal throttling; if it throttles, confirm the app drops to 720p60 and notifies.
 
@@ -1355,5 +1419,5 @@ git commit -m "docs: record spike verification results"
 
 - **Spec coverage:** The spike covers telemetry ingest/decrypt/parse, lap detection, session JSON, binary telemetry, screen recording, internal audio, arm/auto-start, notification Stop, and on-device verification. v0.1 items (library, playback, charts, map, CSV, F-Droid) are intentionally out of scope for this plan and remain in the spec.
 - **Type consistency:** `Sample`, `LapBoundary`, `DecodeResult`, `Recorder`, `RecordingState`, and `RecordingEvent` names are consistent across tasks.
-- **Review Focus tests:** Real packet verification is Task 11 Step 3; audio silence is Task 9 Step 4 and Task 11 Step 4; lap boundary accuracy is Task 11 Step 5; projection/lifecycle is Task 10 Step 4 and Task 11 Step 5; thermal load is Task 11 Step 5.
+- **Review Focus tests:** Real packet verification is Task 12 Step 3; audio silence is Task 9 Step 4 and Task 12 Step 4; lap boundary accuracy is Task 12 Step 5; projection/lifecycle is Task 10 Step 4 and Task 12 Step 5; thermal load is Task 12 Step 5.
 - **Proportion:** The plan is longer than the spec because the spike has many platform-specific verification steps, but each task has a single deliverable and a check.

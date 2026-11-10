@@ -201,7 +201,11 @@ class RecordingService : Service() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
         ) {
-            val audioFile = File(filesDir, "raw-audio-$stamp.m4a")
+            val audioFile = if (sessionDir != null) {
+                File(sessionDir, "audio.m4a")
+            } else {
+                File(filesDir, "raw-audio-$stamp.m4a")
+            }
             lastAudioOutput.value = audioFile.absolutePath
             try {
                 audioCapture = AudioCapture(mediaProjection, audioFile).also { it.start() }
