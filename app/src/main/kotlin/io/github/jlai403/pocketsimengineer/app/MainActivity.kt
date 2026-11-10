@@ -26,6 +26,10 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission(),
     ) { }
 
+    private val audioPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { requestScreenCapture() }
+
     private val screenCapture = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
@@ -46,6 +50,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val serviceState by TelemetryService.state.collectAsStateWithLifecycle()
             val recording by RecordingService.isRecording.collectAsStateWithLifecycle()
+            val audioSilent by RecordingService.audioSilent.collectAsStateWithLifecycle()
             var ip by rememberSaveable { mutableStateOf("") }
 
             PocketSimEngineerTheme {
@@ -57,13 +62,18 @@ class MainActivity : ComponentActivity() {
                         lapCount = serviceState.lapCount,
                         speedMps = serviceState.speedMps,
                         recording = recording,
+                        audioWarning = if (audioSilent == true) {
+                            "Audio unavailable — recording video only."
+                        } else {
+                            null
+                        },
                     ),
                     onIpChanged = { ip = it },
                     onArm = {
                         requestNotificationPermission()
                         startTelemetry(ip)
                     },
-                    onTestRecord = { requestScreenCapture() },
+                    onTestRecord = { requestTestRecord() },
                     onStop = {
                         startService(
                             Intent(this, TelemetryService::class.java)
@@ -85,6 +95,17 @@ class MainActivity : ComponentActivity() {
             PackageManager.PERMISSION_GRANTED
         ) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun requestTestRecord() {
+        if (Build.VERSION.SDK_INT >= 23 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            audioPermission.launch(Manifest.permission.RECORD_AUDIO)
+        } else {
+            requestScreenCapture()
         }
     }
 

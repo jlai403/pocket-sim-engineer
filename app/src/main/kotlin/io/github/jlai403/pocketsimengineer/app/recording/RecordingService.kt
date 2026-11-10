@@ -1,5 +1,6 @@
 package io.github.jlai403.pocketsimengineer.app.recording
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,11 +8,13 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,11 +38,14 @@ class RecordingService : Service() {
 
         val isRecording = MutableStateFlow(false)
         val lastOutput = MutableStateFlow<String?>(null)
+        val lastAudioOutput = MutableStateFlow<String?>(null)
+        val audioSilent = MutableStateFlow<Boolean?>(null)
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var autoStopJob: Job? = null
     private var recorder: ScreenRecorder? = null
+    private var audioCapture: AudioCapture? = null
     private var projection: MediaProjection? = null
 
     override fun onCreate() {
@@ -82,9 +88,25 @@ class RecordingService : Service() {
             null,
         )
 
-        val file = File(filesDir, "test-${Instant.now().epochSecond}.mp4")
+        val stamp = Instant.now().epochSecond
+        val file = File(filesDir, "test-$stamp.mp4")
         lastOutput.value = file.absolutePath
         recorder = ScreenRecorder(mediaProjection, file).also { it.start() }
+
+        audioSilent.value = null
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            val audioFile = File(filesDir, "test-audio-$stamp.m4a")
+            lastAudioOutput.value = audioFile.absolutePath
+            try {
+                audioCapture = AudioCapture(mediaProjection, audioFile).also { it.start() }
+            } catch (_: Exception) {
+                audioSilent.value = true
+            }
+        } else {
+            audioSilent.value = true
+        }
         isRecording.value = true
 
         if (autoStopMs > 0) {
@@ -98,6 +120,9 @@ class RecordingService : Service() {
     private fun stopRecording() {
         autoStopJob?.cancel()
         autoStopJob = null
+        audioCapture?.stop()
+        audioSilent.value = audioCapture?.silent ?: true
+        audioCapture = null
         recorder?.stop()
         recorder = null
         val currentProjection = projection
@@ -110,6 +135,9 @@ class RecordingService : Service() {
 
     override fun onDestroy() {
         autoStopJob?.cancel()
+        audioCapture?.stop()
+        audioSilent.value = audioCapture?.silent ?: true
+        audioCapture = null
         recorder?.stop()
         recorder = null
         val currentProjection = projection
