@@ -22,26 +22,34 @@ import io.github.jlai403.pocketsimengineer.app.ui.PocketSimEngineerTheme
 import io.github.jlai403.pocketsimengineer.app.ui.SpikeUiState
 
 class MainActivity : ComponentActivity() {
+    private enum class CapturePurpose { Arm, Test }
+
+    private var capturePurpose = CapturePurpose.Test
+
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { }
 
     private val audioPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { requestScreenCapture() }
+    ) { requestScreenCapture(CapturePurpose.Test) }
 
     private val screenCapture = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
         if (result.resultCode == RESULT_OK && result.data != null) {
-            ContextCompat.startForegroundService(
-                this,
-                Intent(this, RecordingService::class.java)
-                    .setAction(RecordingService.ACTION_START)
-                    .putExtra(RecordingService.EXTRA_RESULT_CODE, result.resultCode)
-                    .putExtra(RecordingService.EXTRA_RESULT_DATA, result.data)
-                    .putExtra(RecordingService.EXTRA_AUTO_STOP_MS, 10_000L),
-            )
+            val action = when (capturePurpose) {
+                CapturePurpose.Arm -> RecordingService.ACTION_ARM
+                CapturePurpose.Test -> RecordingService.ACTION_START
+            }
+            val intent = Intent(this, RecordingService::class.java)
+                .setAction(action)
+                .putExtra(RecordingService.EXTRA_RESULT_CODE, result.resultCode)
+                .putExtra(RecordingService.EXTRA_RESULT_DATA, result.data)
+            if (capturePurpose == CapturePurpose.Test) {
+                intent.putExtra(RecordingService.EXTRA_AUTO_STOP_MS, 10_000L)
+            }
+            ContextCompat.startForegroundService(this, intent)
         }
     }
 
@@ -72,6 +80,7 @@ class MainActivity : ComponentActivity() {
                     onArm = {
                         requestNotificationPermission()
                         startTelemetry(ip)
+                        requestScreenCapture(CapturePurpose.Arm)
                     },
                     onTestRecord = { requestTestRecord() },
                     onStop = {
@@ -105,11 +114,12 @@ class MainActivity : ComponentActivity() {
         ) {
             audioPermission.launch(Manifest.permission.RECORD_AUDIO)
         } else {
-            requestScreenCapture()
+            requestScreenCapture(CapturePurpose.Test)
         }
     }
 
-    private fun requestScreenCapture() {
+    private fun requestScreenCapture(purpose: CapturePurpose) {
+        capturePurpose = purpose
         val manager = getSystemService(MediaProjectionManager::class.java)
         screenCapture.launch(manager.createScreenCaptureIntent())
     }

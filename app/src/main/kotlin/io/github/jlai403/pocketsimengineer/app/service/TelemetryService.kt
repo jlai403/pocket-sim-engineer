@@ -13,6 +13,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
+import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
 import io.github.jlai403.pocketsimengineer.core.lap.LapDetector
 import io.github.jlai403.pocketsimengineer.core.protocol.Gt7Decoder
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,9 +66,12 @@ class TelemetryService : Service() {
                     decoder = Gt7Decoder(),
                     lapDetector = LapDetector(),
                     stats = TelemetryStats(),
-                    onSample = { },
+                    onSample = { RecordingService.instance?.onTelemetry(it) },
                     onLap = { },
-                    onState = { state.value = it },
+                    onState = {
+                        state.value = it
+                        if (!it.connected) RecordingService.instance?.onNoPackets()
+                    },
                 ).also { it.start() }
                 return START_STICKY
             }

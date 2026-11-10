@@ -16,18 +16,22 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
+import io.github.jlai403.pocketsimengineer.core.clock.Clock
+import io.github.jlai403.pocketsimengineer.core.model.Sample
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.Instant
 
 class RecordingService : Service() {
     companion object {
+        const val ACTION_ARM = "io.github.jlai403.pocketsimengineer.action.ARM_RECORDING"
         const val ACTION_START = "io.github.jlai403.pocketsimengineer.action.START_RECORDING"
         const val ACTION_STOP = "io.github.jlai403.pocketsimengineer.action.STOP_RECORDING"
         const val EXTRA_RESULT_CODE = "result_code"
@@ -40,16 +44,23 @@ class RecordingService : Service() {
         val lastOutput = MutableStateFlow<String?>(null)
         val lastAudioOutput = MutableStateFlow<String?>(null)
         val audioSilent = MutableStateFlow<Boolean?>(null)
+
+        @Volatile
+        var instance: RecordingService? = null
+            private set
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var autoStopJob: Job? = null
+    private var tickJob: Job? = null
+    private var controller: RecordingController? = null
     private var recorder: ScreenRecorder? = null
     private var audioCapture: AudioCapture? = null
     private var projection: MediaProjection? = null
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Recording", NotificationManager.IMPORTANCE_LOW),
@@ -58,38 +69,99 @@ class RecordingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_STOP -> stopRecording()
-            ACTION_START -> startRecording(intent)
+            ACTION_STOP -> stopEverything()
+            ACTION_ARM -> arm(intent)
+            ACTION_START -> recordTest(intent)
         }
         return START_NOT_STICKY
     }
 
-    private fun startRecording(intent: Intent) {
-        val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
-        @Suppress("DEPRECATION")
-        val resultData = intent.getParcelableExtra(EXTRA_RESULT_DATA) as? Intent ?: return
-        val autoStopMs = intent.getLongExtra(EXTRA_AUTO_STOP_MS, 0L)
+    fun onTelemetry(sample: Sample) {
+        val current = controller ?: return
+        if (sample.flags and 1 != 0) {
+            current.onEvent(RecordingEvent.CarOnTrack(sample.lapCount, sample.carCode))
+        } else {
+            current.onEvent(RecordingEvent.OffTrack)
+        }
+        updateNotification()
+    }
 
+    fun onNoPackets() {
+        controller?.onEvent(RecordingEvent.NoPackets)
+        updateNotification()
+    }
+
+    private fun arm(intent: Intent) {
         startForeground(
             NOTIFICATION_ID,
-            notification("Recording"),
+            notification("Armed"),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION,
         )
-
-        val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        val mediaProjection = manager.getMediaProjection(resultCode, resultData) ?: return
+        val mediaProjection = projectionFrom(intent) ?: run {
+            stopEverything()
+            return
+        }
         projection = mediaProjection
+        controller = RecordingController(
+            clock = object : Clock {
+                override fun nanoTime(): Long = System.nanoTime()
+            },
+            recorder = object : Recorder {
+                override val isRecording: Boolean get() = recorder?.isRecording == true
+                override fun start() = startCapture()
+                override fun stop() = stopCapture()
+            },
+        ).also {
+            it.onEvent(RecordingEvent.Arm)
+            it.onEvent(RecordingEvent.PermissionGranted)
+        }
+        startTicking()
+        updateNotification()
+    }
+
+    private fun recordTest(intent: Intent) {
+        val autoStopMs = intent.getLongExtra(EXTRA_AUTO_STOP_MS, 0L)
+        startForeground(
+            NOTIFICATION_ID,
+            notification("Recording test clip"),
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION,
+        )
+        val mediaProjection = projectionFrom(intent) ?: run {
+            stopEverything()
+            return
+        }
+        projection = mediaProjection
+        startCapture()
+        if (autoStopMs > 0) {
+            autoStopJob = scope.launch {
+                delay(autoStopMs)
+                stopEverything()
+            }
+        }
+    }
+
+    private fun projectionFrom(intent: Intent): MediaProjection? {
+        val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
+        @Suppress("DEPRECATION")
+        val resultData = intent.getParcelableExtra(EXTRA_RESULT_DATA) as? Intent ?: return null
+        val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        val mediaProjection = manager.getMediaProjection(resultCode, resultData) ?: return null
         mediaProjection.registerCallback(
             object : MediaProjection.Callback() {
                 override fun onStop() {
-                    stopRecording()
+                    stopEverything()
                 }
             },
             null,
         )
+        return mediaProjection
+    }
 
+    private fun startCapture() {
+        if (recorder != null) return
+        val mediaProjection = projection ?: return
         val stamp = Instant.now().epochSecond
-        val file = File(filesDir, "test-$stamp.mp4")
+        val file = File(filesDir, "raw-$stamp.mp4")
         lastOutput.value = file.absolutePath
         recorder = ScreenRecorder(mediaProjection, file).also { it.start() }
 
@@ -97,7 +169,7 @@ class RecordingService : Service() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
         ) {
-            val audioFile = File(filesDir, "test-audio-$stamp.m4a")
+            val audioFile = File(filesDir, "raw-audio-$stamp.m4a")
             lastAudioOutput.value = audioFile.absolutePath
             try {
                 audioCapture = AudioCapture(mediaProjection, audioFile).also { it.start() }
@@ -108,46 +180,71 @@ class RecordingService : Service() {
             audioSilent.value = true
         }
         isRecording.value = true
-
-        if (autoStopMs > 0) {
-            autoStopJob = scope.launch {
-                delay(autoStopMs)
-                stopRecording()
-            }
-        }
+        updateNotification()
     }
 
-    private fun stopRecording() {
-        autoStopJob?.cancel()
-        autoStopJob = null
+    private fun stopCapture() {
         audioCapture?.stop()
         audioSilent.value = audioCapture?.silent ?: true
         audioCapture = null
         recorder?.stop()
         recorder = null
+        isRecording.value = false
+    }
+
+    private fun startTicking() {
+        tickJob?.cancel()
+        tickJob = scope.launch {
+            while (isActive) {
+                delay(500)
+                controller?.tick()
+                updateNotification()
+            }
+        }
+    }
+
+    private fun stopEverything() {
+        autoStopJob?.cancel()
+        autoStopJob = null
+        tickJob?.cancel()
+        tickJob = null
+        controller?.onEvent(RecordingEvent.Stop)
+        controller = null
+        stopCapture()
         val currentProjection = projection
         projection = null
         currentProjection?.stop()
-        isRecording.value = false
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     override fun onDestroy() {
+        instance = null
         autoStopJob?.cancel()
-        audioCapture?.stop()
-        audioSilent.value = audioCapture?.silent ?: true
-        audioCapture = null
-        recorder?.stop()
-        recorder = null
+        tickJob?.cancel()
+        controller?.onEvent(RecordingEvent.Stop)
+        controller = null
+        stopCapture()
         val currentProjection = projection
         projection = null
         currentProjection?.stop()
-        isRecording.value = false
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun updateNotification() {
+        val state = controller?.state?.value
+        val text = when (state) {
+            is RecordingState.Armed -> "Armed"
+            is RecordingState.Recording -> "Recording lap ${state.lapCount}"
+            is RecordingState.Error -> "Error: ${state.message}"
+            is RecordingState.Stopping -> "Stopping"
+            else -> if (isRecording.value) "Recording" else "Armed"
+        }
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.notify(NOTIFICATION_ID, notification(text))
+    }
 
     private fun notification(text: String): Notification {
         val open = PendingIntent.getActivity(
@@ -156,12 +253,19 @@ class RecordingService : Service() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE,
         )
+        val stop = PendingIntent.getService(
+            this,
+            2,
+            Intent(this, RecordingService::class.java).setAction(ACTION_STOP),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Pocket Sim Engineer")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.presence_video_online)
             .setOngoing(true)
             .setContentIntent(open)
+            .addAction(android.R.drawable.ic_media_pause, "Stop", stop)
             .build()
     }
 }
