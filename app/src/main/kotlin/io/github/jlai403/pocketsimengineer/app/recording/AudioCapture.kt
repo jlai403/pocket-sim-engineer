@@ -158,12 +158,9 @@ class AudioCapture(
 
     @Synchronized
     override fun stop() {
-        if (!running) return
+        if (audioRecord == null && codec == null && muxer == null) return
         running = false
-        try {
-            audioRecord?.stop()
-        } catch (_: Exception) {
-        }
+        runCatching { audioRecord?.stop() }
         drainThread?.join(2_000)
         drainThread = null
         audioRecord?.release()

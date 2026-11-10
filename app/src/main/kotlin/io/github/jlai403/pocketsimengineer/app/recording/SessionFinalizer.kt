@@ -3,6 +3,7 @@ package io.github.jlai403.pocketsimengineer.app.recording
 import io.github.jlai403.pocketsimengineer.core.session.SessionStore
 import io.github.jlai403.pocketsimengineer.core.session.SessionWriter
 import java.io.File
+import android.os.Process
 
 /**
  * Cuts per-lap clips after the recorder has finalized the raw MP4. Idempotent, so a process
@@ -62,16 +63,21 @@ object SessionFinalizer {
     fun recover(store: SessionStore, keepRaw: Boolean, cutter: LapCutter = androidCutter) {
         for (session in store.list()) {
             val marker = File(store.sessionDir(session.sessionId), IN_PROGRESS)
-            if (marker.isFile && System.currentTimeMillis() - marker.lastModified() > 60_000) {
-                marker.delete()
-            }
+            if (!marker.isFile) continue
+            val owner = marker.readText().trim().toIntOrNull()
+            if (owner != Process.myPid()) marker.delete()
         }
         for (session in store.list()) {
             val dir = store.sessionDir(session.sessionId)
             if (File(dir, IN_PROGRESS).isFile) continue
             val raw = File(dir, session.rawFile)
             if (session.rawDeleted || !raw.isFile || session.laps.isEmpty()) continue
-            if (session.laps.none { it.needsCut || it.videoFile == session.rawFile }) continue
+            if (session.laps.none { it.needsCut || it.videoFile == session.rawFile }) {
+                val clipsPresent = session.laps.all { File(dir, it.videoFile).isFile }
+                if (clipsPresent && !keepRaw) raw.delete()
+                store.save(session.copy(rawDeleted = !raw.exists(), keepRaw = keepRaw))
+                continue
+            }
 
             val audio = session.audioFile?.let { File(dir, it) }
             runCatching {

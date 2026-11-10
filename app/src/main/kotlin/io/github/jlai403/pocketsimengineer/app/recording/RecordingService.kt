@@ -13,6 +13,7 @@ import android.content.pm.ServiceInfo
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.IBinder
+import android.os.Process
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
@@ -109,6 +110,7 @@ class RecordingService : Service() {
         } catch (error: Exception) {
             notice.value = "Recorder failed: ${error.message}"
             current.onEvent(RecordingEvent.RecorderError(error.message ?: "recorder-failed"))
+            stopEverything()
         }
         updateNotification()
     }
@@ -140,12 +142,12 @@ class RecordingService : Service() {
     }
 
     private fun arm(intent: Intent) {
-        if (finishing || projection != null || sessionWriter != null) return
         startForeground(
             NOTIFICATION_ID,
             notification("Armed"),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION,
         )
+        if (finishing || projection != null || sessionWriter != null) return
         val mediaProjection = projectionFrom(intent) ?: run {
             stopEverything()
             return
@@ -170,7 +172,7 @@ class RecordingService : Service() {
                 keepRaw = settings.keepRaw,
             ),
         )
-        File(sessionDir, SessionFinalizer.IN_PROGRESS).createNewFile()
+        File(sessionDir, SessionFinalizer.IN_PROGRESS).writeText(Process.myPid().toString())
         lastOutput.value = sessionDir.absolutePath
         activeSessionDir.value = sessionDir.absolutePath
         controller = RecordingController(
@@ -191,13 +193,13 @@ class RecordingService : Service() {
     }
 
     private fun recordTest(intent: Intent) {
-        if (finishing || projection != null) return
         val autoStopMs = intent.getLongExtra(EXTRA_AUTO_STOP_MS, 0L)
         startForeground(
             NOTIFICATION_ID,
             notification("Recording test clip"),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION,
         )
+        if (finishing || projection != null) return
         val mediaProjection = projectionFrom(intent) ?: run {
             stopEverything()
             return
@@ -252,11 +254,18 @@ class RecordingService : Service() {
             mime = settings.codec.mime,
         )
         val captureStartNanos = System.nanoTime()
-        recorder = ScreenRecorder(mediaProjection, file, config) { message ->
+        val newRecorder = ScreenRecorder(mediaProjection, file, config) { message ->
             onRecorderError(message)
-        }.also { it.start() }
-        sessionWriter?.updateMetadata {
-            it.copy(recordingStartNanos = captureStartNanos)
+        }
+        try {
+            newRecorder.start()
+            recorder = newRecorder
+            sessionWriter?.updateMetadata {
+                it.copy(recordingStartNanos = captureStartNanos)
+            }
+        } catch (error: Exception) {
+            newRecorder.stop()
+            throw error
         }
 
         audioSilent.value = null
@@ -326,6 +335,7 @@ class RecordingService : Service() {
         }
     }
 
+    @Synchronized
     private fun stopEverything() {
         if (finishing) return
         finishing = true
@@ -346,7 +356,7 @@ class RecordingService : Service() {
             try {
                 controllerToStop?.onEvent(RecordingEvent.Stop)
                 stopCapture()
-                withContext(Dispatchers.Main) { projectionToStop?.stop() }
+                withContext(Dispatchers.Main) { runCatching { projectionToStop?.stop() } }
                 if (writer != null) {
                     writer.finalize(rawDeleted = false)
                     SessionFinalizer.finish(writer, keepRaw)
@@ -357,6 +367,7 @@ class RecordingService : Service() {
             } finally {
                 activeSessionDir.value = null
                 withContext(Dispatchers.Main) {
+                    runCatching { projectionToStop?.stop() }
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }

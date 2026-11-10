@@ -104,13 +104,11 @@ class ScreenRecorder(
 
     @Synchronized
     override fun stop() {
-        if (!running) return
-        try {
-            codec?.signalEndOfInputStream()
-            drainThread?.join(2_000)
-        } catch (_: Exception) {
-            // Encoder may already be gone.
+        val encoder = codec ?: return
+        if (running) {
+            runCatching { encoder.signalEndOfInputStream() }
         }
+        drainThread?.join(2_000)
         running = false
         drainThread = null
 
