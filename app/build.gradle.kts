@@ -19,6 +19,17 @@ android {
         versionName = "0.1.0"
     }
 
+    // A checked-in debug key keeps GitHub Actions APKs updatable over each other.
+    // Release builds must use their own key.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("ci/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildFeatures {
         compose = true
     }

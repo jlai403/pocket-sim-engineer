@@ -48,6 +48,18 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - Packet C (steering, live lap timer) is not parsed yet.
 - The desktop/Rust core and cloud backup remain future work.
 
+## Builds from GitHub Actions
+
+Push the repository to GitHub; `.github/workflows/android.yml` then runs on every push and pull request:
+
+1. Open the **Actions** tab and select the latest **Android** run.
+2. Download the `pocketsimengineer-debug-<sha>` artifact.
+3. Unzip it and install `app-debug.apk` (`adb install -r app-debug.apk`, or sideload it on the phone).
+
+Pushing a tag such as `v0.1.0` also publishes a GitHub Release with a directly downloadable `pocketsimengineer-v0.1.0.apk`.
+
+`ci/debug.keystore` is an intentionally public debug signing key, checked in so every CI build shares one signature and new APKs install over old ones. Release builds must use a private key.
+
 ## Remaining verification (needs a device)
 
 Task 12 in the plan is blocked without an attached Pixel 10:
