@@ -58,6 +58,26 @@ class SessionWriter(
     }
 
     @Synchronized
+    fun laps(): List<LapMetadata> = laps.toList()
+
+    /** Replaces a lap after remux, keeping session.json and lap JSON in sync. */
+    @Synchronized
+    fun updateLap(lap: LapMetadata) {
+        val index = laps.indexOfFirst { it.index == lap.index }
+        if (index >= 0) laps[index] = lap else laps.add(lap)
+        File(rootDir, "laps/lap-%03d.json".format(lap.index))
+            .writeText(SessionJsonCodec.encodeLap(lap))
+        metadata = metadata.copy(laps = laps.toList())
+        writeSession()
+    }
+
+    @Synchronized
+    fun updateMetadata(transform: (SessionMetadata) -> SessionMetadata) {
+        metadata = transform(metadata)
+        writeSession()
+    }
+
+    @Synchronized
     fun finalize(rawDeleted: Boolean): SessionMetadata {
         metadata = metadata.copy(rawDeleted = rawDeleted)
         writeSession()

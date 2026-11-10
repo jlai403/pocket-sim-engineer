@@ -17,14 +17,17 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
 import io.github.jlai403.pocketsimengineer.app.service.TelemetryService
+import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.ui.App
+import io.github.jlai403.pocketsimengineer.app.ui.CaptureUiState
 import io.github.jlai403.pocketsimengineer.app.ui.PocketSimEngineerTheme
-import io.github.jlai403.pocketsimengineer.app.ui.SpikeUiState
 
 class MainActivity : ComponentActivity() {
     private enum class CapturePurpose { Arm, Test }
 
+    private lateinit var settings: SettingsStore
     private var capturePurpose = CapturePurpose.Test
+    private var afterAudioPermission: (() -> Unit)? = null
 
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -32,40 +35,44 @@ class MainActivity : ComponentActivity() {
 
     private val audioPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { requestScreenCapture(CapturePurpose.Test) }
+    ) {
+        val action = afterAudioPermission
+        afterAudioPermission = null
+        action?.invoke()
+    }
 
     private val screenCapture = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        if (result.resultCode == RESULT_OK && result.data != null) {
-            val action = when (capturePurpose) {
-                CapturePurpose.Arm -> RecordingService.ACTION_ARM
-                CapturePurpose.Test -> RecordingService.ACTION_START
-            }
-            val intent = Intent(this, RecordingService::class.java)
-                .setAction(action)
-                .putExtra(RecordingService.EXTRA_RESULT_CODE, result.resultCode)
-                .putExtra(RecordingService.EXTRA_RESULT_DATA, result.data)
-            if (capturePurpose == CapturePurpose.Test) {
-                intent.putExtra(RecordingService.EXTRA_AUTO_STOP_MS, 10_000L)
-            }
-            ContextCompat.startForegroundService(this, intent)
+        if (result.resultCode != RESULT_OK || result.data == null) return@registerForActivityResult
+        val action = when (capturePurpose) {
+            CapturePurpose.Arm -> RecordingService.ACTION_ARM
+            CapturePurpose.Test -> RecordingService.ACTION_START
         }
+        val intent = Intent(this, RecordingService::class.java)
+            .setAction(action)
+            .putExtra(RecordingService.EXTRA_RESULT_CODE, result.resultCode)
+            .putExtra(RecordingService.EXTRA_RESULT_DATA, result.data)
+        if (capturePurpose == CapturePurpose.Test) {
+            intent.putExtra(RecordingService.EXTRA_AUTO_STOP_MS, 10_000L)
+        }
+        ContextCompat.startForegroundService(this, intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        settings = SettingsStore(this)
         setContent {
             val serviceState by TelemetryService.state.collectAsStateWithLifecycle()
             val recording by RecordingService.isRecording.collectAsStateWithLifecycle()
             val audioSilent by RecordingService.audioSilent.collectAsStateWithLifecycle()
-            var ip by rememberSaveable { mutableStateOf("") }
+            var ip by rememberSaveable { mutableStateOf(settings.ps5Ip) }
 
             PocketSimEngineerTheme {
                 App(
-                    state = SpikeUiState(
+                    capture = CaptureUiState(
                         ps5Ip = ip,
-                        status = if (recording) "Recording test clip" else serviceState.status,
+                        status = if (recording) "Recording" else serviceState.status,
                         packetsPerSecond = serviceState.packetsPerSecond,
                         lapCount = serviceState.lapCount,
                         speedMps = serviceState.speedMps,
@@ -76,25 +83,37 @@ class MainActivity : ComponentActivity() {
                             null
                         },
                     ),
-                    onIpChanged = { ip = it },
-                    onArm = {
-                        requestNotificationPermission()
-                        startTelemetry(ip)
-                        requestScreenCapture(CapturePurpose.Arm)
+                    onIpChanged = {
+                        ip = it
+                        settings.ps5Ip = it
                     },
-                    onTestRecord = { requestTestRecord() },
-                    onStop = {
-                        startService(
-                            Intent(this, TelemetryService::class.java)
-                                .setAction(TelemetryService.ACTION_STOP),
-                        )
-                        startService(
-                            Intent(this, RecordingService::class.java)
-                                .setAction(RecordingService.ACTION_STOP),
-                        )
+                    onArm = { arm(ip) },
+                    onTestRecord = {
+                        ensureAudio { requestCapture(CapturePurpose.Test) }
                     },
+                    onStop = { stopAll() },
                 )
             }
+        }
+    }
+
+    private fun arm(ip: String) {
+        if (ip.isBlank()) return
+        settings.ps5Ip = ip
+        requestNotificationPermission()
+        startTelemetry(ip)
+        ensureAudio { requestCapture(CapturePurpose.Arm) }
+    }
+
+    private fun ensureAudio(then: () -> Unit) {
+        if (Build.VERSION.SDK_INT >= 23 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            afterAudioPermission = then
+            audioPermission.launch(Manifest.permission.RECORD_AUDIO)
+        } else {
+            then()
         }
     }
 
@@ -107,30 +126,27 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun requestTestRecord() {
-        if (Build.VERSION.SDK_INT >= 23 &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            audioPermission.launch(Manifest.permission.RECORD_AUDIO)
-        } else {
-            requestScreenCapture(CapturePurpose.Test)
-        }
-    }
-
-    private fun requestScreenCapture(purpose: CapturePurpose) {
+    private fun requestCapture(purpose: CapturePurpose) {
         capturePurpose = purpose
         val manager = getSystemService(MediaProjectionManager::class.java)
         screenCapture.launch(manager.createScreenCaptureIntent())
     }
 
     private fun startTelemetry(ip: String) {
-        if (ip.isBlank()) return
         ContextCompat.startForegroundService(
             this,
             Intent(this, TelemetryService::class.java)
                 .setAction(TelemetryService.ACTION_START)
                 .putExtra(TelemetryService.EXTRA_IP, ip),
+        )
+    }
+
+    private fun stopAll() {
+        startService(
+            Intent(this, TelemetryService::class.java).setAction(TelemetryService.ACTION_STOP),
+        )
+        startService(
+            Intent(this, RecordingService::class.java).setAction(RecordingService.ACTION_STOP),
         )
     }
 }

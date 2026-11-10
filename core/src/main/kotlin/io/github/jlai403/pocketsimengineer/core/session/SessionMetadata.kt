@@ -12,6 +12,7 @@ data class SessionMetadata(
     val carName: String,
     val syncOffsetMs: Int = 0,
     val rawFile: String,
+    val audioFile: String? = null,
     val rawDeleted: Boolean = false,
     val keepRaw: Boolean = false,
     val laps: List<LapMetadata> = emptyList(),

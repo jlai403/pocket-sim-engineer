@@ -16,6 +16,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
+import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.core.clock.Clock
 import io.github.jlai403.pocketsimengineer.core.lap.LapBoundary
 import io.github.jlai403.pocketsimengineer.core.model.Sample
@@ -29,6 +30,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Instant
 
@@ -42,6 +44,8 @@ class RecordingService : Service() {
         const val EXTRA_AUTO_STOP_MS = "auto_stop_ms"
         private const val CHANNEL_ID = "recording"
         private const val NOTIFICATION_ID = 1002
+        const val SETTINGS = "settings"
+        const val KEEP_RAW = "keep_raw"
 
         val isRecording = MutableStateFlow(false)
         val lastOutput = MutableStateFlow<String?>(null)
@@ -51,9 +55,12 @@ class RecordingService : Service() {
         @Volatile
         var instance: RecordingService? = null
             private set
+
+        private val finalizeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var finishing = false
     private var autoStopJob: Job? = null
     private var tickJob: Job? = null
     private var controller: RecordingController? = null
@@ -61,6 +68,7 @@ class RecordingService : Service() {
     private var audioCapture: AudioCapture? = null
     private var projection: MediaProjection? = null
     private var sessionWriter: SessionWriter? = null
+    private var lastNotificationText: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -81,12 +89,14 @@ class RecordingService : Service() {
     }
 
     fun onTelemetry(sample: Sample) {
-        sessionWriter?.addSample(sample)
         val current = controller ?: return
         if (sample.flags and 1 != 0) {
             current.onEvent(RecordingEvent.CarOnTrack(sample.lapCount, sample.carCode))
         } else {
             current.onEvent(RecordingEvent.OffTrack)
+        }
+        if (current.state.value is RecordingState.Recording) {
+            sessionWriter?.addSample(sample)
         }
         updateNotification()
     }
@@ -126,6 +136,7 @@ class RecordingService : Service() {
                 carCode = 0,
                 carName = "Unknown",
                 rawFile = "raw.mp4",
+                audioFile = "audio.m4a",
             ),
         )
         lastOutput.value = sessionDir.absolutePath
@@ -195,7 +206,16 @@ class RecordingService : Service() {
             File(filesDir, "raw-$stamp.mp4")
         }
         lastOutput.value = file.absolutePath
-        recorder = ScreenRecorder(mediaProjection, file).also { it.start() }
+        val settings = SettingsStore(this)
+        val quality = settings.quality
+        val config = VideoEncoderConfig(
+            width = quality.width,
+            height = quality.height,
+            fps = 60,
+            bitrate = settings.bitrateMbps * 1_000_000,
+            mime = settings.codec.mime,
+        )
+        recorder = ScreenRecorder(mediaProjection, file, config).also { it.start() }
 
         audioSilent.value = null
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
@@ -240,34 +260,38 @@ class RecordingService : Service() {
     }
 
     private fun stopEverything() {
+        if (finishing) return
+        finishing = true
         autoStopJob?.cancel()
         autoStopJob = null
         tickJob?.cancel()
         tickJob = null
-        controller?.onEvent(RecordingEvent.Stop)
+        val controllerToStop = controller
         controller = null
-        stopCapture()
-        sessionWriter?.finalize(rawDeleted = false)
+        val writer = sessionWriter
         sessionWriter = null
-        val currentProjection = projection
+        val projectionToStop = projection
         projection = null
-        currentProjection?.stop()
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        val keepRaw = SettingsStore(this).keepRaw
+
+        finalizeScope.launch {
+            controllerToStop?.onEvent(RecordingEvent.Stop)
+            stopCapture()
+            if (writer != null) {
+                writer.finalize(rawDeleted = false)
+                SessionFinalizer.finish(writer, keepRaw)
+            }
+            withContext(Dispatchers.Main) {
+                projectionToStop?.stop()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+        }
     }
 
     override fun onDestroy() {
         instance = null
-        autoStopJob?.cancel()
-        tickJob?.cancel()
-        controller?.onEvent(RecordingEvent.Stop)
-        controller = null
-        stopCapture()
-        sessionWriter?.finalize(rawDeleted = false)
-        sessionWriter = null
-        val currentProjection = projection
-        projection = null
-        currentProjection?.stop()
+        if (!finishing) stopEverything()
         super.onDestroy()
     }
 
@@ -282,6 +306,8 @@ class RecordingService : Service() {
             is RecordingState.Stopping -> "Stopping"
             else -> if (isRecording.value) "Recording" else "Armed"
         }
+        if (text == lastNotificationText) return
+        lastNotificationText = text
         val manager = getSystemService(NotificationManager::class.java)
         manager.notify(NOTIFICATION_ID, notification(text))
     }

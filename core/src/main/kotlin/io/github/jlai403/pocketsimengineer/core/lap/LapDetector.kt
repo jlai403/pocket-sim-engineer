@@ -45,12 +45,14 @@ class LapDetector {
                 } else {
                     ((sample.timeNanos - lapStartNanos) / 1_000_000L).toInt()
                 }
-                boundary = LapBoundary(
-                    lapNumber = lapNumber,
-                    startNanos = lapStartNanos,
-                    endNanos = sample.timeNanos,
-                    lapTimeMs = lapTimeMs,
-                )
+                if (lapTimeMs in MIN_PLAUSIBLE_LAP_MS..MAX_PLAUSIBLE_LAP_MS) {
+                    boundary = LapBoundary(
+                        lapNumber = lapNumber,
+                        startNanos = lapStartNanos,
+                        endNanos = sample.timeNanos,
+                        lapTimeMs = lapTimeMs,
+                    )
+                }
             }
             lapStartNanos = sample.timeNanos
         }
@@ -59,5 +61,10 @@ class LapDetector {
         lastPacketId = sample.packetId
         lastTimeNanos = sample.timeNanos
         return boundary
+    }
+
+    private companion object {
+        const val MIN_PLAUSIBLE_LAP_MS = 10_000
+        const val MAX_PLAUSIBLE_LAP_MS = 1_800_000
     }
 }

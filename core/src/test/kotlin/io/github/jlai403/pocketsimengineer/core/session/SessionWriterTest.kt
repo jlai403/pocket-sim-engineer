@@ -79,6 +79,36 @@ class SessionWriterTest {
     }
 
     @Test
+    fun `updateLap replaces the lap in both json files`() {
+        val metadata = SessionMetadata(
+            sessionId = "s1",
+            createdAt = "2026-11-10T18:42:11Z",
+            trackLabel = "Test Track",
+            carCode = 3474,
+            carName = "BRZ GT300 '21",
+            rawFile = "raw.mp4",
+        )
+        val writer = SessionWriter(temp, metadata)
+        writer.addSample(sample(0L, 40f))
+        writer.addSample(sample(1_000_000_000L, 41f))
+        val lap = writer.writeLap(
+            boundary = LapBoundary(1, 0L, 1_000_000_000L, 1_000),
+            videoFile = "raw.mp4",
+            videoStartOffsetMs = 0,
+        )
+
+        writer.updateLap(
+            lap.copy(videoFile = "laps/lap-001.mp4", videoStartOffsetMs = 2_000),
+        )
+
+        val fromSession = SessionJsonCodec.decodeSession(File(temp, "session.json").readText())
+        val fromLap = SessionJsonCodec.decodeLap(File(temp, "laps/lap-001.json").readText())
+        assertEquals("laps/lap-001.mp4", fromSession.laps.single().videoFile)
+        assertEquals(2_000, fromLap.videoStartOffsetMs)
+        assertEquals(listOf(lap.index), writer.laps().map { it.index })
+    }
+
+    @Test
     fun `finalize persists raw deletion state`() {
         val metadata = SessionMetadata(
             sessionId = "s1",

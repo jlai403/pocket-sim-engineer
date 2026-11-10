@@ -64,6 +64,15 @@ class LapDetectorTest {
     }
 
     @Test
+    fun `drops an implausible lap time and still resets lap start`() {
+        val detector = LapDetector()
+        detector.onSample(sample(0, 1, packetId = 1))
+        assertNull(
+            detector.onSample(sample(90_000_000_000, 2, lastLapTimeMs = 2_000, packetId = 2)),
+        )
+    }
+
+    @Test
     fun `computes lap time when last lap time is missing`() {
         val detector = LapDetector()
         detector.onSample(sample(0, 1, packetId = 1))

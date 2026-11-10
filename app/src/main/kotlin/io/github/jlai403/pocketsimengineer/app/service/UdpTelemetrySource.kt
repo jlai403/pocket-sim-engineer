@@ -34,6 +34,7 @@ class UdpTelemetrySource(
     private var heartbeatJob: Job? = null
     private var lastPacketNanos: Long? = null
     private var lastSample: Sample? = null
+    private var lastPublishNanos = 0L
 
     fun start() {
         stop()
@@ -98,6 +99,8 @@ class UdpTelemetrySource(
     }
 
     private fun publish(nowNanos: Long) {
+        if (nowNanos - lastPublishNanos < PUBLISH_INTERVAL_NANOS) return
+        lastPublishNanos = nowNanos
         val sample = lastSample
         val connected = lastPacketNanos?.let { nowNanos - it < 2_000_000_000L } == true
         onState(
@@ -112,5 +115,9 @@ class UdpTelemetrySource(
                 status = if (connected) "Telemetry connected" else "Waiting for telemetry",
             ),
         )
+    }
+
+    private companion object {
+        const val PUBLISH_INTERVAL_NANOS = 100_000_000L
     }
 }

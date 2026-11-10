@@ -13,4 +13,5 @@ data class LapMetadata(
     val videoFile: String,
     val videoStartOffsetMs: Int,
     val syncOffsetMs: Int = 0,
+    val needsCut: Boolean = false,
 )

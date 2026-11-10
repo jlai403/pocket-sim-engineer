@@ -96,6 +96,19 @@ class SessionStoreTest {
     }
 
     @Test
+    fun `updateLap rewrites the lap list and lap json`() {
+        writeSession("s1", "2026-11-10T10:00:00Z")
+        val store = SessionStore(temp)
+        val lap = store.load("s1")!!.laps.first().copy(needsCut = true)
+        store.updateLap("s1", lap)
+        assertEquals(true, store.load("s1")!!.laps.first().needsCut)
+        assertEquals(
+            true,
+            SessionJsonCodec.decodeLap(File(temp, "sessions/s1/laps/lap-001.json").readText()).needsCut,
+        )
+    }
+
+    @Test
     fun `reads lap samples from the binary file`() {
         val dir = writeSession("s1", "2026-11-10T10:00:00Z")
         val sample = Sample(

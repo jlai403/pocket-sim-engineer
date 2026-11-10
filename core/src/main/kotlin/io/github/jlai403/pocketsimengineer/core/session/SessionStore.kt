@@ -21,6 +21,8 @@ class SessionStore(private val rootDir: File) {
             .mapNotNull { load(it.name) }
             .sortedByDescending { parseInstant(it.createdAt) }
 
+    fun sessionDir(sessionId: String): File = File(sessionsDir, sessionId)
+
     fun load(sessionId: String): SessionMetadata? {
         val file = File(sessionsDir, "$sessionId/session.json")
         if (!file.isFile) return null
@@ -31,6 +33,17 @@ class SessionStore(private val rootDir: File) {
         val dir = File(sessionsDir, metadata.sessionId)
         dir.mkdirs()
         File(dir, "session.json").writeText(SessionJsonCodec.encodeSession(metadata))
+    }
+
+    fun updateLap(sessionId: String, lap: LapMetadata): SessionMetadata? {
+        val metadata = load(sessionId) ?: return null
+        val laps = metadata.laps.map { if (it.index == lap.index) lap else it }
+        if (laps.none { it.index == lap.index }) return null
+        val updated = metadata.copy(laps = laps)
+        save(updated)
+        File(sessionDir(sessionId), "laps/lap-%03d.json".format(lap.index))
+            .writeText(SessionJsonCodec.encodeLap(lap))
+        return updated
     }
 
     fun rename(sessionId: String, trackLabel: String): SessionMetadata? {
