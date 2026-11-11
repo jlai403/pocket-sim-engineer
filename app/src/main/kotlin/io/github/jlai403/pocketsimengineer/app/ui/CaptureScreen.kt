@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -21,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +38,7 @@ fun CaptureScreen(
     onStop: () -> Unit,
 ) {
     var ip by remember(state.ps5Ip) { mutableStateOf(state.ps5Ip) }
+    var showInstructions by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -111,13 +114,96 @@ fun CaptureScreen(
             GhostPill("Stop", onStop, Modifier.weight(1f))
         }
 
-        Text(
-            "Arm grants screen capture once. Recording starts automatically when GT7 reports " +
-                "the car on track, and stops five seconds after you leave the track.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        RecordingInstructions(showInstructions) { showInstructions = it }
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+private val recordingSteps = listOf(
+    "Connect Chiaki-Up to the PS5 and open GT7.",
+    "Enter the PS5 IPv4 address above.",
+    "Tap Arm recording, then allow screen capture.",
+    "Switch to Chiaki-Up and start driving. Recording begins when GT7 reports the car on track.",
+    "Drive your laps. The notification shows the current lap.",
+    "Return to the menu for 5 seconds, or tap Stop in the notification.",
+    "Wait for \"Finalizing…\" to finish, then open Library and pick a lap.",
+)
+
+@Composable
+private fun RecordingInstructions(expanded: Boolean, onExpandedChange: (Boolean) -> Unit) {
+    SectionCard(
+        title = "How to record",
+        action = {
+            GhostPill(
+                text = if (expanded) "Hide steps" else "Show steps",
+                onClick = { onExpandedChange(!expanded) },
+            )
+        },
+    ) {
+        if (!expanded) {
+            Text(
+                "7 steps · about a minute before your first lap",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            return@SectionCard
+        }
+
+        recordingSteps.forEachIndexed { index, step ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    NumericText(
+                        "${index + 1}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Text(
+                    step,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.errorContainer)
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                "Keep in mind",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                "Keep Chiaki-Up in front. Locking the screen or stopping projection ends capture.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                "If Android blocks internal audio, the lap records silently and a warning appears.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                "Test 10 s only verifies capture; it does not create a library session.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+        }
     }
 }
 

@@ -117,7 +117,7 @@ Defined in `ui/Components.kt` unless noted.
 | `GhostPill` | secondary actions; outlined, 44 dp; pass `contentColor = error` for destructive |
 | `StatChip` | compact metric block: accent value over muted label, 16 dp radius |
 | `SegmentedChoice` | equal-width pill segments inside a `CircleShape` track; selected segment is green |
-| `SectionCard` | 22 dp surface card with 16 dp padding and an optional uppercase title |
+| `SectionCard` | 22 dp surface card with 16 dp padding, an optional uppercase title, and an optional trailing action |
 | `SectionLabel` | uppercase muted label for groups inside a card |
 | `StatusDot` | 10 dp circle: green when live, outline when idle |
 | `AppBottomBar` (App.kt) | Library / Record / Settings tabs, green indicator, no elevation |
@@ -141,7 +141,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Warnings render in an `errorContainer` banner.
 - “Console” card with the PS5 IP field.
 - Full-width `Arm recording` primary pill, then `Test 10 s` / `Stop` ghost pills.
-- Supporting copy explains arm-once and auto-stop behavior.
+- “How to record” card: collapsed by default with a one-line summary and a `Show steps` pill; expands to seven numbered steps, then a red “Keep in mind” block covering screen lock, blocked audio, and the test-recording caveat.
 
 ### Session
 

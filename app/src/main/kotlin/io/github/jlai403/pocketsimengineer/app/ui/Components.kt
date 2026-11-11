@@ -215,6 +215,7 @@ fun NumericText(
 fun SectionCard(
     title: String? = null,
     modifier: Modifier = Modifier,
+    action: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     Column(
@@ -225,12 +226,16 @@ fun SectionCard(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        title?.let {
-            Text(
-                it.uppercase(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        if (title != null || action != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    title.orEmpty().uppercase(),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                action?.invoke()
+            }
         }
         content()
     }
