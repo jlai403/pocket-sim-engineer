@@ -7,6 +7,7 @@ Android telemetry and synchronized replay for Gran Turismo 7. Record a race thro
 ## Documents
 
 - [Product and technical spec](docs/specs/2026-11-10-pocket-sim-engineer.md)
+- [Design system](DESIGN.md)
 - [Implementation plan](docs/superpowers/plans/2026-11-10-pocket-sim-engineer-spike.md)
 
 ## Architecture
