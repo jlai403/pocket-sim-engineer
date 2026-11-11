@@ -167,6 +167,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Video card: resolution and codec segmented controls, bitrate label + slider.
 - Recording card: `Keep raw recording` toggle row.
 - Display card: `Imperial units` toggle row.
+- Build card: version name, CI build number (or `local`), and short commit SHA.
 - Toggle rows are fully clickable; the switch is display-only.
 
 ## Charts and track map

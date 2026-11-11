@@ -7,6 +7,23 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+val buildNumber = providers.gradleProperty("buildNumber")
+    .orElse(providers.environmentVariable("GITHUB_RUN_NUMBER"))
+    .orElse("local")
+    .get()
+
+val gitSha = runCatching {
+    providers.gradleProperty("gitSha")
+        .orElse(providers.environmentVariable("GITHUB_SHA"))
+        .map { it.take(7) }
+        .orElse(
+            providers.exec {
+                commandLine("git", "rev-parse", "--short=7", "HEAD")
+            }.standardOutput.asText.map { it.trim().ifEmpty { "dev" } },
+        )
+        .get()
+}.getOrDefault("dev")
+
 android {
     namespace = "io.github.jlai403.pocketsimengineer"
     compileSdk = 36
@@ -17,6 +34,8 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField("String", "BUILD_NUMBER", "\"$buildNumber\"")
+        buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
     }
 
     // A checked-in debug key keeps GitHub Actions APKs updatable over each other.
@@ -32,6 +51,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     testOptions {

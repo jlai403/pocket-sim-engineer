@@ -40,6 +40,17 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun `shows the version and build identity`() {
+        compose.setContent {
+            PocketSimEngineerTheme { SettingsScreen() }
+        }
+
+        compose.onNodeWithText("Version").assertExists()
+        compose.onNodeWithText("Build number").assertExists()
+        compose.onNodeWithText("Commit").assertExists()
+    }
+
+    @Test
     fun `resolution choice persists`() {
         compose.setContent {
             PocketSimEngineerTheme { SettingsScreen() }

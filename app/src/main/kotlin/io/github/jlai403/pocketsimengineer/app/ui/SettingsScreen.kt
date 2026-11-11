@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import io.github.jlai403.pocketsimengineer.BuildConfig
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.settings.VideoCodec
 import io.github.jlai403.pocketsimengineer.app.settings.VideoQuality
@@ -129,6 +130,29 @@ fun SettingsScreen() {
                 settings.imperialUnits = it
             }
         }
+
+        SectionCard(title = "Build") {
+            BuildRow("Version", BuildConfig.VERSION_NAME)
+            BuildRow("Build number", BuildConfig.BUILD_NUMBER)
+            BuildRow("Commit", BuildConfig.GIT_SHA)
+        }
+    }
+}
+
+@Composable
+private fun BuildRow(label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        NumericText(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
