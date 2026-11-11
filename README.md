@@ -39,6 +39,8 @@ pocket-sim-engineer/
 
 The app checks once a day (or from Settings → Updates), compares `versionCode`, downloads the APK, verifies its SHA-256, and hands it to Android's installer. The user always confirms the install. Checks are skipped when the app was installed by F-Droid or Play.
 
+**Play Protect will likely warn about this app.** It flags APKs that download and install updates outside a store, which is exactly what the in-app updater does. This is a deliberate trade-off: keeping one-tap updates means accepting the warning (choose `Install anyway`, or turn off scanning for this app). If Play Protect blocks an install, [appeal it](https://support.google.com/googleplay/android-developer/contact/protectappeals); the verdict is server-side. Stripping `REQUEST_INSTALL_PACKAGES` is the only reliable way to stop the warning, at the cost of handing every update to the browser.
+
 `versionCode` is `1000 + commit count`, so every commit sorts after the previous one.
 
 ```bash
@@ -83,6 +85,8 @@ Not covered by JVM tests: MediaProjection capture, real `MediaExtractor`/`MediaM
 - **Stable** — a `v*` tag creates the latest release with `PocketSimEngineer-<tag>.apk` plus `latest.json`. Tag builds check `releases/latest`.
 
 The app checks once a day (or from Settings → Updates), compares `versionCode`, downloads the APK, verifies its SHA-256, and hands it to Android's installer. The user always confirms the install. Checks are skipped when the app was installed by F-Droid or Play.
+
+**Play Protect will likely warn about this app.** It flags APKs that download and install updates outside a store, which is exactly what the in-app updater does. This is a deliberate trade-off: keeping one-tap updates means accepting the warning (choose `Install anyway`, or turn off scanning for this app). If Play Protect blocks an install, [appeal it](https://support.google.com/googleplay/android-developer/contact/protectappeals); the verdict is server-side. Stripping `REQUEST_INSTALL_PACKAGES` is the only reliable way to stop the warning, at the cost of handing every update to the browser.
 
 `versionCode` is `1000 + commit count`, so every commit sorts after the previous one.
 
