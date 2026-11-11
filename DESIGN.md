@@ -42,20 +42,35 @@ System bars are transparent with light icons (`enableEdgeToEdge` + `SystemBarSty
 
 ## Typography
 
-Default system font. No bundled fonts in v0.1.
+Two bundled OFL families, both from [Geist](https://github.com/vercel/geist-font) v1.9.2:
 
-| Style | Size | Weight | Use |
-|---|---:|---|---|
-| `displaySmall` | 34 sp | Black, -0.6 tracking | reserved for future hero numbers |
-| `headlineLarge` | 30 sp | Black, -0.4 | rare, large statements |
-| `headlineMedium` | 25 sp | ExtraBold, -0.3 | screen titles, `ScreenHeader` |
-| `titleLarge` | 20 sp | Bold | card titles, lap times, stat values |
-| `titleMedium` | 16 sp | SemiBold | row titles, player cursor time |
-| `bodyLarge` | 16 sp | Normal | long copy |
-| `bodyMedium` | 14 sp | Normal | standard copy, dates |
-| `bodySmall` | 12 sp | Normal | metadata, subtitles, hints |
-| `labelLarge` | 14 sp | SemiBold | buttons, tabs |
-| `labelMedium` | 12 sp | SemiBold, 0.4 tracking | uppercase section labels, chips |
+| Family | Weights | Use |
+|---|---|---|
+| **Geist Sans** | Regular, Medium, SemiBold, Bold, Black | all interface text: titles, body, labels, buttons, tabs |
+| **Geist Mono** | Regular, Medium, SemiBold | numeric values only: lap times, speed, gear, RPM, packets/s, sync offsets |
+
+Rules:
+
+- UI copy is Geist Sans. Never set body paragraphs in mono.
+- Standalone numbers use `NumericText` (Components.kt), which applies `GeistMonoFamily`.
+- Mono values are fixed-width, so digits do not shift as speed, RPM, or the cursor changes.
+- Font files live in `res/font/`; the license is `licenses/Geist-OFL.txt`.
+
+| Style | Family | Size | Weight | Use |
+|---|---|---:|---|---|
+| `displaySmall` | Sans | 34 sp | Black, -0.6 tracking | reserved for future hero numbers |
+| `headlineLarge` | Sans | 30 sp | Black, -0.4 | rare, large statements |
+| `headlineMedium` | Sans | 25 sp | Black, -0.3 | screen titles, `ScreenHeader` |
+| `titleLarge` | Sans | 20 sp | Bold | card titles, section numbers |
+| `titleMedium` | Sans | 16 sp | SemiBold | row titles, supporting emphasis |
+| `bodyLarge` | Sans | 16 sp | Normal | long copy |
+| `bodyMedium` | Sans | 14 sp | Normal | standard copy, dates |
+| `bodySmall` | Sans | 12 sp | Normal | metadata, subtitles, hints |
+| `labelLarge` | Sans | 14 sp | SemiBold | buttons, tabs |
+| `labelMedium` | Sans | 12 sp | SemiBold, 0.4 tracking | uppercase section labels, chips |
+| `NumericText` | Mono | inherits | inherits | lap times, stat values, cursor, telemetry row |
+
+Line heights are set in `Theme.kt` to Geist metrics (for example 25/30 for `headlineMedium`, 20/26 for `titleLarge`). Adjust type sizes and line heights together.
 
 Rules:
 
@@ -203,12 +218,13 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 | `ui/LapPlayerScreen.kt` | video, sync, charts, map |
 | `ui/SettingsScreen.kt` | capture and unit settings |
 | `ui/TelemetryCharts.kt` | traces and track map |
+| `res/font/` | bundled Geist Sans and Geist Mono TTF files |
+| `licenses/Geist-OFL.txt` | Geist OFL-1.1 license |
 | `MainActivity.kt` | edge-to-edge system bars, permissions, service wiring |
 
 ## Not in v0.1
 
 - Light theme or dynamic color.
-- Custom brand font.
 - Custom icon set beyond Material Icons Core.
 - Motion/transition choreography.
 - Tablet-specific layouts.

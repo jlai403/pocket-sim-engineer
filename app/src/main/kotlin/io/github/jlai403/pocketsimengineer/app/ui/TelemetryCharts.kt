@@ -46,14 +46,23 @@ fun ChartColumn(
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         current?.let { sample ->
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(
+                NumericText(
                     "%.0f %s".format(sample.speedMps * speedFactor, speedUnit),
                     style = MaterialTheme.typography.labelLarge,
                 )
-                Text("Gear %d".format(sample.gear), style = MaterialTheme.typography.labelLarge)
-                Text("Thr %d%%".format(sample.throttle * 100 / 255), style = MaterialTheme.typography.labelLarge)
-                Text("Brk %d%%".format(sample.brake * 100 / 255), style = MaterialTheme.typography.labelLarge)
-                Text("%.0f rpm".format(sample.rpm), style = MaterialTheme.typography.labelLarge)
+                NumericText("Gear %d".format(sample.gear), style = MaterialTheme.typography.labelLarge)
+                NumericText(
+                    "Thr %d%%".format(sample.throttle * 100 / 255),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                NumericText(
+                    "Brk %d%%".format(sample.brake * 100 / 255),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                NumericText(
+                    "%.0f rpm".format(sample.rpm),
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
         }
         TraceChart(

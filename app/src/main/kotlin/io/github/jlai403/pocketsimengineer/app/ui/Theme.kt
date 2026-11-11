@@ -8,10 +8,12 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.jlai403.pocketsimengineer.R
 
 val AccentGreen = Color(0xFF3DDC84)
 val AccentBlue = Color(0xFF5AC8FA)
@@ -20,6 +22,22 @@ val Ink = Color(0xFF080C11)
 val Panel = Color(0xFF111821)
 val PanelRaised = Color(0xFF1A2431)
 val MutedText = Color(0xFF93A4B5)
+
+/** Geist Sans for interface text. OFL-1.1; see licenses/Geist-OFL.txt. */
+val GeistSansFamily = FontFamily(
+    Font(R.font.geist_regular, FontWeight.Normal),
+    Font(R.font.geist_medium, FontWeight.Medium),
+    Font(R.font.geist_semibold, FontWeight.SemiBold),
+    Font(R.font.geist_bold, FontWeight.Bold),
+    Font(R.font.geist_black, FontWeight.Black),
+)
+
+/** Geist Mono for lap times and telemetry values, so digits do not jitter. */
+val GeistMonoFamily = FontFamily(
+    Font(R.font.geist_mono_regular, FontWeight.Normal),
+    Font(R.font.geist_mono_medium, FontWeight.Medium),
+    Font(R.font.geist_mono_semibold, FontWeight.SemiBold),
+)
 
 private val SportColors = darkColorScheme(
     primary = AccentGreen,
@@ -56,57 +74,67 @@ private val SportShapes = Shapes(
 
 private val SportTypography = Typography(
     displaySmall = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = GeistSansFamily,
         fontWeight = FontWeight.Black,
         fontSize = 34.sp,
+        lineHeight = 40.sp,
         letterSpacing = (-0.6).sp,
     ),
     headlineLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = GeistSansFamily,
         fontWeight = FontWeight.Black,
         fontSize = 30.sp,
+        lineHeight = 36.sp,
         letterSpacing = (-0.4).sp,
     ),
     headlineMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.ExtraBold,
+        fontFamily = GeistSansFamily,
+        fontWeight = FontWeight.Black,
         fontSize = 25.sp,
+        lineHeight = 30.sp,
         letterSpacing = (-0.3).sp,
     ),
     titleLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = GeistSansFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 20.sp,
+        lineHeight = 26.sp,
     ),
     titleMedium = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = GeistSansFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 16.sp,
+        lineHeight = 22.sp,
     ),
     bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = GeistSansFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
+        lineHeight = 24.sp,
     ),
     bodyMedium = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = GeistSansFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
+        lineHeight = 20.sp,
     ),
     bodySmall = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = GeistSansFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
+        lineHeight = 16.sp,
     ),
     labelLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = GeistSansFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp,
+        lineHeight = 20.sp,
     ),
     labelMedium = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = GeistSansFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 12.sp,
+        lineHeight = 16.sp,
         letterSpacing = 0.4.sp,
     ),
 )

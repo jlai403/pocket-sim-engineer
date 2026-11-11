@@ -214,7 +214,7 @@ fun LapPlayerScreen(
                 }
             }
 
-            Text(
+            NumericText(
                 "%s / %s  ·  sync %+d ms".format(
                     lapTimeLabel(cursorMs),
                     lapTimeLabel(lap.lapTimeMs),

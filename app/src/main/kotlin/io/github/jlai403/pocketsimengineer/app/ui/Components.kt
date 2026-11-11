@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -138,11 +139,11 @@ fun StatChip(
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Text(
+        NumericText(
             value,
             style = MaterialTheme.typography.titleLarge,
             color = accent,
-            maxLines = 1,
+            modifier = Modifier,
         )
         Text(
             label,
@@ -192,6 +193,22 @@ fun SegmentedChoice(
             }
         }
     }
+}
+
+/** Numeric text in Geist Mono: lap times, speeds, RPM, offsets. */
+@Composable
+fun NumericText(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.titleLarge,
+    color: Color = Color.Unspecified,
+) {
+    Text(
+        text,
+        modifier = modifier,
+        color = color,
+        style = style.copy(fontFamily = GeistMonoFamily),
+    )
 }
 
 @Composable

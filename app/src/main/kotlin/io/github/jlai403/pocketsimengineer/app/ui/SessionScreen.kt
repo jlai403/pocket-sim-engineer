@@ -219,7 +219,7 @@ private fun LapCard(
                     .weight(1f)
                     .padding(horizontal = 12.dp),
             ) {
-                Text(lapTimeLabel(lap.lapTimeMs), style = MaterialTheme.typography.titleLarge)
+                NumericText(lapTimeLabel(lap.lapTimeMs), style = MaterialTheme.typography.titleLarge)
                 Text(
                     "${lap.sampleCount} samples",
                     style = MaterialTheme.typography.bodySmall,
