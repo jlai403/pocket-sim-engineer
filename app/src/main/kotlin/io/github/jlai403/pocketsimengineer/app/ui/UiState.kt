@@ -12,6 +12,7 @@ data class CaptureUiState(
     val ps5Ip: String = "",
     val status: String = "Waiting for telemetry",
     val telemetryRunning: Boolean = false,
+    val telemetryError: String? = null,
     val connected: Boolean = false,
     val packetsPerSecond: Double = 0.0,
     val decodeErrors: Long = 0,

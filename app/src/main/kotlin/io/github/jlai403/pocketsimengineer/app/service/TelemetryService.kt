@@ -20,6 +20,7 @@ import io.github.jlai403.pocketsimengineer.core.lap.LapBoundary
 import io.github.jlai403.pocketsimengineer.core.lap.LapDetector
 import io.github.jlai403.pocketsimengineer.core.network.Ipv4
 import io.github.jlai403.pocketsimengineer.core.protocol.Gt7Decoder
+import io.github.jlai403.pocketsimengineer.core.protocol.Gt7Protocol
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
@@ -35,6 +36,7 @@ class TelemetryService : Service() {
         val events = MutableStateFlow<List<TelemetryEvent>>(emptyList())
         val completedLaps = MutableStateFlow(0)
         val running = MutableStateFlow(false)
+        val lastError = MutableStateFlow<String?>(null)
 
         private const val MAX_EVENTS = 12
     }
@@ -67,6 +69,7 @@ class TelemetryService : Service() {
                         status = "Enter a valid PS5 IPv4 address, for example 192.168.1.50",
                     )
                     running.value = false
+                    lastError.value = state.value.status
                     startForeground(
                         NOTIFICATION_ID,
                         notification("GT7 stream · waiting"),
@@ -82,6 +85,7 @@ class TelemetryService : Service() {
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
                 )
                 source?.stop()
+                lastError.value = null
                 releaseLocks()
                 acquireLocks()
                 events.value = emptyList()
@@ -97,18 +101,20 @@ class TelemetryService : Service() {
                     onState = { publishState(it) },
                     onStatus = { state.value = state.value.copy(status = it) },
                 )
-                if (!newSource.start()) {
+                val failure = newSource.start()
+                if (failure != null) {
                     releaseLocks()
                     running.value = false
-                    state.value = TelemetryUiState(
-                        status = "Could not open UDP 33740. Another app may be using it.",
-                    )
+                    lastError.value = failure
+                    state.value = TelemetryUiState(status = failure)
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                     return START_NOT_STICKY
                 }
                 source = newSource
+                lastError.value = null
                 running.value = true
+                recordEvent("Listening on UDP ${Gt7Protocol.PORT_RECEIVE} · $host")
                 lastNotificationKey = null
                 updateNotification(force = true)
                 return START_NOT_STICKY
@@ -238,9 +244,11 @@ class TelemetryService : Service() {
     }
 
     private fun acquireLocks() {
-        val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        wifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "PocketSimEngineer:wifi")
-            .apply { acquire() }
+        runCatching {
+            val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            wifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "PocketSimEngineer:wifi")
+                .apply { acquire() }
+        }.onFailure { lastError.value = "Wi-Fi lock failed: ${it.message}" }
     }
 
     private fun releaseLocks() {

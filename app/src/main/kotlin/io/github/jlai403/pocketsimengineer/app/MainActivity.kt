@@ -73,6 +73,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val serviceState by TelemetryService.state.collectAsStateWithLifecycle()
             val telemetryRunning by TelemetryService.running.collectAsStateWithLifecycle()
+            val telemetryError by TelemetryService.lastError.collectAsStateWithLifecycle()
             val recording by RecordingService.isRecording.collectAsStateWithLifecycle()
             val audioSilent by RecordingService.audioSilent.collectAsStateWithLifecycle()
             val notice by RecordingService.notice.collectAsStateWithLifecycle()
@@ -89,6 +90,7 @@ class MainActivity : ComponentActivity() {
                         ps5Ip = ip,
                         status = if (recording) "Recording" else serviceState.status,
                         telemetryRunning = telemetryRunning,
+                        telemetryError = telemetryError,
                         connected = serviceState.connected,
                         packetsPerSecond = serviceState.packetsPerSecond,
                         decodeErrors = serviceState.decodeErrors,

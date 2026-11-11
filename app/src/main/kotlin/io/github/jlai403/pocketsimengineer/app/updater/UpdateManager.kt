@@ -34,7 +34,7 @@ object UpdateManager {
 
     private const val PREFS = "updates"
     private const val LAST_CHECK = "last_check_ms"
-    private const val CHECK_INTERVAL_MS = 24L * 60 * 60 * 1000
+    private const val STABLE_CHECK_INTERVAL_MS = 24L * 60 * 60 * 1000
     private const val APK_NAME = "update.apk"
     private const val STORE_FDROID = "org.fdroid.fdroid"
     private const val STORE_PLAY = "com.android.vending"
@@ -58,8 +58,9 @@ object UpdateManager {
         if (!supportedInstallSource(app)) return
         val last = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getLong(LAST_CHECK, 0)
-        if (System.currentTimeMillis() - last < CHECK_INTERVAL_MS) return
-        if (state.value !is State.Idle) return
+        val interval = if (BuildConfig.UPDATE_CHANNEL == "stable") STABLE_CHECK_INTERVAL_MS else 0L
+        if (System.currentTimeMillis() - last < interval) return
+        if (state.value !is State.Idle && state.value !is State.UpToDate) return
         check(app)
     }
 

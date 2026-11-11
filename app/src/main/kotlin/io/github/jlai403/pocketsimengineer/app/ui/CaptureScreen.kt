@@ -115,6 +115,21 @@ fun CaptureScreen(
         }
 
         StreamCard(state)
+        if (state.telemetryError != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(12.dp),
+            ) {
+                Text(
+                    state.telemetryError,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        }
 
         Warnings(state)
 

@@ -41,17 +41,18 @@ class UdpTelemetrySource(
     private var foreignPackets = 0L
     private var lastForeignSource = ""
 
-    /** Returns false when the address cannot be resolved or UDP 33740 cannot be bound. */
-    fun start(): Boolean {
+    /** Returns null on success, or a message when the address or socket cannot be used. */
+    fun start(): String? {
         stop()
-        val address = runCatching { InetAddress.getByName(host) }.getOrNull() ?: return false
+        val address = runCatching { InetAddress.getByName(host) }.getOrNull()
+            ?: return "Could not resolve $host"
         val newSocket = runCatching {
             DatagramSocket(null).apply {
                 reuseAddress = true
                 bind(InetSocketAddress(Gt7Protocol.PORT_RECEIVE))
                 soTimeout = 500
             }
-        }.getOrNull() ?: return false
+        }.getOrNull() ?: return "Could not open UDP ${Gt7Protocol.PORT_RECEIVE}. Another app may be using it."
         val newScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope = newScope
         socket = newSocket
@@ -103,7 +104,7 @@ class UdpTelemetrySource(
                 }
             }
         }
-        return true
+        return null
     }
 
     fun stop() {
