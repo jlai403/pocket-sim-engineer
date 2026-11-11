@@ -37,6 +37,9 @@ class UdpTelemetrySource(
     private var lastPacketNanos: Long? = null
     private var lastSample: Sample? = null
     private var lastPublishNanos = 0L
+    private var rawPackets = 0L
+    private var foreignPackets = 0L
+    private var lastForeignSource = ""
 
     /** Returns false when the address cannot be resolved or UDP 33740 cannot be bound. */
     fun start(): Boolean {
@@ -70,8 +73,14 @@ class UdpTelemetrySource(
                 try {
                     val packet = DatagramPacket(buffer, buffer.size)
                     newSocket.receive(packet)
-                    if (packet.address.hostAddress != host) continue
                     val now = System.nanoTime()
+                    rawPackets++
+                    if (packet.address.hostAddress != host) {
+                        foreignPackets++
+                        lastForeignSource = packet.address.hostAddress
+                        publish(now)
+                        continue
+                    }
                     when (val result = decoder.decode(packet.data.copyOf(packet.length), now)) {
                         is DecodeResult.Success -> {
                             stats.onPacket(now)
@@ -118,6 +127,9 @@ class UdpTelemetrySource(
                 packetsPerSecond = stats.packetsPerSecond(nowNanos),
                 decodeErrors = stats.decodeErrors(),
                 acceptedPackets = stats.acceptedPackets(),
+                rawPackets = rawPackets,
+                foreignPackets = foreignPackets,
+                lastForeignSource = lastForeignSource,
                 lastPacketAgeMs = lastPacket?.let { (nowNanos - it) / 1_000_000 } ?: -1,
                 lapCount = sample?.lapCount ?: 0,
                 speedMps = sample?.speedMps ?: 0f,

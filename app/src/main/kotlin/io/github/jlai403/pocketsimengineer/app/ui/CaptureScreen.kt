@@ -275,6 +275,18 @@ private fun StreamCard(state: CaptureUiState) {
             "%d accepted · %d decode errors".format(state.acceptedPackets, state.decodeErrors),
         )
         MetricRow(
+            "Datagrams",
+            "%d received · %d from other hosts".format(state.rawPackets, state.foreignPackets),
+        )
+        if (state.foreignPackets > 0 && state.lastForeignSource.isNotBlank()) {
+            Text(
+                "Packets are arriving from ${state.lastForeignSource}, not ${state.ps5Ip}. " +
+                    "Check the console's current address.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        MetricRow(
             "Laps",
             "%d detected · GT7 lap %d · last %s".format(
                 state.completedLaps,
@@ -346,6 +358,10 @@ private fun copyDiagnostics(context: Context, state: CaptureUiState) {
         appendLine("Connected: ${state.connected}")
         appendLine("Packets/s: %.1f".format(state.packetsPerSecond))
         appendLine("Accepted: ${state.acceptedPackets}, decode errors: ${state.decodeErrors}")
+        appendLine(
+            "Datagrams: ${state.rawPackets} received, ${state.foreignPackets} from other hosts " +
+                "(${state.lastForeignSource.ifBlank { "none" }})",
+        )
         appendLine("Last packet age: ${state.lastPacketAgeMs} ms")
         appendLine(
             "Packet ID: ${state.packetId}, car: ${state.carCode}, " +
