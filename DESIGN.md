@@ -138,11 +138,12 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 
 - Header: “Record”, subtitle “Telemetry and screen capture”.
 - Status card: live dot, status text, UDP hint, then three stat chips (packets/s, lap, speed m/s).
-- “GT7 stream” card: a health line (Streaming / Waiting / stale / low rate) with pps, errors, and packet age; `Show details` reveals packet ID, car code, flags, inputs, accepted packets, lap-event count, the last five events, and `Copy diagnostics`. Copy includes version, build number, commit, and the current metrics.
+- “GT7 stream” card: a health line (Streaming / Waiting / stale / low rate) with pps, errors, and packet age. While not connected it adds one hint: `Tap Connect to listen for GT7 telemetry.` or, when running, `GT7 sends telemetry only while a race or time trial is on screen.` `Show details` reveals packet ID, car code, flags, inputs, accepted packets, lap-event count, the last five events, and `Copy diagnostics`; copy includes version, build number, commit, and the current metrics.
 - Warnings render in an `errorContainer` banner.
-- “Console” card with the PS5 IP field.
-- Full-width `Arm recording` primary pill, then `Test 10 s` / `Stop` ghost pills.
-- “How to record” card: collapsed by default with a one-line summary and a `Show steps` pill; expands to eight numbered steps, then a red “Keep in mind” block covering the Chiaki-Up bar, screen lock, blocked audio, and the test-recording caveat. The first-run steps include hiding Chiaki-Up's on-screen controls and its bar.
+- “Console” card with the PS5 IP field, `Save IP`, and `Connect` / `Disconnect`. The field and Save are disabled while the listener runs; Disconnect is disabled while recording.
+- Full-width `Start recording` primary pill, enabled only while the stream is connected. A helper line under it states the next action: `Connect before recording.`, `Waiting for the first packet.`, `Recording begins when the car is on track.`, or `Tap Stop to finish the session.`
+- `Test 10 s` and `Stop` ghost pills; Stop is enabled only while recording.
+- “How to record” card: collapsed by default with a one-line summary and a `Show steps` pill; expands to nine numbered steps, then a red “Keep in mind” block covering the Chiaki-Up bar, screen lock, blocked audio, and the test-recording caveat. The steps are: hide Chiaki-Up's controls, park on track, Connect, wait for ~60 pps, Start recording.
 
 ### Session
 
@@ -191,7 +192,9 @@ While Chiaki-Up is fullscreen the Record tab is not visible, and v0.1 has no ove
 
 - Capture hygiene: Chiaki-Up's in-stream bar (On-Screen Controls, Touchpad only, display mode) and its touch layout are part of the captured display. The record steps tell the driver to swipe from the top edge, turn On-Screen Controls off, and let the bar fade before driving. The app cannot hide another app's controls, so this stays a documented setup step, not a feature.
 
-- The recording notification is the live surface: collapsed shows `Recording lap 3 · 59 pps · 0 err`; expanded (`BigTextStyle`) shows packet age, packet ID, car code, flags, lap, last lap, and the last event. Updates once per second, silent, `setOnlyAlertOnce`.
+- The telemetry notification is the pre-recording surface: `GT7 stream · 59 pps` or `GT7 stream · waiting`, with a `Disconnect` action.
+- The recording notification is the live surface once armed: collapsed shows `Recording lap 3 · 59 pps · 0 err`; expanded (`BigTextStyle`) shows packet age, packet ID, car code, flags, lap, last lap, and the last event. Updates once per second, silent, `setOnlyAlertOnce`.
+- Both notifications are `IMPORTANCE_LOW`; two persistent entries while recording is accepted for v0.1.
 - Short text toasts are limited to transitions before the MP4 rolls: `GT7 stream OK · 60 pps` and `GT7 telemetry lost`. Rate-limited to one every 3 seconds.
 - Nothing is drawn while recording: a toast is a window on the captured display, so it would appear in the lap video. Lap confirmation lives in the notification and the library. Errors during recording surface in the notification only.
 - The notification is `IMPORTANCE_LOW` and silent, so it never heads-up over Chiaki-Up; it appears only when the driver pulls the shade.

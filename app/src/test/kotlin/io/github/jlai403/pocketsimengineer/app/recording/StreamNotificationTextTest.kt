@@ -41,6 +41,12 @@ class StreamNotificationTextTest {
     }
 
     @Test
+    fun `stream summary is explicit while waiting`() {
+        assertEquals("GT7 stream · waiting", StreamNotificationText.streamSummary(state(connected = false)))
+        assertEquals("GT7 stream · 60 pps", StreamNotificationText.streamSummary(state()))
+    }
+
+    @Test
     fun `details expose the decoded fields`() {
         val details = StreamNotificationText.details(state(), "Lap 2 complete · 1:30.456")
 

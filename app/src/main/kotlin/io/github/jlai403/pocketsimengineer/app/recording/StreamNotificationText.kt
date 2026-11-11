@@ -3,6 +3,13 @@ package io.github.jlai403.pocketsimengineer.app.recording
 import io.github.jlai403.pocketsimengineer.app.service.TelemetryUiState
 
 object StreamNotificationText {
+    fun streamSummary(state: TelemetryUiState): String =
+        if (state.connected) {
+            "GT7 stream · %.0f pps".format(state.packetsPerSecond)
+        } else {
+            "GT7 stream · waiting"
+        }
+
     fun summary(base: String, state: TelemetryUiState): String =
         if (state.connected) {
             "%s · %.0f pps · %d err".format(base, state.packetsPerSecond, state.decodeErrors)

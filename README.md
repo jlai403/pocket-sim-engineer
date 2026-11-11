@@ -24,8 +24,8 @@ pocket-sim-engineer/
 
 - GT7 packet A Salsa20 decrypt and parse at ~60 Hz.
 - Lap detection with plausible-time filtering.
-- Foreground UDP telemetry service with Wi-Fi and wake locks.
-- Arm-once recording that auto-starts when GT7 reports the car on track.
+- Foreground UDP telemetry service with a Wi-Fi lock, and a wake lock while recording.
+- Explicit `Connect` with a live stream gate: `Start recording` stays disabled until decoded GT7 packets are arriving; recording then auto-starts when the car is on track.
 - 1080p60/720p60 H.264/HEVC screen capture and internal audio capture.
 - Session and per-lap telemetry persistence under `files/sessions/<id>/`.
 - Post-stop per-lap MP4 remux with 2 s pre-roll, 1 s post-roll, keyframe alignment, and audio muxing.

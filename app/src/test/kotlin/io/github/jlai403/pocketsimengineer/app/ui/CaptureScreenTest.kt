@@ -1,6 +1,8 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.app.Application
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -32,7 +34,9 @@ class CaptureScreenTest {
                 CaptureScreen(
                     state = CaptureUiState(ps5Ip = "192.168.1.50"),
                     onSaveIp = {},
-                    onArm = {},
+                    onConnect = {},
+                    onDisconnect = {},
+                    onStartRecording = {},
                     onTestRecord = {},
                     onStop = {},
                 )
@@ -42,17 +46,17 @@ class CaptureScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("HOW TO RECORD").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("8 steps · about a minute before your first lap").assertExists()
-        compose.onNodeWithText("Switch to Chiaki-Up and start driving", substring = true)
+        compose.onNodeWithText("9 steps · about a minute before your first lap").assertExists()
+        compose.onNodeWithText("Switch back to Chiaki-Up and drive", substring = true)
             .assertDoesNotExist()
 
         compose.onNodeWithText("Show steps").performScrollTo().performClick()
-        compose.onNodeWithText("Switch to Chiaki-Up and start driving", substring = true)
+        compose.onNodeWithText("Switch back to Chiaki-Up and drive", substring = true)
             .assertExists()
         compose.onNodeWithText("Keep in mind").assertExists()
 
         compose.onNodeWithText("Hide steps").performScrollTo().performClick()
-        compose.onNodeWithText("Switch to Chiaki-Up and start driving", substring = true)
+        compose.onNodeWithText("Switch back to Chiaki-Up and drive", substring = true)
             .assertDoesNotExist()
     }
 
@@ -64,7 +68,9 @@ class CaptureScreenTest {
                 CaptureScreen(
                     state = CaptureUiState(),
                     onSaveIp = { saved = it },
-                    onArm = {},
+                    onConnect = {},
+                    onDisconnect = {},
+                    onStartRecording = {},
                     onTestRecord = {},
                     onStop = {},
                 )
@@ -109,7 +115,9 @@ class CaptureScreenTest {
                         ),
                     ),
                     onSaveIp = {},
-                    onArm = {},
+                    onConnect = {},
+                    onDisconnect = {},
+                    onStartRecording = {},
                     onTestRecord = {},
                     onStop = {},
                 )
@@ -126,6 +134,92 @@ class CaptureScreenTest {
         compose.onNodeWithText("3474").assertExists()
         compose.onNodeWithText("0x0001 · on track").assertExists()
         compose.onNodeWithText("Lap 2 complete · 1:30.456").assertExists()
+    }
+
+    @Test
+    fun `connect is required before recording can start`() {
+        var connects = 0
+        var started = 0
+        compose.setContent {
+            PocketSimEngineerTheme {
+                CaptureScreen(
+                    state = CaptureUiState(ps5Ip = "192.168.1.50"),
+                    onSaveIp = {},
+                    onConnect = { connects++ },
+                    onDisconnect = {},
+                    onStartRecording = { started++ },
+                    onTestRecord = {},
+                    onStop = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("GT7 STREAM").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Tap Connect to listen for GT7 telemetry.").assertExists()
+        compose.onNodeWithText("Start recording").performScrollTo().assertIsNotEnabled()
+
+        compose.onNodeWithText("Connect").performScrollTo().performClick()
+        assertEquals(1, connects)
+        assertEquals(0, started)
+    }
+
+    @Test
+    fun `connected stream enables recording and offers disconnect`() {
+        var started = 0
+        compose.setContent {
+            PocketSimEngineerTheme {
+                CaptureScreen(
+                    state = CaptureUiState(
+                        ps5Ip = "192.168.1.50",
+                        telemetryRunning = true,
+                        connected = true,
+                        packetsPerSecond = 59.8,
+                        lastPacketAgeMs = 12,
+                    ),
+                    onSaveIp = {},
+                    onConnect = {},
+                    onDisconnect = {},
+                    onStartRecording = { started++ },
+                    onTestRecord = {},
+                    onStop = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("GT7 STREAM").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Start recording").performScrollTo().assertIsEnabled()
+        compose.onNodeWithText("Start recording").performClick()
+        assertEquals(1, started)
+        compose.onNodeWithText("Disconnect").assertExists()
+    }
+
+    @Test
+    fun `waiting stream explains that GT7 only streams on track`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                CaptureScreen(
+                    state = CaptureUiState(ps5Ip = "192.168.1.50", telemetryRunning = true),
+                    onSaveIp = {},
+                    onConnect = {},
+                    onDisconnect = {},
+                    onStartRecording = {},
+                    onTestRecord = {},
+                    onStop = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("GT7 STREAM").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText(
+            "GT7 sends telemetry only while a race or time trial is on screen.",
+        ).assertExists()
+        compose.onNodeWithText("Start recording").performScrollTo().assertIsNotEnabled()
     }
 
     private companion object {

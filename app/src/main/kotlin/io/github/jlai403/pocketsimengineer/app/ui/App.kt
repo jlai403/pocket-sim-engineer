@@ -32,7 +32,9 @@ import androidx.compose.ui.unit.dp
 fun App(
     capture: CaptureUiState,
     onSaveIp: (String) -> Unit,
-    onArm: (String) -> Unit,
+    onConnect: (String) -> Unit,
+    onDisconnect: () -> Unit,
+    onStartRecording: () -> Unit,
     onTestRecord: () -> Unit,
     onStop: () -> Unit,
 ) {
@@ -80,7 +82,9 @@ fun App(
                         Screen.Capture -> CaptureScreen(
                             state = capture,
                             onSaveIp = onSaveIp,
-                            onArm = onArm,
+                            onConnect = onConnect,
+                            onDisconnect = onDisconnect,
+                            onStartRecording = onStartRecording,
                             onTestRecord = onTestRecord,
                             onStop = onStop,
                         )

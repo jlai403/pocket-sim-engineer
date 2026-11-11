@@ -11,9 +11,11 @@ import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.os.PowerManager
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
 import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
+import io.github.jlai403.pocketsimengineer.app.recording.StreamNotificationText
 import io.github.jlai403.pocketsimengineer.core.lap.LapBoundary
 import io.github.jlai403.pocketsimengineer.core.lap.LapDetector
 import io.github.jlai403.pocketsimengineer.core.network.Ipv4
@@ -32,6 +34,7 @@ class TelemetryService : Service() {
         val state = MutableStateFlow(TelemetryUiState())
         val events = MutableStateFlow<List<TelemetryEvent>>(emptyList())
         val completedLaps = MutableStateFlow(0)
+        val running = MutableStateFlow(false)
 
         private const val MAX_EVENTS = 12
     }
@@ -39,6 +42,9 @@ class TelemetryService : Service() {
     private var source: UdpTelemetrySource? = null
     private var wifiLock: WifiManager.WifiLock? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var lastNotificationKey: String? = null
+    private var lastNotifyNanos = 0L
+    private var lastToastNanos = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -60,9 +66,10 @@ class TelemetryService : Service() {
                     state.value = TelemetryUiState(
                         status = "Enter a valid PS5 IPv4 address, for example 192.168.1.50",
                     )
+                    running.value = false
                     startForeground(
                         NOTIFICATION_ID,
-                        notification(),
+                        notification("GT7 stream · waiting"),
                         ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
                     )
                     stopForeground(STOP_FOREGROUND_REMOVE)
@@ -71,7 +78,7 @@ class TelemetryService : Service() {
                 }
                 startForeground(
                     NOTIFICATION_ID,
-                    notification(),
+                    notification("GT7 stream · waiting"),
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
                 )
                 source?.stop()
@@ -79,6 +86,7 @@ class TelemetryService : Service() {
                 acquireLocks()
                 events.value = emptyList()
                 completedLaps.value = 0
+                state.value = TelemetryUiState(status = "Waiting for telemetry")
                 val newSource = UdpTelemetrySource(
                     host = host,
                     decoder = Gt7Decoder(),
@@ -91,6 +99,7 @@ class TelemetryService : Service() {
                 )
                 if (!newSource.start()) {
                     releaseLocks()
+                    running.value = false
                     state.value = TelemetryUiState(
                         status = "Could not open UDP 33740. Another app may be using it.",
                     )
@@ -99,6 +108,9 @@ class TelemetryService : Service() {
                     return START_NOT_STICKY
                 }
                 source = newSource
+                running.value = true
+                lastNotificationKey = null
+                updateNotification(force = true)
                 return START_NOT_STICKY
             }
         }
@@ -109,6 +121,7 @@ class TelemetryService : Service() {
         source?.stop()
         source = null
         releaseLocks()
+        running.value = false
         state.value = TelemetryUiState()
         super.onDestroy()
     }
@@ -134,6 +147,48 @@ class TelemetryService : Service() {
             recordEvent(if (onTrack) "Car on track" else "Car off track")
         }
         if (!next.connected) RecordingService.instance?.onNoPackets()
+        syncWakeLock()
+        updateNotification()
+        if (next.connected && !previous.connected && !RecordingService.isRecording.value) {
+            streamToast("GT7 stream OK · %.0f pps".format(next.packetsPerSecond))
+        }
+    }
+
+    private fun streamToast(message: String) {
+        val now = System.nanoTime()
+        if (now - lastToastNanos < 3_000_000_000L) return
+        lastToastNanos = now
+        runCatching { Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun updateNotification(force: Boolean = false) {
+        val now = System.nanoTime()
+        if (!force && now - lastNotifyNanos < 1_000_000_000L) return
+        lastNotifyNanos = now
+        val telemetry = state.value
+        val summary = StreamNotificationText.streamSummary(telemetry)
+        val details = StreamNotificationText.details(
+            telemetry,
+            events.value.firstOrNull()?.message,
+        )
+        val key = summary + "|" + details
+        if (key == lastNotificationKey) return
+        lastNotificationKey = key
+        getSystemService(NotificationManager::class.java)
+            .notify(NOTIFICATION_ID, notification(summary, details))
+    }
+
+    private fun syncWakeLock() {
+        if (RecordingService.isRecording.value) {
+            if (wakeLock?.isHeld != true) {
+                wakeLock = getSystemService(PowerManager::class.java)
+                    .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PocketSimEngineer:telemetry")
+                    .apply { acquire() }
+            }
+        } else if (wakeLock != null) {
+            wakeLock?.let { if (it.isHeld) it.release() }
+            wakeLock = null
+        }
     }
 
     private fun handleLap(boundary: LapBoundary) {
@@ -151,28 +206,40 @@ class TelemetryService : Service() {
     private fun formatLapTime(ms: Int): String =
         "%d:%02d.%03d".format(ms / 60_000, (ms % 60_000) / 1_000, ms % 1_000)
 
-    private fun notification(): Notification {
+    private fun notification(summary: String, details: String? = null): Notification {
         val open = PendingIntent.getActivity(
             this,
             0,
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE,
         )
+        val disconnect = PendingIntent.getService(
+            this,
+            1,
+            Intent(this, TelemetryService::class.java).setAction(ACTION_STOP),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Pocket Sim Engineer")
-            .setContentText("Listening for GT7 telemetry")
+            .setContentTitle(summary)
+            .setContentText(
+                if (state.value.connected) {
+                    "Tap Disconnect to stop listening"
+                } else {
+                    "GT7 sends telemetry only while driving is on screen"
+                },
+            )
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setContentIntent(open)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Disconnect", disconnect)
+            .apply { details?.let { setStyle(NotificationCompat.BigTextStyle().bigText(it)) } }
             .build()
     }
 
     private fun acquireLocks() {
         val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         wifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "PocketSimEngineer:wifi")
-            .apply { acquire() }
-        val power = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PocketSimEngineer:telemetry")
             .apply { acquire() }
     }
 

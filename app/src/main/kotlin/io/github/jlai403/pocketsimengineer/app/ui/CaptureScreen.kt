@@ -42,7 +42,9 @@ import io.github.jlai403.pocketsimengineer.core.telemetry.TelemetryHealth
 fun CaptureScreen(
     state: CaptureUiState,
     onSaveIp: (String) -> Unit,
-    onArm: (String) -> Unit,
+    onConnect: (String) -> Unit,
+    onDisconnect: () -> Unit,
+    onStartRecording: () -> Unit,
     onTestRecord: () -> Unit,
     onStop: () -> Unit,
 ) {
@@ -127,6 +129,7 @@ fun CaptureScreen(
                 label = { Text("PS5 IPv4 address") },
                 placeholder = { Text("192.168.1.50") },
                 singleLine = true,
+                enabled = !state.telemetryRunning,
                 modifier = Modifier.fillMaxWidth().testTag("ps5-ip"),
                 shape = RoundedCornerShape(14.dp),
             )
@@ -134,33 +137,60 @@ fun CaptureScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                GhostPill("Save IP", onClick = { saveIp() })
-                Text(
-                    when {
-                        ipError -> "Enter a valid IPv4 address"
-                        savedIp != null -> "Saved $savedIp"
-                        else -> "Saved automatically when you arm"
-                    },
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (ipError) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                GhostPill(
+                    "Save IP",
+                    enabled = !state.telemetryRunning,
+                    onClick = { saveIp() },
+                )
+                GhostPill(
+                    text = if (state.telemetryRunning) "Disconnect" else "Connect",
+                    enabled = !state.recording,
+                    onClick = {
+                        if (state.telemetryRunning) {
+                            onDisconnect()
+                        } else {
+                            saveIp()?.let(onConnect)
+                        }
                     },
                 )
             }
+            Text(
+                when {
+                    ipError -> "Enter a valid IPv4 address"
+                    savedIp != null -> "Saved $savedIp"
+                    state.telemetryRunning && state.connected -> "Connected to ${state.ps5Ip}"
+                    state.telemetryRunning -> "Listening on ${state.ps5Ip}"
+                    else -> "Saved when you connect"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = if (ipError) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
         }
 
         PrimaryPill(
-            text = "Arm recording",
-            onClick = { saveIp()?.let(onArm) },
-            enabled = Ipv4.normalize(ip) != null,
+            text = if (state.recording) "Recording…" else "Start recording",
+            onClick = onStartRecording,
+            enabled = state.connected && !state.recording,
             modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            when {
+                state.recording -> "Tap Stop to finish the session."
+                !state.telemetryRunning -> "Connect before recording."
+                !state.connected -> "Waiting for the first packet."
+                else -> "Recording begins when the car is on track."
+            },
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GhostPill("Test 10 s", onTestRecord, Modifier.weight(1f))
-            GhostPill("Stop", onStop, Modifier.weight(1f))
+            GhostPill("Stop", onStop, Modifier.weight(1f), enabled = state.recording)
         }
 
         RecordingInstructions(showInstructions) { showInstructions = it }
@@ -206,6 +236,17 @@ private fun StreamCard(state: CaptureUiState) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (!state.connected) {
+                    Text(
+                        if (state.telemetryRunning) {
+                            "GT7 sends telemetry only while a race or time trial is on screen."
+                        } else {
+                            "Tap Connect to listen for GT7 telemetry."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
@@ -331,10 +372,11 @@ private fun copyDiagnostics(context: Context, state: CaptureUiState) {
 private val recordingSteps = listOf(
     "Connect Chiaki-Up to the PS5 and open GT7.",
     "In Chiaki-Up, swipe down from the top edge and turn On-Screen Controls off. The bar fades after a moment.",
-    "Enter the PS5 IPv4 address above.",
-    "Tap Arm recording, then allow screen capture.",
-    "Switch to Chiaki-Up and start driving. Recording begins when GT7 reports the car on track.",
-    "Drive your laps. The notification shows the current lap.",
+    "Enter a race or time trial and park on track. GT7 sends telemetry only while a car is on screen.",
+    "Enter the PS5 IPv4 address above and tap Connect.",
+    "Wait for the stream card or the notification to show about 60 pps.",
+    "Tap Start recording, then allow screen capture.",
+    "Switch back to Chiaki-Up and drive. Recording begins when the car is on track.",
     "Return to the menu for 5 seconds, or tap Stop in the notification.",
     "Wait for \"Finalizing…\" to finish, then open Library and pick a lap.",
 )
@@ -352,7 +394,7 @@ private fun RecordingInstructions(expanded: Boolean, onExpandedChange: (Boolean)
     ) {
         if (!expanded) {
             Text(
-                "8 steps · about a minute before your first lap",
+                "9 steps · about a minute before your first lap",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

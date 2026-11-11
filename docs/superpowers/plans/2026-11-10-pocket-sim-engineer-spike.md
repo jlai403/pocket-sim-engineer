@@ -1250,7 +1250,7 @@ Run:
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n io.github.jlai403.pocketsimengineer/.app.MainActivity
 ```
-Tap `Arm`, grant capture, open Chiaki-Up, hide `On-Screen Controls`, start a race. Expected:
+Enter the IP, tap `Connect`, park on track, wait for packets, tap `Start recording`, grant capture, then switch to Chiaki-Up. Expected:
 - Notification changes from `Armed` to `Recording lap N`.
 - Pulling down the shade and tapping `Stop` stops recording.
 - Returning to the menu for 5 s stops recording and finalizes the MP4.
@@ -1353,12 +1353,13 @@ Expected: one device listed, app opens.
 
 - [ ] **Step 2: Run the 2-lap synchronization test**
 
-1. Enter the PS5 IP.
-2. Tap `Arm` and grant screen capture, notifications, and audio recording.
-3. Open Chiaki-Up and connect. Swipe down from the top edge, turn `On-Screen Controls` off, and let the bar fade.
-4. Drive two clean laps.
-5. Return to the menu for 5 s, or tap notification `Stop`.
-6. Pull the session:
+1. Enter the PS5 IP and tap `Connect`.
+2. Open Chiaki-Up and connect. Swipe down from the top edge, turn `On-Screen Controls` off, and let the bar fade. Enter a race or time trial and park on track.
+3. Confirm the stream card or notification shows about 60 pps.
+4. Tap `Start recording` and grant screen capture, notifications, and audio recording.
+5. Drive two clean laps.
+6. Return to the menu for 5 s, or tap notification `Stop`.
+7. Pull the session:
 
 ```bash
 adb exec-out run-as io.github.jlai403.pocketsimengineer tar -C files -czf - sessions > session.tgz

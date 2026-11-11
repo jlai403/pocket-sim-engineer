@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
         settings = SettingsStore(this)
         setContent {
             val serviceState by TelemetryService.state.collectAsStateWithLifecycle()
+            val telemetryRunning by TelemetryService.running.collectAsStateWithLifecycle()
             val recording by RecordingService.isRecording.collectAsStateWithLifecycle()
             val audioSilent by RecordingService.audioSilent.collectAsStateWithLifecycle()
             val notice by RecordingService.notice.collectAsStateWithLifecycle()
@@ -82,6 +83,7 @@ class MainActivity : ComponentActivity() {
                     capture = CaptureUiState(
                         ps5Ip = ip,
                         status = if (recording) "Recording" else serviceState.status,
+                        telemetryRunning = telemetryRunning,
                         connected = serviceState.connected,
                         packetsPerSecond = serviceState.packetsPerSecond,
                         decodeErrors = serviceState.decodeErrors,
@@ -110,22 +112,44 @@ class MainActivity : ComponentActivity() {
                     onSaveIp = { raw ->
                         if (settings.savePs5Ip(raw)) ip = settings.ps5Ip
                     },
-                    onArm = { raw -> arm(raw) },
+                    onConnect = { raw -> connect(raw) },
+                    onDisconnect = { disconnect() },
+                    onStartRecording = { startRecording() },
                     onTestRecord = {
                         ensureAudio { requestCapture(CapturePurpose.Test) }
                     },
-                    onStop = { stopAll() },
+                    onStop = { stopRecording() },
                 )
             }
         }
     }
 
-    private fun arm(ip: String) {
-        if (!settings.savePs5Ip(ip)) return
-        val savedIp = settings.ps5Ip
+    private fun connect(raw: String) {
+        if (!settings.savePs5Ip(raw)) return
         requestNotificationPermission()
-        startTelemetry(savedIp)
+        startTelemetry(settings.ps5Ip)
+    }
+
+    private fun disconnect() {
+        if (RecordingService.instance != null) {
+            startService(
+                Intent(this, RecordingService::class.java).setAction(RecordingService.ACTION_STOP),
+            )
+        }
+        startService(
+            Intent(this, TelemetryService::class.java).setAction(TelemetryService.ACTION_STOP),
+        )
+    }
+
+    private fun startRecording() {
+        if (!TelemetryService.state.value.connected) return
         ensureAudio { requestCapture(CapturePurpose.Arm) }
+    }
+
+    private fun stopRecording() {
+        startService(
+            Intent(this, RecordingService::class.java).setAction(RecordingService.ACTION_STOP),
+        )
     }
 
     private fun ensureAudio(then: () -> Unit) {
@@ -164,12 +188,4 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    private fun stopAll() {
-        startService(
-            Intent(this, TelemetryService::class.java).setAction(TelemetryService.ACTION_STOP),
-        )
-        startService(
-            Intent(this, RecordingService::class.java).setAction(RecordingService.ACTION_STOP),
-        )
-    }
 }
