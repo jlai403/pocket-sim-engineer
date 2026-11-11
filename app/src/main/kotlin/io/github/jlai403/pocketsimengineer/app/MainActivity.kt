@@ -40,7 +40,12 @@ class MainActivity : ComponentActivity() {
 
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { }
+    ) {
+        if (!TelemetryService.running.value) {
+            val saved = settings.ps5Ip
+            if (saved.isNotBlank()) startTelemetry(saved)
+        }
+    }
 
     private val audioPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -145,9 +150,11 @@ class MainActivity : ComponentActivity() {
 
     private fun connect(raw: String) {
         if (!settings.savePs5Ip(raw)) return
-        requestNotificationPermission()
+        // Start the foreground service while the activity is definitely visible.
+        // Requesting the permission first pauses us and Android rejects the start.
         Log.i("PSE", "connect requested · ${settings.ps5Ip}")
         startTelemetry(settings.ps5Ip)
+        requestNotificationPermission()
         lifecycleScope.launch {
             delay(4_000)
             if (TelemetryService.running.value || TelemetryService.lastError.value != null) return@launch
