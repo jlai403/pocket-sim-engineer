@@ -91,11 +91,10 @@ class MainActivity : ComponentActivity() {
                         },
                         notice = notice,
                     ),
-                    onIpChanged = {
-                        ip = it
-                        settings.ps5Ip = it
+                    onSaveIp = { raw ->
+                        if (settings.savePs5Ip(raw)) ip = settings.ps5Ip
                     },
-                    onArm = { arm(ip) },
+                    onArm = { raw -> arm(raw) },
                     onTestRecord = {
                         ensureAudio { requestCapture(CapturePurpose.Test) }
                     },
@@ -106,10 +105,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun arm(ip: String) {
-        if (ip.isBlank()) return
-        settings.ps5Ip = ip
+        if (!settings.savePs5Ip(ip)) return
+        val savedIp = settings.ps5Ip
         requestNotificationPermission()
-        startTelemetry(ip)
+        startTelemetry(savedIp)
         ensureAudio { requestCapture(CapturePurpose.Arm) }
     }
 

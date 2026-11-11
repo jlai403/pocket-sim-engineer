@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.BuildConfig
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import io.github.jlai403.pocketsimengineer.core.network.Ipv4
 import io.github.jlai403.pocketsimengineer.app.settings.VideoCodec
 import io.github.jlai403.pocketsimengineer.app.settings.VideoQuality
 import kotlin.math.roundToInt
@@ -38,6 +39,20 @@ fun SettingsScreen() {
     val context = LocalContext.current
     val settings = remember { SettingsStore(context) }
     var ip by remember { mutableStateOf(settings.ps5Ip) }
+    var savedIp by remember { mutableStateOf<String?>(null) }
+    var ipError by remember { mutableStateOf(false) }
+    fun saveIp() {
+        val normalized = Ipv4.normalize(ip)
+        if (normalized == null) {
+            ipError = true
+            savedIp = null
+        } else {
+            ip = normalized
+            ipError = false
+            savedIp = normalized
+            settings.savePs5Ip(normalized)
+        }
+    }
     var quality by remember { mutableStateOf(settings.quality) }
     var codec by remember { mutableStateOf(settings.codec) }
     var bitrate by remember { mutableFloatStateOf(settings.bitrateMbps.toFloat()) }
@@ -61,14 +76,35 @@ fun SettingsScreen() {
                 value = ip,
                 onValueChange = {
                     ip = it
-                    settings.ps5Ip = it
+                    savedIp = null
+                    ipError = false
                 },
                 label = { Text("PS5 IPv4 address") },
                 placeholder = { Text("192.168.1.50") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("settings-ps5-ip"),
                 shape = RoundedCornerShape(14.dp),
             )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                GhostPill("Save IP", onClick = { saveIp() })
+                Text(
+                    when {
+                        ipError -> "Enter a valid IPv4 address"
+                        savedIp != null -> "Saved $savedIp"
+                        else -> "Used for telemetry heartbeats"
+                    },
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (ipError) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
         }
 
         SectionCard(title = "Video") {

@@ -31,8 +31,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun App(
     capture: CaptureUiState,
-    onIpChanged: (String) -> Unit,
-    onArm: () -> Unit,
+    onSaveIp: (String) -> Unit,
+    onArm: (String) -> Unit,
     onTestRecord: () -> Unit,
     onStop: () -> Unit,
 ) {
@@ -79,7 +79,7 @@ fun App(
 
                         Screen.Capture -> CaptureScreen(
                             state = capture,
-                            onIpChanged = onIpChanged,
+                            onSaveIp = onSaveIp,
                             onArm = onArm,
                             onTestRecord = onTestRecord,
                             onStop = onStop,

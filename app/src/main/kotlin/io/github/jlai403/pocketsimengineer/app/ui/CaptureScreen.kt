@@ -27,18 +27,37 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import io.github.jlai403.pocketsimengineer.core.network.Ipv4
 
 @Composable
 fun CaptureScreen(
     state: CaptureUiState,
-    onIpChanged: (String) -> Unit,
-    onArm: () -> Unit,
+    onSaveIp: (String) -> Unit,
+    onArm: (String) -> Unit,
     onTestRecord: () -> Unit,
     onStop: () -> Unit,
 ) {
     var ip by remember(state.ps5Ip) { mutableStateOf(state.ps5Ip) }
+    var savedIp by remember { mutableStateOf<String?>(null) }
+    var ipError by remember { mutableStateOf(false) }
     var showInstructions by rememberSaveable { mutableStateOf(false) }
+
+    fun saveIp(): String? {
+        val normalized = Ipv4.normalize(ip)
+        return if (normalized == null) {
+            ipError = true
+            savedIp = null
+            null
+        } else {
+            ip = normalized
+            ipError = false
+            savedIp = normalized
+            onSaveIp(normalized)
+            normalized
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -93,20 +112,41 @@ fun CaptureScreen(
                 value = ip,
                 onValueChange = {
                     ip = it
-                    onIpChanged(it)
+                    savedIp = null
+                    ipError = false
                 },
                 label = { Text("PS5 IPv4 address") },
                 placeholder = { Text("192.168.1.50") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("ps5-ip"),
                 shape = RoundedCornerShape(14.dp),
             )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                GhostPill("Save IP", onClick = { saveIp() })
+                Text(
+                    when {
+                        ipError -> "Enter a valid IPv4 address"
+                        savedIp != null -> "Saved $savedIp"
+                        else -> "Saved automatically when you arm"
+                    },
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (ipError) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
         }
 
         PrimaryPill(
             text = "Arm recording",
-            onClick = onArm,
-            enabled = ip.isNotBlank(),
+            onClick = { saveIp()?.let(onArm) },
+            enabled = Ipv4.normalize(ip) != null,
             modifier = Modifier.fillMaxWidth(),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

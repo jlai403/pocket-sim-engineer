@@ -2,6 +2,7 @@ package io.github.jlai403.pocketsimengineer.app.settings
 
 import android.content.Context
 import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
+import io.github.jlai403.pocketsimengineer.core.network.Ipv4
 
 enum class VideoQuality(val width: Int, val height: Int) {
     P1080(1920, 1080),
@@ -28,7 +29,14 @@ class SettingsStore(context: Context) {
 
     var ps5Ip: String
         get() = prefs.getString(KEY_IP, "").orEmpty()
-        set(value) = prefs.edit().putString(KEY_IP, value.trim()).apply()
+        private set(value) = prefs.edit().putString(KEY_IP, value).apply()
+
+    /** Saves a valid dotted-quad address and returns false without changing the stored value. */
+    fun savePs5Ip(raw: String): Boolean {
+        val normalized = Ipv4.normalize(raw) ?: return false
+        ps5Ip = normalized
+        return true
+    }
 
     var keepRaw: Boolean
         get() = prefs.getBoolean(RecordingService.KEEP_RAW, false)

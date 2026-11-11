@@ -15,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
 import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
 import io.github.jlai403.pocketsimengineer.core.lap.LapDetector
+import io.github.jlai403.pocketsimengineer.core.network.Ipv4
 import io.github.jlai403.pocketsimengineer.core.protocol.Gt7Decoder
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -48,8 +49,8 @@ class TelemetryService : Service() {
                 return START_NOT_STICKY
             }
             ACTION_START -> {
-                val host = intent.getStringExtra(EXTRA_IP)?.trim().orEmpty()
-                if (!isIpv4(host)) {
+                val host = Ipv4.normalize(intent.getStringExtra(EXTRA_IP).orEmpty())
+                if (host == null) {
                     state.value = TelemetryUiState(
                         status = "Enter a valid PS5 IPv4 address, for example 192.168.1.50",
                     )
@@ -107,11 +108,6 @@ class TelemetryService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
-
-    private fun isIpv4(value: String): Boolean {
-        if (!Regex("""^(\d{1,3}\.){3}\d{1,3}$""").matches(value)) return false
-        return value.split('.').all { it.toIntOrNull()?.let { part -> part in 0..255 } == true }
-    }
 
     private fun notification(): Notification {
         val open = PendingIntent.getActivity(
