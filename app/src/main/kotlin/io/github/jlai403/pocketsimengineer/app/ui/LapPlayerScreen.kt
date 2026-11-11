@@ -2,7 +2,9 @@ package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.net.Uri
 import androidx.annotation.OptIn
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,10 +13,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -26,8 +28,9 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -41,7 +44,6 @@ import io.github.jlai403.pocketsimengineer.app.share.Sharing
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.playback.PlaybackCursor
-import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
 import io.github.jlai403.pocketsimengineer.core.session.SessionMetadata
 import io.github.jlai403.pocketsimengineer.core.session.SessionStore
 import kotlinx.coroutines.Dispatchers
@@ -128,68 +130,89 @@ fun LapPlayerScreen(
         PlaybackCursor.telemetryMs(positionMs, it.videoStartOffsetMs, syncOffset, it.lapTimeMs)
     } ?: 0
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onBack) { Text("Back") }
-            Text(
-                lap?.let { "Lap ${it.index} · ${lapTimeLabel(it.lapTimeMs)}" } ?: "Lap",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = {
-                val file = videoFile
-                if (file != null) {
-                    Sharing.shareFile(context, file, "video/mp4", "Share lap $lapIndex")
-                } else {
-                    message = "No video yet"
-                }
-            }) { Text("Share") }
-            TextButton(onClick = {
-                scope.launch {
-                    runCatching {
-                        withContext(Dispatchers.IO) {
-                            Sharing.exportCsv(context, store, sessionId, lap ?: error("no lap"))
-                        }
-                    }.onSuccess {
-                        Sharing.shareFile(context, it, "text/csv", "Export lap $lapIndex")
-                    }.onFailure {
-                        message = "CSV export failed: ${it.message}"
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+    ) {
+        ScreenHeader(
+            title = lap?.let { "Lap ${it.index} · ${lapTimeLabel(it.lapTimeMs)}" } ?: "Lap",
+            subtitle = session?.trackLabel,
+            onBack = onBack,
+            actions = {
+                GhostPill("Share", onClick = {
+                    val file = videoFile
+                    if (file != null) {
+                        Sharing.shareFile(context, file, "video/mp4", "Share lap $lapIndex")
+                    } else {
+                        message = "No video yet"
                     }
-                }
-            }) { Text("CSV") }
-        }
+                })
+                GhostPill("CSV", onClick = {
+                    scope.launch {
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                Sharing.exportCsv(context, store, sessionId, lap ?: error("no lap"))
+                            }
+                        }.onSuccess {
+                            Sharing.shareFile(context, it, "text/csv", "Export lap $lapIndex")
+                        }.onFailure {
+                            message = "CSV export failed: ${it.message}"
+                        }
+                    }
+                })
+            },
+        )
 
         if (lap == null) {
-            Text("Loading lap…", modifier = Modifier.padding(16.dp))
-            return@Column
-        }
-        if (videoFile == null) {
             Text(
-                "Lap video is not available yet. The raw recording is kept until remux succeeds.",
+                "Loading lap…",
                 modifier = Modifier.padding(16.dp),
-                color = MaterialTheme.colorScheme.error,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            return@Column
         }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(top = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AndroidView(
-                factory = { viewContext ->
-                    PlayerView(viewContext).apply {
-                        this.player = player
-                        useController = true
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
-            )
+            if (videoFile != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Color.Black),
+                ) {
+                    AndroidView(
+                        factory = { viewContext ->
+                            PlayerView(viewContext).apply {
+                                this.player = player
+                                useController = true
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(16.dp),
+                ) {
+                    Text(
+                        "Lap video is not available yet. The raw recording is kept until remux " +
+                            "succeeds.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
 
             Text(
                 "%s / %s  ·  sync %+d ms".format(
@@ -197,38 +220,67 @@ fun LapPlayerScreen(
                     lapTimeLabel(lap.lapTimeMs),
                     syncOffset,
                 ),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.titleMedium,
             )
-            message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = { syncOffset = (syncOffset - 500).coerceIn(-500, 500) }) { Text("-500") }
-                TextButton(onClick = { syncOffset = (syncOffset - 50).coerceIn(-500, 500) }) { Text("-50") }
-                TextButton(onClick = { syncOffset = 0 }) { Text("Reset") }
-                TextButton(onClick = { syncOffset = (syncOffset + 50).coerceIn(-500, 500) }) { Text("+50") }
-                TextButton(onClick = { syncOffset = (syncOffset + 500).coerceIn(-500, 500) }) { Text("+500") }
+            message?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
 
-            TextButton(onClick = {
-                val updated = syncOffset.coerceIn(-500, 500)
-                syncOffset = updated
-                scope.launch {
-                    withContext(Dispatchers.IO) { store.setSyncOffset(sessionId, updated) }
+            SectionCard(title = "Sync nudge") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GhostPill(
+                        "-500",
+                        { syncOffset = (syncOffset - 500).coerceIn(-500, 500) },
+                        Modifier.weight(1f),
+                    )
+                    GhostPill(
+                        "-50",
+                        { syncOffset = (syncOffset - 50).coerceIn(-500, 500) },
+                        Modifier.weight(1f),
+                    )
+                    GhostPill(
+                        "+50",
+                        { syncOffset = (syncOffset + 50).coerceIn(-500, 500) },
+                        Modifier.weight(1f),
+                    )
+                    GhostPill(
+                        "+500",
+                        { syncOffset = (syncOffset + 500).coerceIn(-500, 500) },
+                        Modifier.weight(1f),
+                    )
                 }
-            }) { Text("Save sync offset") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GhostPill("Reset", { syncOffset = 0 }, Modifier.weight(1f))
+                    GhostPill(
+                        "Save sync offset",
+                        {
+                            val updated = syncOffset.coerceIn(-500, 500)
+                            syncOffset = updated
+                            scope.launch {
+                                withContext(Dispatchers.IO) { store.setSyncOffset(sessionId, updated) }
+                            }
+                        },
+                        Modifier.weight(1f),
+                    )
+                }
+            }
 
-            ChartColumn(
-                samples = samples,
-                lap = lap,
-                cursorMs = cursorMs,
-                imperial = settings.imperialUnits,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            SectionCard(title = "Telemetry") {
+                ChartColumn(
+                    samples = samples,
+                    lap = lap,
+                    cursorMs = cursorMs,
+                    imperial = settings.imperialUnits,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
-            Text("Track map", style = MaterialTheme.typography.titleMedium)
-            TrackMap(samples = samples, lap = lap, cursorMs = cursorMs)
+            SectionCard {
+                Text("Track map", style = MaterialTheme.typography.titleMedium)
+                TrackMap(samples = samples, lap = lap, cursorMs = cursorMs)
+            }
 
-            Spacer(Modifier.padding(8.dp))
+            Spacer(Modifier.padding(bottom = 8.dp))
         }
     }
 }

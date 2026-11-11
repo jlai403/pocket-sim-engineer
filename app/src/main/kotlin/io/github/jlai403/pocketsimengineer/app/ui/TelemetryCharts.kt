@@ -39,6 +39,10 @@ fun ChartColumn(
         return
     }
     val current = remember(window, lap, cursorMs) { window.nearest(lap, cursorMs) }
+    val speedColor = MaterialTheme.colorScheme.secondary
+    val throttleColor = MaterialTheme.colorScheme.primary
+    val brakeColor = MaterialTheme.colorScheme.error
+    val rpmColor = MaterialTheme.colorScheme.tertiary
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         current?.let { sample ->
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -58,7 +62,7 @@ fun ChartColumn(
             cursorMs = cursorMs,
             maxValue = window.maxOf { it.speedMps * speedFactor }.coerceAtLeast(1f),
             valueOf = { it.speedMps * speedFactor },
-            color = Color(0xFF4FC3F7),
+            color = speedColor,
             label = "Speed",
         )
         TraceChart(
@@ -67,7 +71,7 @@ fun ChartColumn(
             cursorMs = cursorMs,
             maxValue = 255f,
             valueOf = { it.throttle.toFloat() },
-            color = Color(0xFF81C784),
+            color = throttleColor,
             label = "Throttle",
         )
         TraceChart(
@@ -76,7 +80,7 @@ fun ChartColumn(
             cursorMs = cursorMs,
             maxValue = 255f,
             valueOf = { it.brake.toFloat() },
-            color = Color(0xFFE57373),
+            color = brakeColor,
             label = "Brake",
         )
         TraceChart(
@@ -85,7 +89,7 @@ fun ChartColumn(
             cursorMs = cursorMs,
             maxValue = window.maxOf { it.rpm }.coerceAtLeast(1f),
             valueOf = { it.rpm },
-            color = Color(0xFFFFB74D),
+            color = rpmColor,
             label = "RPM",
         )
         GearTrace(window = window, lap = lap, cursorMs = cursorMs)
@@ -102,6 +106,8 @@ private fun TraceChart(
     color: Color,
     label: String,
 ) {
+    val axisColor = MaterialTheme.colorScheme.outlineVariant
+    val cursorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
     Column {
         Text(label, style = MaterialTheme.typography.labelSmall)
         Canvas(
@@ -111,7 +117,7 @@ private fun TraceChart(
                 .padding(vertical = 2.dp),
         ) {
             drawLine(
-                color = Color.DarkGray,
+                color = axisColor,
                 start = Offset(0f, size.height),
                 end = Offset(size.width, size.height),
                 strokeWidth = 1f,
@@ -131,13 +137,15 @@ private fun TraceChart(
                 }
             }
             drawPath(path, color = color, style = Stroke(width = 2f))
-            drawCursor(cursorMs, lap.lapTimeMs, size)
+            drawCursor(cursorMs, lap.lapTimeMs, size, cursorColor)
         }
     }
 }
 
 @Composable
 private fun GearTrace(window: List<Sample>, lap: LapMetadata, cursorMs: Int) {
+    val cursorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+    val gearColor = MaterialTheme.colorScheme.tertiary
     Column {
         Text("Gear", style = MaterialTheme.typography.labelSmall)
         Canvas(
@@ -167,8 +175,8 @@ private fun GearTrace(window: List<Sample>, lap: LapMetadata, cursorMs: Int) {
                 }
                 previousY = y
             }
-            drawPath(path, color = Color(0xFFBA68C8), style = Stroke(width = 2f))
-            drawCursor(cursorMs, lap.lapTimeMs, size)
+            drawPath(path, color = gearColor, style = Stroke(width = 2f))
+            drawCursor(cursorMs, lap.lapTimeMs, size, cursorColor)
         }
     }
 }
@@ -191,6 +199,8 @@ fun TrackMap(
     val minZ = points.minOf { it.second }
     val maxZ = points.maxOf { it.second }
     val current = remember(window, lap, cursorMs) { window.nearest(lap, cursorMs) }
+    val lineColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val dotColor = MaterialTheme.colorScheme.primary
 
     Canvas(modifier = modifier.fillMaxWidth().height(240.dp)) {
         val spanX = (maxX - minX).coerceAtLeast(0.001f)
@@ -215,10 +225,10 @@ fun TrackMap(
                 path.lineTo(point.x, point.y)
             }
         }
-        drawPath(path, color = Color(0xFF90A4AE), style = Stroke(width = 3f))
+        drawPath(path, color = lineColor, style = Stroke(width = 3f))
         current?.let {
             val point = mapPoint(it)
-            drawCircle(color = Color(0xFFFF5252), radius = 7f, center = point)
+            drawCircle(color = dotColor, radius = 7f, center = point)
         }
     }
 }
@@ -226,10 +236,15 @@ fun TrackMap(
 private fun timeToX(timeMs: Int, lapTimeMs: Int, width: Float): Float =
     (timeMs.toFloat() / lapTimeMs.coerceAtLeast(1)).coerceIn(0f, 1f) * width
 
-private fun DrawScope.drawCursor(cursorMs: Int, lapTimeMs: Int, size: Size) {
+private fun DrawScope.drawCursor(
+    cursorMs: Int,
+    lapTimeMs: Int,
+    size: Size,
+    color: Color,
+) {
     val x = timeToX(cursorMs, lapTimeMs, size.width)
     drawLine(
-        color = Color.White.copy(alpha = 0.7f),
+        color = color,
         start = Offset(x, 0f),
         end = Offset(x, size.height),
         strokeWidth = 2f,

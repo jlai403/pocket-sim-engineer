@@ -2,10 +2,11 @@ package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.app.Application
 import android.content.Context
-import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.settings.VideoQuality
@@ -30,10 +31,10 @@ class SettingsScreenTest {
     @Test
     fun `keep raw toggle persists`() {
         compose.setContent {
-            PocketSimEngineerTheme { SettingsScreen(onBack = {}) }
+            PocketSimEngineerTheme { SettingsScreen() }
         }
 
-        compose.onAllNodes(isToggleable())[0].performClick()
+        compose.onNodeWithTag("keep-raw").performScrollTo().performClick()
 
         assertTrue(SettingsStore(context).keepRaw)
     }
@@ -41,7 +42,7 @@ class SettingsScreenTest {
     @Test
     fun `resolution choice persists`() {
         compose.setContent {
-            PocketSimEngineerTheme { SettingsScreen(onBack = {}) }
+            PocketSimEngineerTheme { SettingsScreen() }
         }
 
         compose.onNodeWithText("720p60").performClick()

@@ -1,5 +1,6 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,14 +8,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.app.share.Sharing
@@ -59,65 +62,76 @@ fun SessionScreen(
     }
 
     val current = session
-    Scaffold(
-        topBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onBack) { Text("Back") }
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = { renaming = true }) { Text("Rename") }
-                TextButton(onClick = { confirmingDelete = true }) { Text("Delete") }
-            }
-        },
-    ) { padding ->
-        if (current == null) {
-            CircularProgressIndicator(modifier = Modifier.padding(padding).padding(24.dp))
-            return@Scaffold
-        }
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(current.trackLabel, style = MaterialTheme.typography.headlineMedium)
-            Text(current.carName, style = MaterialTheme.typography.titleMedium)
-            Text("Recorded ${formatDate(current.createdAt)}", style = MaterialTheme.typography.bodySmall)
-            val best = current.laps.minOfOrNull { it.lapTimeMs }
-            Text(
-                "${current.laps.size} laps" + (best?.let { " · best ${lapTimeLabel(it)}" } ?: ""),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        ScreenHeader(
+            title = current?.trackLabel ?: "Session",
+            subtitle = current?.carName,
+            onBack = onBack,
+            actions = {
+                GhostPill("Rename", onClick = { renaming = true })
+                GhostPill(
+                    "Delete",
+                    onClick = { confirmingDelete = true },
+                    contentColor = MaterialTheme.colorScheme.error,
+                )
+            },
+        )
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(current.laps) { lap ->
-                    LapCard(
-                        lap = lap,
-                        onOpen = { onOpenLap(lap.index) },
-                        onShare = {
-                            val file = File(store.sessionDir(sessionId), lap.videoFile)
-                            if (file.isFile) {
-                                Sharing.shareFile(context, file, "video/mp4", "Share lap ${lap.index}")
-                            } else {
-                                message = "Lap video is missing. Is remux still running?"
-                            }
-                        },
-                        onCsv = {
-                            scope.launch {
-                                runCatching {
-                                    withContext(Dispatchers.IO) {
-                                        Sharing.exportCsv(context, store, sessionId, lap)
-                                    }
-                                }.onSuccess {
-                                    Sharing.shareFile(context, it, "text/csv", "Export lap ${lap.index}")
-                                }.onFailure {
-                                    message = "CSV export failed: ${it.message}"
+        if (current == null) {
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 32.dp),
+            )
+            return@Column
+        }
+
+        val best = current.laps.minOfOrNull { it.lapTimeMs }
+        Text(
+            "${current.laps.size} laps" + (best?.let { " · best ${lapTimeLabel(it)}" } ?: ""),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            "Recorded ${formatDate(current.createdAt)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        message?.let {
+            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+        }
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(current.laps) { lap ->
+                LapCard(
+                    lap = lap,
+                    onOpen = { onOpenLap(lap.index) },
+                    onShare = {
+                        val file = File(store.sessionDir(sessionId), lap.videoFile)
+                        if (file.isFile) {
+                            Sharing.shareFile(context, file, "video/mp4", "Share lap ${lap.index}")
+                        } else {
+                            message = "Lap video is missing. Is remux still running?"
+                        }
+                    },
+                    onCsv = {
+                        scope.launch {
+                            runCatching {
+                                withContext(Dispatchers.IO) {
+                                    Sharing.exportCsv(context, store, sessionId, lap)
                                 }
+                            }.onSuccess {
+                                Sharing.shareFile(context, it, "text/csv", "Export lap ${lap.index}")
+                            }.onFailure {
+                                message = "CSV export failed: ${it.message}"
                             }
-                        },
-                    )
-                }
+                        }
+                    },
+                )
             }
         }
     }
@@ -134,7 +148,9 @@ fun SessionScreen(
                         withContext(Dispatchers.IO) { store.delete(sessionId) }
                         onDeleted()
                     }
-                }) { Text("Delete") }
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
             },
             dismissButton = {
                 TextButton(onClick = { confirmingDelete = false }) { Text("Cancel") }
@@ -176,23 +192,53 @@ private fun LapCard(
     onShare: () -> Unit,
     onCsv: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Lap ${lap.index}", style = MaterialTheme.typography.titleMedium)
-                    Text(lapTimeLabel(lap.lapTimeMs), style = MaterialTheme.typography.bodyLarge)
-                    Text("${lap.sampleCount} samples", style = MaterialTheme.typography.bodySmall)
-                    if (lap.needsCut) {
-                        Text("Video not cut yet", color = MaterialTheme.colorScheme.error)
-                    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    "Lap ${lap.index}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+            ) {
+                Text(lapTimeLabel(lap.lapTimeMs), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "${lap.sampleCount} samples",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (lap.needsCut) {
+                    Text(
+                        "Video not cut yet",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
-                TextButton(onClick = onOpen) { Text("Open") }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onShare) { Text("Share MP4") }
-                TextButton(onClick = onCsv) { Text("Export CSV") }
-            }
+            PrimaryPill("Open", onOpen)
+        }
+        Spacer(Modifier.padding(vertical = 4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GhostPill("Share MP4", onShare)
+            GhostPill("Export CSV", onCsv)
         }
     }
 }

@@ -31,7 +31,7 @@ class LibraryScreenTest {
 
         compose.setContent {
             PocketSimEngineerTheme {
-                LibraryScreen(onOpenSession = {}, onCapture = {}, onSettings = {})
+                LibraryScreen(onOpenSession = {})
             }
         }
 
@@ -49,11 +49,7 @@ class LibraryScreenTest {
 
         compose.setContent {
             PocketSimEngineerTheme {
-                LibraryScreen(
-                    onOpenSession = { opened = it },
-                    onCapture = {},
-                    onSettings = {},
-                )
+                LibraryScreen(onOpenSession = { opened = it })
             }
         }
 
@@ -87,7 +83,7 @@ class LibraryScreenTest {
 
         compose.setContent {
             PocketSimEngineerTheme {
-                LibraryScreen(onOpenSession = {}, onCapture = {}, onSettings = {})
+                LibraryScreen(onOpenSession = {})
             }
         }
 
