@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,7 +52,12 @@ fun CaptureScreen(
     var ip by remember(state.ps5Ip) { mutableStateOf(state.ps5Ip) }
     var savedIp by remember { mutableStateOf<String?>(null) }
     var ipError by remember { mutableStateOf(false) }
+    var starting by remember { mutableStateOf(false) }
     var showInstructions by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(state.telemetryRunning, state.telemetryError) {
+        if (state.telemetryRunning || state.telemetryError != null) starting = false
+    }
 
     fun saveIp(): String? {
         val normalized = Ipv4.normalize(ip)
@@ -158,13 +164,20 @@ fun CaptureScreen(
                     onClick = { saveIp() },
                 )
                 GhostPill(
-                    text = if (state.telemetryRunning) "Disconnect" else "Connect",
+                    text = when {
+                        state.telemetryRunning -> "Disconnect"
+                        starting -> "Starting…"
+                        else -> "Connect"
+                    },
                     enabled = !state.recording,
                     onClick = {
                         if (state.telemetryRunning) {
                             onDisconnect()
                         } else {
-                            saveIp()?.let(onConnect)
+                            saveIp()?.let { normalized ->
+                                starting = true
+                                onConnect(normalized)
+                            }
                         }
                     },
                 )
@@ -172,6 +185,7 @@ fun CaptureScreen(
             Text(
                 when {
                     ipError -> "Enter a valid IPv4 address"
+                    starting -> "Starting the listener…"
                     savedIp != null -> "Saved $savedIp"
                     state.telemetryRunning && state.connected -> "Connected to ${state.ps5Ip}"
                     state.telemetryRunning -> "Listening on ${state.ps5Ip}"

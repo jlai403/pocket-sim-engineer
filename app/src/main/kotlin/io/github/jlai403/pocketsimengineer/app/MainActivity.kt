@@ -194,12 +194,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startTelemetry(ip: String) {
-        ContextCompat.startForegroundService(
-            this,
-            Intent(this, TelemetryService::class.java)
-                .setAction(TelemetryService.ACTION_START)
-                .putExtra(TelemetryService.EXTRA_IP, ip),
-        )
+        runCatching {
+            ContextCompat.startForegroundService(
+                this,
+                Intent(this, TelemetryService::class.java)
+                    .setAction(TelemetryService.ACTION_START)
+                    .putExtra(TelemetryService.EXTRA_IP, ip),
+            )
+        }.onFailure {
+            TelemetryService.lastError.value = "Could not start telemetry: ${it.message}"
+        }
     }
 
 }

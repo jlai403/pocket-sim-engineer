@@ -56,7 +56,18 @@ class TelemetryService : Service() {
         )
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = try {
+        handleCommand(intent)
+    } catch (error: Throwable) {
+        running.value = false
+        lastError.value = "Telemetry failed: ${error.message ?: error::class.java.simpleName}"
+        state.value = TelemetryUiState(status = lastError.value.orEmpty())
+        runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
+        runCatching { stopSelf() }
+        START_NOT_STICKY
+    }
+
+    private fun handleCommand(intent: Intent?): Int {
         when (intent?.action) {
             ACTION_STOP -> {
                 stopSelf()
