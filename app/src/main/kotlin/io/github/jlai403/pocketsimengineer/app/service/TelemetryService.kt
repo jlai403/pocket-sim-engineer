@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
@@ -59,6 +60,7 @@ class TelemetryService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = try {
         handleCommand(intent)
     } catch (error: Throwable) {
+        Log.e("PSE", "telemetry onStartCommand failed", error)
         running.value = false
         lastError.value = "Telemetry failed: ${error.message ?: error::class.java.simpleName}"
         state.value = TelemetryUiState(status = lastError.value.orEmpty())
@@ -75,6 +77,7 @@ class TelemetryService : Service() {
             }
             ACTION_START -> {
                 val host = Ipv4.normalize(intent.getStringExtra(EXTRA_IP).orEmpty())
+                Log.i("PSE", "telemetry start · $host")
                 if (host == null) {
                     state.value = TelemetryUiState(
                         status = "Enter a valid PS5 IPv4 address, for example 192.168.1.50",

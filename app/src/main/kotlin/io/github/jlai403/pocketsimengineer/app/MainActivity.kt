@@ -1,11 +1,13 @@
 package io.github.jlai403.pocketsimengineer.app
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
@@ -18,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
 import io.github.jlai403.pocketsimengineer.app.service.TelemetryService
 import io.github.jlai403.pocketsimengineer.app.updater.UpdateManager
@@ -25,6 +28,8 @@ import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.ui.App
 import io.github.jlai403.pocketsimengineer.app.ui.CaptureUiState
 import io.github.jlai403.pocketsimengineer.app.ui.PocketSimEngineerTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private enum class CapturePurpose { Arm, Test }
@@ -141,8 +146,24 @@ class MainActivity : ComponentActivity() {
     private fun connect(raw: String) {
         if (!settings.savePs5Ip(raw)) return
         requestNotificationPermission()
+        Log.i("PSE", "connect requested · ${settings.ps5Ip}")
         startTelemetry(settings.ps5Ip)
+        lifecycleScope.launch {
+            delay(4_000)
+            if (TelemetryService.running.value || TelemetryService.lastError.value != null) return@launch
+            TelemetryService.lastError.value = if (telemetryServiceRunning()) {
+                "Telemetry service is alive but did not finish starting."
+            } else {
+                "Telemetry service did not start. Android blocked the foreground service."
+            }
+        }
     }
+
+    private fun telemetryServiceRunning(): Boolean = runCatching {
+        getSystemService(ActivityManager::class.java)
+            .getRunningServices(Int.MAX_VALUE)
+            .any { it.service.className == TelemetryService::class.java.name }
+    }.getOrDefault(false)
 
     private fun disconnect() {
         if (RecordingService.instance != null) {
@@ -194,15 +215,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startTelemetry(ip: String) {
-        runCatching {
-            ContextCompat.startForegroundService(
-                this,
-                Intent(this, TelemetryService::class.java)
-                    .setAction(TelemetryService.ACTION_START)
-                    .putExtra(TelemetryService.EXTRA_IP, ip),
-            )
-        }.onFailure {
-            TelemetryService.lastError.value = "Could not start telemetry: ${it.message}"
+        val intent = Intent(this, TelemetryService::class.java)
+            .setAction(TelemetryService.ACTION_START)
+            .putExtra(TelemetryService.EXTRA_IP, ip)
+        val foregroundFailure = runCatching {
+            ContextCompat.startForegroundService(this, intent)
+        }.exceptionOrNull()
+        if (foregroundFailure == null) return
+        Log.w("PSE", "startForegroundService failed", foregroundFailure)
+        runCatching { startService(intent) }.onFailure { fallbackFailure ->
+            TelemetryService.lastError.value =
+                "Could not start telemetry: ${foregroundFailure.message ?: fallbackFailure.message}"
         }
     }
 
