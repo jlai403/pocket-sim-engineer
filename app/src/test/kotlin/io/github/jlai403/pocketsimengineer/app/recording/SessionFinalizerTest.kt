@@ -94,10 +94,22 @@ class SessionFinalizerTest {
     }
 
     @Test
-    fun `empty session is removed`() {
+    fun `empty session keeps the raw recording`() {
         val dir = Files.createTempDirectory("finalizer").toFile()
         val writer = writer(dir)
         File(dir, "raw.mp4").writeText("raw")
+
+        SessionFinalizer.finish(writer, keepRaw = false, cutter = successCutter())
+
+        assertTrue(dir.isDirectory)
+        assertTrue(File(dir, "raw.mp4").isFile)
+        assertTrue(File(dir, "session.json").isFile)
+    }
+
+    @Test
+    fun `session without laps or raw is removed`() {
+        val dir = Files.createTempDirectory("finalizer").toFile()
+        val writer = writer(dir)
 
         SessionFinalizer.finish(writer, keepRaw = false, cutter = successCutter())
 

@@ -17,6 +17,7 @@ import androidx.core.app.NotificationCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
 import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
 import io.github.jlai403.pocketsimengineer.app.recording.StreamNotificationText
+import io.github.jlai403.pocketsimengineer.app.Diagnostics
 import io.github.jlai403.pocketsimengineer.core.lap.LapBoundary
 import io.github.jlai403.pocketsimengineer.core.lap.LapDetector
 import io.github.jlai403.pocketsimengineer.core.network.Ipv4
@@ -117,6 +118,7 @@ class TelemetryService : Service() {
                 )
                 val failure = newSource.start()
                 if (failure != null) {
+                    Diagnostics.log("telemetry start failed: $failure")
                     releaseLocks()
                     running.value = false
                     lastError.value = failure
@@ -128,6 +130,7 @@ class TelemetryService : Service() {
                 source = newSource
                 lastError.value = null
                 running.value = true
+                Diagnostics.log("telemetry listening on UDP 33740 · $host")
                 recordEvent("Listening on UDP ${Gt7Protocol.PORT_RECEIVE} · $host")
                 lastNotificationKey = null
                 updateNotification(force = true)
@@ -138,6 +141,7 @@ class TelemetryService : Service() {
     }
 
     override fun onDestroy() {
+        Diagnostics.log("telemetry service destroyed")
         source?.stop()
         source = null
         releaseLocks()
@@ -153,6 +157,7 @@ class TelemetryService : Service() {
         state.value = next
 
         if (next.connected != previous.connected) {
+            Diagnostics.log(if (next.connected) "telemetry connected" else "telemetry disconnected")
             recordEvent(
                 if (next.connected) {
                     "Connected · %.0f pps".format(next.packetsPerSecond)

@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
 import io.github.jlai403.pocketsimengineer.app.service.TelemetryService
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import io.github.jlai403.pocketsimengineer.app.Diagnostics
 import io.github.jlai403.pocketsimengineer.core.clock.Clock
 import io.github.jlai403.pocketsimengineer.core.lap.LapBoundary
 import io.github.jlai403.pocketsimengineer.core.model.Sample
@@ -80,6 +81,8 @@ class RecordingService : Service() {
     private var audioStartedNanos = 0L
     private var wasConnected = false
     private var lastToastAtNanos = 0L
+    private var lastOnTrack: Boolean? = null
+    private var packetsLostLogged = false
 
     override fun onCreate() {
         super.onCreate()
@@ -102,7 +105,13 @@ class RecordingService : Service() {
     fun onTelemetry(sample: Sample) {
         val current = controller ?: return
         try {
-            if (sample.flags and 1 != 0) {
+            val onTrack = sample.flags and 1 != 0
+            if (lastOnTrack != onTrack) {
+                Diagnostics.log("telemetry onTrack=$onTrack lap=${sample.lapCount}")
+                lastOnTrack = onTrack
+            }
+            packetsLostLogged = false
+            if (onTrack) {
                 current.onEvent(RecordingEvent.CarOnTrack(sample.lapCount, sample.carCode))
             } else {
                 current.onEvent(RecordingEvent.OffTrack)
@@ -119,10 +128,15 @@ class RecordingService : Service() {
     }
 
     fun onNoPackets() {
+        if (!packetsLostLogged) {
+            Diagnostics.log("telemetry lost")
+            packetsLostLogged = true
+        }
         controller?.onEvent(RecordingEvent.NoPackets)
     }
 
     fun onLap(boundary: LapBoundary) {
+        Diagnostics.log("lap ${boundary.lapNumber} timeMs=${boundary.lapTimeMs}")
         if (!isRecording.value) return
         runCatching {
             sessionWriter?.writeLap(
@@ -154,12 +168,15 @@ class RecordingService : Service() {
             stopEverything()
             return
         }
+        Diagnostics.log("arm")
         projection = mediaProjection
         notice.value = null
         audioSilent.value = null
         lastCarCode = 0
         wasConnected = false
         lastToastAtNanos = 0
+        lastOnTrack = null
+        packetsLostLogged = false
         val settings = SettingsStore(this)
         val sessionId = "session-${System.currentTimeMillis()}"
         val sessionDir = File(filesDir, "sessions/$sessionId")
@@ -294,10 +311,12 @@ class RecordingService : Service() {
             audioSilent.value = true
         }
         isRecording.value = true
+        Diagnostics.log("capture started file=${file.name}")
         updateNotification()
     }
 
     private fun stopCapture() {
+        if (isRecording.value) Diagnostics.log("capture stopped")
         audioCapture?.stop()
         audioSilent.value = audioCapture?.silent ?: true
         audioCapture = null
@@ -318,7 +337,11 @@ class RecordingService : Service() {
         tickJob = scope.launch {
             while (isActive) {
                 delay(1_000)
+                val wasRecording = isRecording.value
                 controller?.tick()
+                if (wasRecording && !isRecording.value) {
+                    Diagnostics.log("auto-stop after off-track or no packets")
+                }
                 maybeStreamToasts()
                 updateNotification()
                 val audio = audioCapture
@@ -345,6 +368,7 @@ class RecordingService : Service() {
     @Synchronized
     private fun stopEverything() {
         if (finishing) return
+        Diagnostics.log("stop requested recording=${isRecording.value} writer=${sessionWriter != null}")
         finishing = true
         autoStopJob?.cancel()
         autoStopJob = null
@@ -367,7 +391,9 @@ class RecordingService : Service() {
                 withContext(Dispatchers.Main) { runCatching { projectionToStop?.stop() } }
                 if (writer != null) {
                     writer.finalize(rawDeleted = false)
+                    Diagnostics.log("finalize laps=${writer.laps().size}")
                     SessionFinalizer.finish(writer, keepRaw)
+                    Diagnostics.log("finalized")
                 }
             } catch (error: Exception) {
                 notice.value = "Finalize failed: ${error.message}"

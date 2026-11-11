@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.BuildConfig
+import io.github.jlai403.pocketsimengineer.app.Diagnostics
 import io.github.jlai403.pocketsimengineer.core.network.Ipv4
 import io.github.jlai403.pocketsimengineer.core.telemetry.TelemetryHealth
 
@@ -408,6 +409,8 @@ private fun copyDiagnostics(context: Context, state: CaptureUiState) {
         state.events.take(5).forEach {
             appendLine("- ${formatEventTime(it.atEpochMs)} ${it.message}")
         }
+        appendLine("Recent log:")
+        Diagnostics.tail(context, 40).forEach { appendLine(it) }
     }
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText("GT7 diagnostics", text))

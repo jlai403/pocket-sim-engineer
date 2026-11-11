@@ -30,8 +30,9 @@ object SessionFinalizer {
         val raw = File(dir, metadata.rawFile)
 
         if (laps.isEmpty()) {
-            writer.updateMetadata { it.copy(keepRaw = keepRaw) }
-            if (keepRaw && raw.isFile) {
+            // A recording with no detected lap is still the only copy of what happened.
+            writer.updateMetadata { it.copy(keepRaw = true) }
+            if (raw.isFile && raw.length() > 0) {
                 writer.finalize(rawDeleted = false)
             } else {
                 dir.deleteRecursively()

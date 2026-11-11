@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 class PocketSimEngineerApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        Diagnostics.init(this)
         val keepRaw = getSharedPreferences(RecordingService.SETTINGS, MODE_PRIVATE)
             .getBoolean(RecordingService.KEEP_RAW, false)
         appScope.launch {
