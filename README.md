@@ -12,7 +12,7 @@ Android telemetry and synchronized replay for Gran Turismo 7. Record a race thro
 ## Architecture
 
 ```text
-gt7-telemetry/
+pocket-sim-engineer/
 ├── core/   # Kotlin JVM: protocol, lap detection, session codecs, CSV, remux math
 └── app/    # Android: Compose UI, foreground services, MediaProjection, Media3
 ```

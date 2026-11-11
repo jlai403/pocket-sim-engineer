@@ -424,7 +424,7 @@ No compression in v0.1.
 ### 10.1 Modules
 
 ```text
-gt7-telemetry/
+pocket-sim-engineer/
 ├── core/     # Kotlin JVM, no Android dependencies
 └── app/      # Android app, Compose UI, services, MediaProjection
 ```

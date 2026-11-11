@@ -41,7 +41,7 @@ These are the inputs/failure modes most likely to bite a user, and the spec does
 ## File Structure
 
 ```text
-gt7-telemetry/
+pocket-sim-engineer/
 ├── settings.gradle.kts
 ├── build.gradle.kts
 ├── gradle.properties
