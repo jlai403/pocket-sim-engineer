@@ -1,5 +1,6 @@
 package io.github.jlai403.pocketsimengineer.app.recording
 
+import android.annotation.SuppressLint
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioPlaybackCaptureConfiguration
@@ -39,6 +40,8 @@ class AudioCapture(
 
     override val isRecording: Boolean get() = running
 
+    // MainActivity requests RECORD_AUDIO and only starts capture after it is granted.
+    @SuppressLint("MissingPermission")
     @Synchronized
     override fun start() {
         if (running) return

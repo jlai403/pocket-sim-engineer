@@ -40,6 +40,9 @@ jobs:
       - name: Unit and Compose UI tests
         run: ./gradlew :core:test :app:testDebugUnitTest --stacktrace
 
+      - name: Lint
+        run: ./gradlew :app:lintDebug --stacktrace
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
         env:

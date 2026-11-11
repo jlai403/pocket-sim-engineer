@@ -148,7 +148,7 @@ class LapRemuxer(private val sessionDir: File) : LapCutter {
             val timeUs = extractor.sampleTime
             if (timeUs > clipEndUs) break
             if (timeUs >= clipStartUs) {
-                info.set(0, size, timeUs - clipStartUs, extractor.sampleFlags)
+                info.set(0, size, timeUs - clipStartUs, bufferFlags(extractor.sampleFlags))
                 muxer.writeSampleData(track, buffer, info)
                 samples++
             }
@@ -172,12 +172,19 @@ class LapRemuxer(private val sessionDir: File) : LapCutter {
             val timeUs = extractor.sampleTime
             if (timeUs > clipEndUs) break
             if (timeUs >= clipStartUs) {
-                info.set(0, size, timeUs - clipStartUs, extractor.sampleFlags)
+                info.set(0, size, timeUs - clipStartUs, bufferFlags(extractor.sampleFlags))
                 muxer.writeSampleData(track, buffer, info)
             }
             extractor.advance()
         }
     }
+
+    private fun bufferFlags(sampleFlags: Int): Int =
+        if (sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) {
+            MediaCodec.BUFFER_FLAG_KEY_FRAME
+        } else {
+            0
+        }
 
     private fun nextSampleTime(extractor: MediaExtractor): Long? {
         val probe = ByteBuffer.allocateDirect(BUFFER_SIZE)

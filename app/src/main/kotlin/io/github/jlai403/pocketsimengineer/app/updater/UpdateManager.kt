@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import io.github.jlai403.pocketsimengineer.BuildConfig
 import io.github.jlai403.pocketsimengineer.core.update.UpdateJsonCodec
@@ -225,10 +226,14 @@ object UpdateManager {
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
+    @Suppress("DEPRECATION")
     private fun supportedInstallSource(context: Context): Boolean = runCatching {
-        val installer = context.packageManager
-            .getInstallSourceInfo(context.packageName)
-            .installingPackageName
+        val manager = context.packageManager
+        val installer = if (Build.VERSION.SDK_INT >= 30) {
+            manager.getInstallSourceInfo(context.packageName).installingPackageName
+        } else {
+            manager.getInstallerPackageName(context.packageName)
+        }
         installer != STORE_FDROID && installer != STORE_PLAY
     }.getOrDefault(true)
 

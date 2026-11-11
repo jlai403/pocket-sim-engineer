@@ -13,14 +13,14 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
-        android:name=".app.PocketSimEngineerApp"
+        android:name="io.github.jlai403.pocketsimengineer.app.PocketSimEngineerApp"
         android:allowBackup="false"
         android:label="Pocket Sim Engineer"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
         <activity
-            android:name=".app.MainActivity"
+            android:name="io.github.jlai403.pocketsimengineer.app.MainActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
             android:exported="true">
             <intent-filter>
@@ -30,16 +30,16 @@
         </activity>
 
         <service
-            android:name=".service.TelemetryService"
+            android:name="io.github.jlai403.pocketsimengineer.app.service.TelemetryService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
         <receiver
-            android:name=".app.updater.UpdateInstallReceiver"
+            android:name="io.github.jlai403.pocketsimengineer.app.updater.UpdateInstallReceiver"
             android:exported="false" />
 
         <service
-            android:name=".recording.RecordingService"
+            android:name="io.github.jlai403.pocketsimengineer.app.recording.RecordingService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
