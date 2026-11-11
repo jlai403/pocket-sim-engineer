@@ -73,6 +73,8 @@ class MainActivity : ComponentActivity() {
             val recording by RecordingService.isRecording.collectAsStateWithLifecycle()
             val audioSilent by RecordingService.audioSilent.collectAsStateWithLifecycle()
             val notice by RecordingService.notice.collectAsStateWithLifecycle()
+            val telemetryEvents by TelemetryService.events.collectAsStateWithLifecycle()
+            val completedLaps by TelemetryService.completedLaps.collectAsStateWithLifecycle()
             var ip by rememberSaveable { mutableStateOf(settings.ps5Ip) }
 
             PocketSimEngineerTheme {
@@ -80,9 +82,21 @@ class MainActivity : ComponentActivity() {
                     capture = CaptureUiState(
                         ps5Ip = ip,
                         status = if (recording) "Recording" else serviceState.status,
+                        connected = serviceState.connected,
                         packetsPerSecond = serviceState.packetsPerSecond,
+                        decodeErrors = serviceState.decodeErrors,
+                        acceptedPackets = serviceState.acceptedPackets,
+                        lastPacketAgeMs = serviceState.lastPacketAgeMs,
                         lapCount = serviceState.lapCount,
                         speedMps = serviceState.speedMps,
+                        gear = serviceState.gear,
+                        throttle = serviceState.throttle,
+                        brake = serviceState.brake,
+                        rpm = serviceState.rpm,
+                        packetId = serviceState.packetId,
+                        carCode = serviceState.carCode,
+                        flags = serviceState.flags,
+                        lastLapTimeMs = serviceState.lastLapTimeMs,
                         recording = recording,
                         audioWarning = if (audioSilent == true) {
                             "Audio unavailable — recording video only."
@@ -90,6 +104,8 @@ class MainActivity : ComponentActivity() {
                             null
                         },
                         notice = notice,
+                        events = telemetryEvents,
+                        completedLaps = completedLaps,
                     ),
                     onSaveIp = { raw ->
                         if (settings.savePs5Ip(raw)) ip = settings.ps5Ip

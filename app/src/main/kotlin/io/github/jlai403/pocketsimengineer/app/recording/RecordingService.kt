@@ -14,9 +14,11 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.IBinder
 import android.os.Process
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
+import io.github.jlai403.pocketsimengineer.app.service.TelemetryService
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.core.clock.Clock
 import io.github.jlai403.pocketsimengineer.core.lap.LapBoundary
@@ -73,9 +75,11 @@ class RecordingService : Service() {
     private var audioCapture: AudioCapture? = null
     private var projection: MediaProjection? = null
     private var sessionWriter: SessionWriter? = null
-    private var lastNotificationText: String? = null
+    private var lastNotificationKey: String? = null
     private var lastCarCode = 0
     private var audioStartedNanos = 0L
+    private var wasConnected = false
+    private var lastToastAtNanos = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -112,12 +116,10 @@ class RecordingService : Service() {
             current.onEvent(RecordingEvent.RecorderError(error.message ?: "recorder-failed"))
             stopEverything()
         }
-        updateNotification()
     }
 
     fun onNoPackets() {
         controller?.onEvent(RecordingEvent.NoPackets)
-        updateNotification()
     }
 
     fun onLap(boundary: LapBoundary) {
@@ -129,6 +131,11 @@ class RecordingService : Service() {
                 videoStartOffsetMs = 0,
             )
         }.onFailure { notice.value = "Lap write failed: ${it.message}" }
+        if (sessionWriter != null) {
+            scope.launch {
+                toast("Lap ${boundary.lapNumber} · ${StreamNotificationText.lapTime(boundary.lapTimeMs)}")
+            }
+        }
     }
 
     private fun updateCar(carCode: Int) {
@@ -156,6 +163,8 @@ class RecordingService : Service() {
         notice.value = null
         audioSilent.value = null
         lastCarCode = 0
+        wasConnected = false
+        lastToastAtNanos = 0
         val settings = SettingsStore(this)
         val sessionId = "session-${System.currentTimeMillis()}"
         val sessionDir = File(filesDir, "sessions/$sessionId")
@@ -306,6 +315,7 @@ class RecordingService : Service() {
     private fun onRecorderError(message: String) {
         notice.value = message
         controller?.onEvent(RecordingEvent.RecorderError(message))
+        scope.launch { toast(message) }
     }
 
     private fun startTicking() {
@@ -314,6 +324,8 @@ class RecordingService : Service() {
             while (isActive) {
                 delay(1_000)
                 controller?.tick()
+                maybeStreamToasts()
+                updateNotification()
                 val audio = audioCapture
                 if (isRecording.value && audio != null && audioStartedNanos > 0 &&
                     System.nanoTime() - audioStartedNanos > 2_000_000_000L && audio.frames == 0L
@@ -349,6 +361,7 @@ class RecordingService : Service() {
         sessionWriter = null
         val projectionToStop = projection
         projection = null
+        wasConnected = false
         val keepRaw = SettingsStore(this).keepRaw
         setNotification("Finalizing…")
 
@@ -383,26 +396,52 @@ class RecordingService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private fun maybeStreamToasts() {
+        if (controller == null) return
+        val telemetry = TelemetryService.state.value
+        if (telemetry.connected && !wasConnected) {
+            wasConnected = true
+            toast("GT7 stream OK · %.0f pps".format(telemetry.packetsPerSecond))
+        } else if (!telemetry.connected && wasConnected) {
+            wasConnected = false
+            toast("GT7 telemetry lost")
+        }
+    }
+
+    private fun toast(message: String) {
+        val now = System.nanoTime()
+        if (now - lastToastAtNanos < 3_000_000_000L) return
+        lastToastAtNanos = now
+        runCatching { Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show() }
+    }
+
     private fun updateNotification() {
         val state = controller?.state?.value
-        val text = when (state) {
+        val telemetry = TelemetryService.state.value
+        val base = when (state) {
             is RecordingState.Armed -> "Armed"
             is RecordingState.Recording -> "Recording lap ${state.lapCount}"
             is RecordingState.Error -> "Error: ${state.message}"
             is RecordingState.Stopping -> "Stopping"
             else -> if (isRecording.value) "Recording" else "Armed"
         }
-        setNotification(text)
+        val summary = StreamNotificationText.summary(base, telemetry)
+        val details = StreamNotificationText.details(
+            telemetry,
+            TelemetryService.events.value.firstOrNull()?.message,
+        )
+        setNotification(summary, details)
     }
 
-    private fun setNotification(text: String) {
-        if (text == lastNotificationText) return
-        lastNotificationText = text
+    private fun setNotification(text: String, details: String? = null) {
+        val key = text + "|" + details.orEmpty()
+        if (key == lastNotificationKey) return
+        lastNotificationKey = key
         val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIFICATION_ID, notification(text))
+        manager.notify(NOTIFICATION_ID, notification(text, details))
     }
 
-    private fun notification(text: String): Notification {
+    private fun notification(text: String, details: String? = null): Notification {
         val open = PendingIntent.getActivity(
             this,
             1,
@@ -420,8 +459,10 @@ class RecordingService : Service() {
             .setContentText(text)
             .setSmallIcon(android.R.drawable.presence_video_online)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setContentIntent(open)
             .addAction(android.R.drawable.ic_media_pause, "Stop", stop)
+            .apply { details?.let { setStyle(NotificationCompat.BigTextStyle().bigText(it)) } }
             .build()
     }
 }

@@ -14,10 +14,12 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
 import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
+import io.github.jlai403.pocketsimengineer.core.lap.LapBoundary
 import io.github.jlai403.pocketsimengineer.core.lap.LapDetector
 import io.github.jlai403.pocketsimengineer.core.network.Ipv4
 import io.github.jlai403.pocketsimengineer.core.protocol.Gt7Decoder
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 
 class TelemetryService : Service() {
     companion object {
@@ -28,6 +30,10 @@ class TelemetryService : Service() {
         private const val NOTIFICATION_ID = 1001
 
         val state = MutableStateFlow(TelemetryUiState())
+        val events = MutableStateFlow<List<TelemetryEvent>>(emptyList())
+        val completedLaps = MutableStateFlow(0)
+
+        private const val MAX_EVENTS = 12
     }
 
     private var source: UdpTelemetrySource? = null
@@ -71,17 +77,16 @@ class TelemetryService : Service() {
                 source?.stop()
                 releaseLocks()
                 acquireLocks()
+                events.value = emptyList()
+                completedLaps.value = 0
                 val newSource = UdpTelemetrySource(
                     host = host,
                     decoder = Gt7Decoder(),
                     lapDetector = LapDetector(),
                     stats = TelemetryStats(),
                     onSample = { RecordingService.instance?.onTelemetry(it) },
-                    onLap = { RecordingService.instance?.onLap(it) },
-                    onState = {
-                        state.value = it
-                        if (!it.connected) RecordingService.instance?.onNoPackets()
-                    },
+                    onLap = { handleLap(it) },
+                    onState = { publishState(it) },
                     onStatus = { state.value = state.value.copy(status = it) },
                 )
                 if (!newSource.start()) {
@@ -104,10 +109,47 @@ class TelemetryService : Service() {
         source?.stop()
         source = null
         releaseLocks()
+        state.value = TelemetryUiState()
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun publishState(next: TelemetryUiState) {
+        val previous = state.value
+        state.value = next
+
+        if (next.connected != previous.connected) {
+            recordEvent(
+                if (next.connected) {
+                    "Connected · %.0f pps".format(next.packetsPerSecond)
+                } else {
+                    "Waiting for packets"
+                },
+            )
+        }
+        val onTrack = next.flags and 1 != 0
+        val wasOnTrack = previous.flags and 1 != 0
+        if (next.connected && onTrack != wasOnTrack) {
+            recordEvent(if (onTrack) "Car on track" else "Car off track")
+        }
+        if (!next.connected) RecordingService.instance?.onNoPackets()
+    }
+
+    private fun handleLap(boundary: LapBoundary) {
+        completedLaps.update { it + 1 }
+        recordEvent("Lap ${boundary.lapNumber} complete · ${formatLapTime(boundary.lapTimeMs)}")
+        RecordingService.instance?.onLap(boundary)
+    }
+
+    private fun recordEvent(message: String) {
+        events.update { current ->
+            (listOf(TelemetryEvent(System.currentTimeMillis(), message)) + current).take(MAX_EVENTS)
+        }
+    }
+
+    private fun formatLapTime(ms: Int): String =
+        "%d:%02d.%03d".format(ms / 60_000, (ms % 60_000) / 1_000, ms % 1_000)
 
     private fun notification(): Notification {
         val open = PendingIntent.getActivity(

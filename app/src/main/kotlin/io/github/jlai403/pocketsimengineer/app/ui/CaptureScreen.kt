@@ -25,11 +25,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import io.github.jlai403.pocketsimengineer.BuildConfig
 import io.github.jlai403.pocketsimengineer.core.network.Ipv4
+import io.github.jlai403.pocketsimengineer.core.telemetry.TelemetryHealth
 
 @Composable
 fun CaptureScreen(
@@ -105,6 +112,8 @@ fun CaptureScreen(
             }
         }
 
+        StreamCard(state)
+
         Warnings(state)
 
         SectionCard(title = "Console") {
@@ -157,6 +166,166 @@ fun CaptureScreen(
         RecordingInstructions(showInstructions) { showInstructions = it }
         Spacer(Modifier.height(8.dp))
     }
+}
+
+@Composable
+private fun StreamCard(state: CaptureUiState) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val health = TelemetryHealth.evaluate(
+        connected = state.connected,
+        packetsPerSecond = state.packetsPerSecond,
+        lastPacketAgeMs = state.lastPacketAgeMs,
+    )
+    val statusColor = when {
+        health.healthy -> MaterialTheme.colorScheme.primary
+        !state.connected -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> MaterialTheme.colorScheme.error
+    }
+
+    SectionCard(
+        title = "GT7 stream",
+        action = {
+            GhostPill(
+                text = if (expanded) "Hide details" else "Show details",
+                onClick = { expanded = !expanded },
+            )
+        },
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StatusDot(health.healthy)
+            Spacer(Modifier.size(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    health.reason,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = statusColor,
+                )
+                Text(
+                    streamSummary(state),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        if (!expanded) return@SectionCard
+
+        MetricRow("Packet ID", state.packetId.toString())
+        MetricRow("Car code", state.carCode.toString())
+        MetricRow(
+            "Flags",
+            "0x%04X · %s".format(
+                state.flags,
+                if (state.flags and 1 != 0) "on track" else "off track",
+            ),
+        )
+        MetricRow(
+            "Inputs",
+            "G%d · T%d%% · B%d%% · %.0f rpm".format(
+                state.gear,
+                state.throttle * 100 / 255,
+                state.brake * 100 / 255,
+                state.rpm,
+            ),
+        )
+        MetricRow(
+            "Packets",
+            "%d accepted · %d decode errors".format(state.acceptedPackets, state.decodeErrors),
+        )
+        MetricRow(
+            "Laps",
+            "%d detected · GT7 lap %d · last %s".format(
+                state.completedLaps,
+                state.lapCount,
+                lapTimeLabel(state.lastLapTimeMs),
+            ),
+        )
+
+        SectionLabel("Recent events")
+        if (state.events.isEmpty()) {
+            Text(
+                "No events yet. Connections, laps, and car state changes appear here.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            state.events.take(6).forEach { event ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    NumericText(
+                        formatEventTime(event.atEpochMs),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(event.message, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
+        GhostPill("Copy diagnostics", onClick = { copyDiagnostics(context, state) })
+    }
+}
+
+@Composable
+private fun MetricRow(label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        NumericText(
+            value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+private fun streamSummary(state: CaptureUiState): String {
+    val age = if (state.lastPacketAgeMs < 0) {
+        "no packets yet"
+    } else {
+        "%d ms ago".format(state.lastPacketAgeMs)
+    }
+    return "%.1f pps · %d errors · %s".format(
+        state.packetsPerSecond,
+        state.decodeErrors,
+        age,
+    )
+}
+
+private fun copyDiagnostics(context: Context, state: CaptureUiState) {
+    val text = buildString {
+        appendLine(
+            "Pocket Sim Engineer ${BuildConfig.VERSION_NAME} " +
+                "(build ${BuildConfig.BUILD_NUMBER}, ${BuildConfig.GIT_SHA})",
+        )
+        appendLine("Connected: ${state.connected}")
+        appendLine("Packets/s: %.1f".format(state.packetsPerSecond))
+        appendLine("Accepted: ${state.acceptedPackets}, decode errors: ${state.decodeErrors}")
+        appendLine("Last packet age: ${state.lastPacketAgeMs} ms")
+        appendLine(
+            "Packet ID: ${state.packetId}, car: ${state.carCode}, " +
+                "flags: 0x%04X".format(state.flags),
+        )
+        appendLine(
+            "Laps: ${state.completedLaps} detected, GT7 lap ${state.lapCount}, " +
+                "last ${lapTimeLabel(state.lastLapTimeMs)}",
+        )
+        appendLine(
+            "Speed: %.1f m/s, gear ${state.gear}, throttle ${state.throttle}, " +
+                "brake ${state.brake}, rpm %.0f".format(state.speedMps, state.rpm),
+        )
+        appendLine("Events:")
+        state.events.take(5).forEach {
+            appendLine("- ${formatEventTime(it.atEpochMs)} ${it.message}")
+        }
+    }
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText("GT7 diagnostics", text))
+    Toast.makeText(context, "Diagnostics copied", Toast.LENGTH_SHORT).show()
 }
 
 private val recordingSteps = listOf(

@@ -138,6 +138,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 
 - Header: “Record”, subtitle “Telemetry and screen capture”.
 - Status card: live dot, status text, UDP hint, then three stat chips (packets/s, lap, speed m/s).
+- “GT7 stream” card: a health line (Streaming / Waiting / stale / low rate) with pps, errors, and packet age; `Show details` reveals packet ID, car code, flags, inputs, accepted packets, lap-event count, the last five events, and `Copy diagnostics`. Copy includes version, build number, commit, and the current metrics.
 - Warnings render in an `errorContainer` banner.
 - “Console” card with the PS5 IP field.
 - Full-width `Arm recording` primary pill, then `Test 10 s` / `Stop` ghost pills.
@@ -183,6 +184,14 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Map: 3 px `onSurfaceVariant` polyline, 7 px green dot at the cursor, 240 dp tall.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.
 - Current values above the charts: speed with unit, gear, throttle %, brake %, RPM.
+
+## Recording feedback outside the app
+
+While Chiaki-Up is fullscreen the Record tab is not visible, and v0.1 has no overlay.
+
+- The recording notification is the live surface: collapsed shows `Recording lap 3 · 59 pps · 0 err`; expanded (`BigTextStyle`) shows packet age, packet ID, car code, flags, lap, last lap, and the last event. Updates once per second, silent, `setOnlyAlertOnce`.
+- Short text toasts are limited to transitions: `GT7 stream OK · 60 pps`, `Lap 2 · 1:30.456`, `GT7 telemetry lost`, and one capture/audio warning. Rate-limited to one every 3 seconds.
+- The Record card remains the full diagnostics view before arming and after stopping.
 
 ## Copy and tone
 

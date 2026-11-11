@@ -9,6 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import io.github.jlai403.pocketsimengineer.app.service.TelemetryEvent
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -81,6 +82,50 @@ class CaptureScreenTest {
         compose.onNodeWithText("Save IP").performScrollTo().performClick()
 
         compose.onNodeWithText("Enter a valid IPv4 address").assertExists()
+    }
+
+    @Test
+    fun `stream details show decoded fields and lap events`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                CaptureScreen(
+                    state = CaptureUiState(
+                        connected = true,
+                        packetsPerSecond = 59.8,
+                        lastPacketAgeMs = 12,
+                        lapCount = 3,
+                        speedMps = 50f,
+                        gear = 4,
+                        throttle = 200,
+                        rpm = 7_000f,
+                        packetId = 84_213,
+                        carCode = 3474,
+                        flags = 1,
+                        lastLapTimeMs = 90_456,
+                        acceptedPackets = 12_345,
+                        completedLaps = 2,
+                        events = listOf(
+                            TelemetryEvent(1_760_000_000_000L, "Lap 2 complete · 1:30.456"),
+                        ),
+                    ),
+                    onSaveIp = {},
+                    onArm = {},
+                    onTestRecord = {},
+                    onStop = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("GT7 STREAM").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Streaming").assertExists()
+        compose.onNodeWithText("Show details").performScrollTo().performClick()
+
+        compose.onNodeWithText("84213").assertExists()
+        compose.onNodeWithText("3474").assertExists()
+        compose.onNodeWithText("0x0001 · on track").assertExists()
+        compose.onNodeWithText("Lap 2 complete · 1:30.456").assertExists()
     }
 
     private companion object {

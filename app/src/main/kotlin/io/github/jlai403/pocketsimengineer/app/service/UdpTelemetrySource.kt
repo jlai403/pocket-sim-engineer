@@ -110,15 +110,24 @@ class UdpTelemetrySource(
         if (nowNanos - lastPublishNanos < PUBLISH_INTERVAL_NANOS) return
         lastPublishNanos = nowNanos
         val sample = lastSample
-        val connected = lastPacketNanos?.let { nowNanos - it < 2_000_000_000L } == true
+        val lastPacket = lastPacketNanos
+        val connected = lastPacket?.let { nowNanos - it < 2_000_000_000L } == true
         onState(
             TelemetryUiState(
                 connected = connected,
                 packetsPerSecond = stats.packetsPerSecond(nowNanos),
                 decodeErrors = stats.decodeErrors(),
+                acceptedPackets = stats.acceptedPackets(),
+                lastPacketAgeMs = lastPacket?.let { (nowNanos - it) / 1_000_000 } ?: -1,
                 lapCount = sample?.lapCount ?: 0,
                 speedMps = sample?.speedMps ?: 0f,
                 gear = sample?.gear ?: 0,
+                throttle = sample?.throttle ?: 0,
+                brake = sample?.brake ?: 0,
+                rpm = sample?.rpm ?: 0f,
+                packetId = sample?.packetId ?: 0,
+                carCode = sample?.carCode ?: 0,
+                flags = sample?.flags ?: 0,
                 lastLapTimeMs = sample?.lastLapTimeMs ?: 0,
                 status = if (connected) "Telemetry connected" else "Waiting for telemetry",
             ),
