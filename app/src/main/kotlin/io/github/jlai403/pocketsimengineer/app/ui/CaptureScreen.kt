@@ -330,6 +330,7 @@ private fun copyDiagnostics(context: Context, state: CaptureUiState) {
 
 private val recordingSteps = listOf(
     "Connect Chiaki-Up to the PS5 and open GT7.",
+    "In Chiaki-Up, swipe down from the top edge and turn On-Screen Controls off. The bar fades after a moment.",
     "Enter the PS5 IPv4 address above.",
     "Tap Arm recording, then allow screen capture.",
     "Switch to Chiaki-Up and start driving. Recording begins when GT7 reports the car on track.",
@@ -351,7 +352,7 @@ private fun RecordingInstructions(expanded: Boolean, onExpandedChange: (Boolean)
     ) {
         if (!expanded) {
             Text(
-                "7 steps · about a minute before your first lap",
+                "8 steps · about a minute before your first lap",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -404,6 +405,11 @@ private fun RecordingInstructions(expanded: Boolean, onExpandedChange: (Boolean)
             )
             Text(
                 "If Android blocks internal audio, the lap records silently and a warning appears.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                "Chiaki-Up's bar is recorded if it stays on screen. Swipe it away before a lap; swipe from the top to get the controls back.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )

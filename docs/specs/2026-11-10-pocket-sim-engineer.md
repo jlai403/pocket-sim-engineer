@@ -79,6 +79,7 @@ Primary device: Pixel 10, Android 16.
 - v0.1 supports Chiaki-Up only. PXPlay is an untested fallback and is not a dependency.
 - No chiaki-ng integration until after the MVP.
 - The app records the display, not Chiaki-Up's internals.
+- Chiaki-Up's on-screen controls and in-stream bar are the user's to hide: swipe down from the top edge, turn `On-Screen Controls` off (Chiaki-Up persists it), and let the bar fade before driving. The app cannot hide another app's UI, so the Record steps document it. Lap video contains only the game.
 - Recording control: arm once from the app, grant screen capture, then auto-start when telemetry shows the car on track. Notification Stop action.
 - No floating overlay in v0.1.
 
@@ -570,7 +571,7 @@ Network:
 ### Spike
 
 - Decodes real GT7 packet A at ~60 packets/s for 30 s.
-- Records a clean 1080p60 MP4 of Chiaki-Up (not black).
+- Records a clean 1080p60 MP4 of Chiaki-Up (not black, no client UI or controls).
 - Records internal audio, or correctly falls back to silent video with a warning.
 - Detects two consecutive laps and writes two lap markers with plausible lap times.
 - Lap markers land within a few frames of the visible lap boundary after calibration.

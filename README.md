@@ -87,7 +87,7 @@ Task 12 in the plan is blocked without an attached Pixel 10:
 
 - Android only for now: Kotlin + Jetpack Compose.
 - Two modules: `:core` (plain Kotlin JVM) and `:app` (Android).
-- Capture path: Chiaki-Up fullscreen; the app records the display and internal game audio.
+- Capture path: Chiaki-Up fullscreen with On-Screen Controls off; the app records the display and internal game audio.
 - Per-lap files are cut after the raw recording is finalized, because `MediaMuxer` writes the MP4 index only on stop.
 - Telemetry: GT7 UDP packet A; packet C later.
 - Local-first: no accounts, cloud, ads, or tracking in v0.1.

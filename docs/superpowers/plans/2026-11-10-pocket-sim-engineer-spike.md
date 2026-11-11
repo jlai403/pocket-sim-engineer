@@ -1250,7 +1250,7 @@ Run:
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n io.github.jlai403.pocketsimengineer/.app.MainActivity
 ```
-Tap `Arm`, grant capture, open Chiaki-Up, start a race. Expected:
+Tap `Arm`, grant capture, open Chiaki-Up, hide `On-Screen Controls`, start a race. Expected:
 - Notification changes from `Armed` to `Recording lap N`.
 - Pulling down the shade and tapping `Stop` stops recording.
 - Returning to the menu for 5 s stops recording and finalizes the MP4.
@@ -1355,7 +1355,7 @@ Expected: one device listed, app opens.
 
 1. Enter the PS5 IP.
 2. Tap `Arm` and grant screen capture, notifications, and audio recording.
-3. Open Chiaki-Up and connect.
+3. Open Chiaki-Up and connect. Swipe down from the top edge, turn `On-Screen Controls` off, and let the bar fade.
 4. Drive two clean laps.
 5. Return to the menu for 5 s, or tap notification `Stop`.
 6. Pull the session:
@@ -1386,7 +1386,7 @@ ffprobe -v error -show_entries stream=codec_type,codec_name,width,height,r_frame
 Expected:
 - H.264 video, 1920×1080, ~60 fps.
 - AAC audio, 48 kHz, 2 channels.
-- Video is not black.
+- Video is not black and shows no Chiaki-Up controls or bar.
 - Audio is game audio, not silence. If silent, confirm the fallback warning appeared.
 
 - [ ] **Step 5: Verify sync and lifecycle**

@@ -142,7 +142,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Warnings render in an `errorContainer` banner.
 - “Console” card with the PS5 IP field.
 - Full-width `Arm recording` primary pill, then `Test 10 s` / `Stop` ghost pills.
-- “How to record” card: collapsed by default with a one-line summary and a `Show steps` pill; expands to seven numbered steps, then a red “Keep in mind” block covering screen lock, blocked audio, and the test-recording caveat.
+- “How to record” card: collapsed by default with a one-line summary and a `Show steps` pill; expands to eight numbered steps, then a red “Keep in mind” block covering the Chiaki-Up bar, screen lock, blocked audio, and the test-recording caveat. The first-run steps include hiding Chiaki-Up's on-screen controls and its bar.
 
 ### Session
 
@@ -188,6 +188,8 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 ## Recording feedback outside the app
 
 While Chiaki-Up is fullscreen the Record tab is not visible, and v0.1 has no overlay.
+
+- Capture hygiene: Chiaki-Up's in-stream bar (On-Screen Controls, Touchpad only, display mode) and its touch layout are part of the captured display. The record steps tell the driver to swipe from the top edge, turn On-Screen Controls off, and let the bar fade before driving. The app cannot hide another app's controls, so this stays a documented setup step, not a feature.
 
 - The recording notification is the live surface: collapsed shows `Recording lap 3 · 59 pps · 0 err`; expanded (`BigTextStyle`) shows packet age, packet ID, car code, flags, lap, last lap, and the last event. Updates once per second, silent, `setOnlyAlertOnce`.
 - Short text toasts are limited to transitions: `GT7 stream OK · 60 pps`, `Lap 2 · 1:30.456`, `GT7 telemetry lost`, and one capture/audio warning. Rate-limited to one every 3 seconds.

@@ -42,7 +42,7 @@ class CaptureScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("HOW TO RECORD").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("7 steps · about a minute before your first lap").assertExists()
+        compose.onNodeWithText("8 steps · about a minute before your first lap").assertExists()
         compose.onNodeWithText("Switch to Chiaki-Up and start driving", substring = true)
             .assertDoesNotExist()
 
