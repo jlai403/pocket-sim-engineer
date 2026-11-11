@@ -192,7 +192,9 @@ While Chiaki-Up is fullscreen the Record tab is not visible, and v0.1 has no ove
 - Capture hygiene: Chiaki-Up's in-stream bar (On-Screen Controls, Touchpad only, display mode) and its touch layout are part of the captured display. The record steps tell the driver to swipe from the top edge, turn On-Screen Controls off, and let the bar fade before driving. The app cannot hide another app's controls, so this stays a documented setup step, not a feature.
 
 - The recording notification is the live surface: collapsed shows `Recording lap 3 · 59 pps · 0 err`; expanded (`BigTextStyle`) shows packet age, packet ID, car code, flags, lap, last lap, and the last event. Updates once per second, silent, `setOnlyAlertOnce`.
-- Short text toasts are limited to transitions: `GT7 stream OK · 60 pps`, `Lap 2 · 1:30.456`, `GT7 telemetry lost`, and one capture/audio warning. Rate-limited to one every 3 seconds.
+- Short text toasts are limited to transitions before the MP4 rolls: `GT7 stream OK · 60 pps` and `GT7 telemetry lost`. Rate-limited to one every 3 seconds.
+- Nothing is drawn while recording: a toast is a window on the captured display, so it would appear in the lap video. Lap confirmation lives in the notification and the library. Errors during recording surface in the notification only.
+- The notification is `IMPORTANCE_LOW` and silent, so it never heads-up over Chiaki-Up; it appears only when the driver pulls the shade.
 - The Record card remains the full diagnostics view before arming and after stopping.
 
 ## Copy and tone

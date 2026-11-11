@@ -82,6 +82,7 @@ Primary device: Pixel 10, Android 16.
 - Chiaki-Up's on-screen controls and in-stream bar are the user's to hide: swipe down from the top edge, turn `On-Screen Controls` off (Chiaki-Up persists it), and let the bar fade before driving. The app cannot hide another app's UI, so the Record steps document it. Lap video contains only the game.
 - Recording control: arm once from the app, grant screen capture, then auto-start when telemetry shows the car on track. Notification Stop action.
 - No floating overlay in v0.1.
+- Nothing from this app is drawn while recording: a toast or banner is composited into the display and would land in the lap video. Toasts are limited to the pre-recording window; lap and error feedback lives in the silent, low-importance notification and the library.
 
 ### Recording
 

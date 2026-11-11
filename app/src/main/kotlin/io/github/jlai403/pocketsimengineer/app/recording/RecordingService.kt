@@ -131,11 +131,6 @@ class RecordingService : Service() {
                 videoStartOffsetMs = 0,
             )
         }.onFailure { notice.value = "Lap write failed: ${it.message}" }
-        if (sessionWriter != null) {
-            scope.launch {
-                toast("Lap ${boundary.lapNumber} · ${StreamNotificationText.lapTime(boundary.lapTimeMs)}")
-            }
-        }
     }
 
     private fun updateCar(carCode: Int) {
@@ -409,6 +404,8 @@ class RecordingService : Service() {
     }
 
     private fun toast(message: String) {
+        // Toasts are part of the captured display, so stay silent while the MP4 is rolling.
+        if (isRecording.value) return
         val now = System.nanoTime()
         if (now - lastToastAtNanos < 3_000_000_000L) return
         lastToastAtNanos = now
