@@ -9,6 +9,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import io.github.jlai403.pocketsimengineer.app.updater.UpdateManager
+import io.github.jlai403.pocketsimengineer.core.update.UpdateManifest
 import io.github.jlai403.pocketsimengineer.app.settings.VideoQuality
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -48,6 +50,41 @@ class SettingsScreenTest {
         compose.onNodeWithText("Version").assertExists()
         compose.onNodeWithText("Build number").assertExists()
         compose.onNodeWithText("Commit").assertExists()
+    }
+
+    @Test
+    fun `shows an available update and downloads it`() {
+        var downloads = 0
+        compose.setContent {
+            PocketSimEngineerTheme {
+                SettingsScreen(
+                    update = UpdateManager.State.Available(
+                        UpdateManifest(
+                            versionCode = 1035,
+                            versionName = "0.1.1",
+                            notes = "Build 35",
+                        ),
+                    ),
+                    onDownloadUpdate = { downloads++ },
+                )
+            }
+        }
+
+        compose.onNodeWithText("Version 0.1.1 (build 1035) is available. Build 35").assertExists()
+        compose.onNodeWithText("Download 0.1.1").performScrollTo().performClick()
+        assertEquals(1, downloads)
+    }
+
+    @Test
+    fun `up to date says so`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                SettingsScreen(update = UpdateManager.State.UpToDate)
+            }
+        }
+
+        compose.onNodeWithText("You are on the latest build.").assertExists()
+        compose.onNodeWithText("Check for updates").assertExists()
     }
 
     @Test

@@ -60,6 +60,8 @@ Primary device: Pixel 10, Android 16.
 
 - Public, free/open-source app.
 - Distribution: F-Droid + GitHub releases. Play Store is optional later.
+- Two GitHub channels: `main` pushes publish a `preview-latest` prerelease; `v*` tags publish the latest stable release. The app checks its own channel once a day, verifies SHA-256, and hands the APK to `PackageInstaller`; Android always asks before installing. Installs from F-Droid or Play skip the in-app check so the store owns updates.
+- `versionCode = 1000 + git commit count`, so builds sort monotonically without hand-editing.
 - License: GPLv3 + contributor CLA. Relicense to AGPLv3 only if chiaki-ng is ever linked.
 - Working title: Pocket Sim Engineer. Final name may change before the first F-Droid release.
 - Package: `io.github.jlai403.pocketsimengineer`.

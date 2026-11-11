@@ -12,6 +12,17 @@ val buildNumber = providers.gradleProperty("buildNumber")
     .orElse("local")
     .get()
 
+val commitCount = runCatching {
+    providers.exec {
+        commandLine("git", "rev-list", "--count", "HEAD")
+    }.standardOutput.asText.map { it.trim().toIntOrNull() ?: 1 }.get()
+}.getOrDefault(1)
+
+val updateChannel = providers.gradleProperty("updateChannel")
+    .orElse(providers.environmentVariable("UPDATE_CHANNEL"))
+    .orElse("preview")
+    .get()
+
 val gitSha = runCatching {
     providers.gradleProperty("gitSha")
         .orElse(providers.environmentVariable("GITHUB_SHA"))
@@ -32,10 +43,11 @@ android {
         applicationId = "io.github.jlai403.pocketsimengineer"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
+        versionCode = 1000 + commitCount
         versionName = "0.1.0"
         buildConfigField("String", "BUILD_NUMBER", "\"$buildNumber\"")
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
+        buildConfigField("String", "UPDATE_CHANNEL", "\"$updateChannel\"")
     }
 
     // A checked-in debug key keeps GitHub Actions APKs updatable over each other.

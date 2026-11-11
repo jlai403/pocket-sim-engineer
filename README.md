@@ -32,6 +32,22 @@ pocket-sim-engineer/
 - Session library with grouping, rename, delete, and CSV/MP4 sharing.
 - Lap player: Media3 video, speed/throttle/brake/RPM/gear charts, track map, sync nudge.
 
+## Update channels
+
+- **Preview** — every push to `main` replaces the `preview-latest` prerelease: `PocketSimEngineer-preview.apk` plus `latest.json`. Preview builds check this channel.
+- **Stable** — a `v*` tag creates the latest release with `PocketSimEngineer-<tag>.apk` plus `latest.json`. Tag builds check `releases/latest`.
+
+The app checks once a day (or from Settings → Updates), compares `versionCode`, downloads the APK, verifies its SHA-256, and hands it to Android's installer. The user always confirms the install. Checks are skipped when the app was installed by F-Droid or Play.
+
+`versionCode` is `1000 + commit count`, so every commit sorts after the previous one.
+
+```bash
+# preview APK
+gh release download preview-latest -p PocketSimEngineer-preview.apk -D dist --clobber
+# stable APK
+gh release download latest -p 'PocketSimEngineer-*.apk' -D dist --clobber
+```
+
 ## Build
 
 Requires JDK 17+ and the Android SDK (compileSdk 36).
@@ -60,6 +76,22 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - `:app` Compose UI (Robolectric, no emulator) — session library grouping and open, session lap list and uncut marker, player charts/map/uncut-video path, settings persistence.
 
 Not covered by JVM tests: MediaProjection capture, real `MediaExtractor`/`MediaMuxer` remux, internal audio, real GT7 packets, and actual video decode. Those stay device checks.
+
+## Update channels
+
+- **Preview** — every push to `main` replaces the `preview-latest` prerelease: `PocketSimEngineer-preview.apk` plus `latest.json`. Preview builds check this channel.
+- **Stable** — a `v*` tag creates the latest release with `PocketSimEngineer-<tag>.apk` plus `latest.json`. Tag builds check `releases/latest`.
+
+The app checks once a day (or from Settings → Updates), compares `versionCode`, downloads the APK, verifies its SHA-256, and hands it to Android's installer. The user always confirms the install. Checks are skipped when the app was installed by F-Droid or Play.
+
+`versionCode` is `1000 + commit count`, so every commit sorts after the previous one.
+
+```bash
+# preview APK
+gh release download preview-latest -p PocketSimEngineer-preview.apk -D dist --clobber
+# stable APK
+gh release download latest -p 'PocketSimEngineer-*.apk' -D dist --clobber
+```
 
 ## Builds from GitHub Actions
 

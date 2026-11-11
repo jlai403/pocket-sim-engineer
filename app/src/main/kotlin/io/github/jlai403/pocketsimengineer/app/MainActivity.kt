@@ -11,6 +11,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -19,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
 import io.github.jlai403.pocketsimengineer.app.service.TelemetryService
+import io.github.jlai403.pocketsimengineer.app.updater.UpdateManager
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.ui.App
 import io.github.jlai403.pocketsimengineer.app.ui.CaptureUiState
@@ -76,7 +78,10 @@ class MainActivity : ComponentActivity() {
             val notice by RecordingService.notice.collectAsStateWithLifecycle()
             val telemetryEvents by TelemetryService.events.collectAsStateWithLifecycle()
             val completedLaps by TelemetryService.completedLaps.collectAsStateWithLifecycle()
+            val update by UpdateManager.state.collectAsStateWithLifecycle()
             var ip by rememberSaveable { mutableStateOf(settings.ps5Ip) }
+
+            LaunchedEffect(Unit) { UpdateManager.checkIfStale(applicationContext) }
 
             PocketSimEngineerTheme {
                 App(
@@ -119,6 +124,10 @@ class MainActivity : ComponentActivity() {
                         ensureAudio { requestCapture(CapturePurpose.Test) }
                     },
                     onStop = { stopRecording() },
+                    update = update,
+                    onCheckUpdate = { UpdateManager.check(applicationContext) },
+                    onDownloadUpdate = { UpdateManager.download(applicationContext) },
+                    onInstallUpdate = { UpdateManager.install(applicationContext) },
                 )
             }
         }

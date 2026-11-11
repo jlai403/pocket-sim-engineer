@@ -169,7 +169,9 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Video card: resolution and codec segmented controls, bitrate label + slider.
 - Recording card: `Keep raw recording` toggle row.
 - Display card: `Imperial units` toggle row.
-- Build card: version name, CI build number (or `local`), and short commit SHA.
+- Updates card: channel-aware status line (`Checks the rolling debug build once a day.`, `You are on the latest build.`, `Version X (build N) is available.`), then one action: `Check for updates`, `Download X`, `Downloading N%`, `Install update`, or `Installing…`. Failures use `error` color and name the next action.
+- Build card: version name, version code, update channel (`preview`/`stable`), CI build number (or `local`), and short commit SHA.
+- When an update is found, a launch dialog offers `Download` / `Later`; Settings remains the place to retry or install.
 - Toggle rows are fully clickable; the switch is display-only.
 
 ## Charts and track map

@@ -18,15 +18,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.jlai403.pocketsimengineer.app.updater.UpdateManager
 
 @Composable
 fun App(
@@ -37,6 +41,10 @@ fun App(
     onStartRecording: () -> Unit,
     onTestRecord: () -> Unit,
     onStop: () -> Unit,
+    update: UpdateManager.State,
+    onCheckUpdate: () -> Unit,
+    onDownloadUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
 ) {
     var screen by remember { mutableStateOf<Screen>(Screen.Library) }
     val activeTab = when (screen) {
@@ -89,9 +97,19 @@ fun App(
                             onStop = onStop,
                         )
 
-                        Screen.Settings -> SettingsScreen()
+                        Screen.Settings -> SettingsScreen(
+                            update = update,
+                            onCheckUpdate = onCheckUpdate,
+                            onDownloadUpdate = onDownloadUpdate,
+                            onInstallUpdate = onInstallUpdate,
+                        )
                     }
                 }
+                UpdatePrompt(
+                    update = update,
+                    onDownload = onDownloadUpdate,
+                    onInstall = onInstallUpdate,
+                )
                 if (activeTab != null) {
                     AppBottomBar(selected = activeTab) { tab ->
                         screen = when (tab) {
@@ -104,6 +122,43 @@ fun App(
             }
         }
     }
+}
+
+@Composable
+private fun UpdatePrompt(
+    update: UpdateManager.State,
+    onDownload: () -> Unit,
+    onInstall: () -> Unit,
+) {
+    var dismissed by rememberSaveable { mutableStateOf(false) }
+    val available = update as? UpdateManager.State.Available ?: return
+    if (dismissed) return
+    AlertDialog(
+        onDismissRequest = { dismissed = true },
+        title = { Text("Update available") },
+        text = {
+            Text(
+                buildString {
+                    append(
+                        "Version ${available.manifest.versionName} " +
+                            "(build ${available.manifest.versionCode}) is available.",
+                    )
+                    if (available.manifest.notes.isNotBlank()) append(" ${available.manifest.notes}")
+                },
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    dismissed = true
+                    onDownload()
+                },
+            ) { Text("Download") }
+        },
+        dismissButton = {
+            TextButton(onClick = { dismissed = true }) { Text("Later") }
+        },
+    )
 }
 
 @Composable
