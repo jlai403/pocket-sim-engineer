@@ -38,7 +38,7 @@ fun ChartColumn(
         Text("No telemetry for this lap", modifier = modifier)
         return
     }
-    val current = remember(window, lap, cursorMs) { window.nearest(lap, cursorMs) }
+    val current = remember(window, lap, cursorMs) { window.sampleAt(lap, cursorMs) }
     val speedColor = MaterialTheme.colorScheme.secondary
     val throttleColor = MaterialTheme.colorScheme.primary
     val brakeColor = MaterialTheme.colorScheme.error
@@ -207,7 +207,7 @@ fun TrackMap(
     val maxX = points.maxOf { it.first }
     val minZ = points.minOf { it.second }
     val maxZ = points.maxOf { it.second }
-    val current = remember(window, lap, cursorMs) { window.nearest(lap, cursorMs) }
+    val current = remember(window, lap, cursorMs) { window.sampleAt(lap, cursorMs) }
     val lineColor = MaterialTheme.colorScheme.onSurfaceVariant
     val dotColor = MaterialTheme.colorScheme.primary
 

@@ -191,7 +191,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - `PlaybackCursor.telemetryMs(positionMs, leadInMs, syncOffsetMs, lapTimeMs)` maps video to lap time; `clipMs(lapMs, leadInMs, syncOffsetMs)` is its inverse.
 - The sync screen's slider and frame ruler span the whole clip.
 - The lap screen's slider and frame ruler span only the lap; play/pause, ±10 s, the ruler, and ±1 frame control the replay, and the charts and track map follow the rendered frame while paused.
-- Charts and track map follow the cursor.
+- Charts and track map follow the cursor. Readouts and the map dot interpolate between the two samples bracketing the cursor time; gear snaps to the nearest sample and the cursor line stays on the video frame.
 - Legacy screen-recorded clips keep their stored offsets.
 
 ### 8.8 Library
