@@ -91,6 +91,7 @@ fun ImportSyncScreen(
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var confirmCancel by remember { mutableStateOf(false) }
+    var hadClip by remember { mutableStateOf(false) }
 
     BackHandler { confirmCancel = true }
 
@@ -116,13 +117,15 @@ fun ImportSyncScreen(
 
     LaunchedEffect(sessionId, lapIndex, sourceUri) {
         error = null
-        val loaded = withContext(Dispatchers.IO) {
-            store.load(sessionId)?.laps?.firstOrNull { it.index == lapIndex }
-        }
-        if (loaded == null) {
+        val session = withContext(Dispatchers.IO) { store.load(sessionId) }
+        val loaded = session?.laps?.firstOrNull { it.index == lapIndex }
+        if (session == null || loaded == null) {
             error = "Lap not found."
             return@LaunchedEffect
         }
+        hadClip = loaded.videoFile.isNotBlank() &&
+            !loaded.needsCut &&
+            loaded.videoFile != session.rawFile
         lap = loaded
         samples = withContext(Dispatchers.IO) {
             runCatching { store.readSamples(sessionId, lapIndex) }.getOrDefault(emptyList())
@@ -328,6 +331,13 @@ fun ImportSyncScreen(
             }
         }
 
+        if (hadClip) {
+            Text(
+                "Saving replaces the current replay. Discard keeps it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GhostPill("Discard", { confirmCancel = true }, Modifier.weight(1f))
             PrimaryPill(
@@ -355,7 +365,11 @@ fun ImportSyncScreen(
                             }
                             saving = false
                             if (result == null) {
-                                error = "Trim failed. The replay stays attached; try again."
+                                error = if (hadClip) {
+                                    "Trim failed. The current replay is unchanged; try again."
+                                } else {
+                                    "Trim failed. The replay stays attached; try again."
+                                }
                             } else {
                                 onDone()
                             }
@@ -372,7 +386,15 @@ fun ImportSyncScreen(
         AlertDialog(
             onDismissRequest = { confirmCancel = false },
             title = { Text("Discard this replay?") },
-            text = { Text("The copied clip is deleted. The telemetry lap stays.") },
+            text = {
+                Text(
+                    if (hadClip) {
+                        "The copied clip is deleted. The current replay stays attached."
+                    } else {
+                        "The copied clip is deleted. The telemetry lap stays."
+                    },
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirmCancel = false

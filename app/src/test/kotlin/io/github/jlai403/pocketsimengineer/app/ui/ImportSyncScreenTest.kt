@@ -43,4 +43,32 @@ class ImportSyncScreenTest {
         }
         compose.onNodeWithText("Sync replay").assertExists()
     }
+
+    @Test
+    fun `replacing a clip says the current one is kept on discard`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                ImportSyncScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    sourceUri = null,
+                    onDone = {},
+                    onCancel = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Saving replaces the current replay. Discard keeps it.")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Saving replaces the current replay. Discard keeps it.")
+            .assertExists()
+    }
+
+    private companion object {
+        const val TIMEOUT = 10_000L
+    }
 }

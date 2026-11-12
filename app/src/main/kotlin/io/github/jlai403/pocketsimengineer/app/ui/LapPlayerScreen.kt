@@ -201,6 +201,27 @@ fun LapPlayerScreen(
                         modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                     )
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GhostPill(
+                        "Replace replay",
+                        onClick = { importLauncher.launch(arrayOf("video/*")) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (lap.sourceFile != null) {
+                        GhostPill(
+                            "Resume import",
+                            onClick = { onImportSync(null) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                if (lap.sourceFile != null) {
+                    Text(
+                        "A newer clip is waiting to be synced. The current replay still plays.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else {
                 SectionCard(title = "Replay") {
                     if (lap.sourceFile != null) {
@@ -208,7 +229,18 @@ fun LapPlayerScreen(
                             "Replay imported — sync not finished",
                             style = MaterialTheme.typography.titleMedium,
                         )
-                        GhostPill("Resume sync", onClick = { onImportSync(null) })
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            GhostPill(
+                                "Resume sync",
+                                onClick = { onImportSync(null) },
+                                modifier = Modifier.weight(1f),
+                            )
+                            GhostPill(
+                                "Choose another clip",
+                                onClick = { importLauncher.launch(arrayOf("video/*")) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     } else {
                         Text("No replay attached", style = MaterialTheme.typography.titleLarge)
                         Text(

@@ -38,7 +38,7 @@ The phone records no video and no audio. Only UDP 33739/33740 crosses the networ
 - Single-lap capture: line-to-line, one session per lap, no video required.
 - Track identification from lap coordinates and bundled racing lines, including reverse layouts; ambiguous laps offer a candidate picker, and old `Unknown` laps are backfilled.
 - Flat lap library with filters (all / with replay / without replay, track) and sort.
-- Replay import through the Android share sheet and SAF file picker.
+- Replay import through the Android share sheet and SAF file picker; a clip can be replaced on an existing lap.
 - Frame-step sync screen: exact seeks, ±1/±10/±100 ms, track %, preview, hard block for short clips.
 - Lossless MP4 trim with keyframe alignment and stored playback offset.
 - Lap player: Media3 video, speed/throttle/brake/RPM/gear charts, track map.

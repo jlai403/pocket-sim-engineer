@@ -45,9 +45,7 @@ fun ImportPickScreen(
 
     LaunchedEffect(uri) {
         laps = withContext(Dispatchers.IO) {
-            store.summaries()
-                .filter { !it.hasReplay && !it.replayPending }
-                .applySort(LapSort.Newest)
+            store.summaries().applySort(LapSort.Newest)
         }
     }
 
@@ -73,9 +71,9 @@ fun ImportPickScreen(
             }
 
             data.isEmpty() -> SectionCard {
-                Text("No laps without a replay", style = MaterialTheme.typography.titleLarge)
+                Text("No laps yet", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "Capture a lap first, or delete the replay already attached to a lap.",
+                    "Capture a lap first, then attach this replay.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -110,9 +108,18 @@ fun ImportPickScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            Text(
+                                when {
+                                    lap.hasReplay -> "Replaces current replay"
+                                    lap.replayPending -> "Replaces the pending import"
+                                    else -> "No replay"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                         PrimaryPill(
-                            text = "Attach",
+                            text = if (lap.hasReplay || lap.replayPending) "Replace" else "Attach",
                             onClick = { onPick(lap.sessionId, lap.lapIndex) },
                         )
                     }

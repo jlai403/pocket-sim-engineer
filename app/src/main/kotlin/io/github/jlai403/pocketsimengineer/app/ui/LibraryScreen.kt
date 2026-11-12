@@ -72,7 +72,7 @@ fun LibraryScreen(
 
     LaunchedEffect(reload) {
         if (settings.trackIdentificationVersion < TrackNamer.VERSION) {
-            namer.identifyUnknownLaps()
+            runCatching { namer.identifyUnknownLaps() }
             settings.trackIdentificationVersion = TrackNamer.VERSION
         }
         laps = withContext(Dispatchers.IO) { store.summaries() }
@@ -80,7 +80,10 @@ fun LibraryScreen(
 
     fun rename(lap: LapSummary, name: String) {
         scope.launch {
-            withContext(Dispatchers.IO) { store.rename(lap.sessionId, name) }
+            val renamed = withContext(Dispatchers.IO) {
+                runCatching { store.rename(lap.sessionId, name) }.getOrNull()
+            }
+            if (renamed == null) message = "Track name could not be saved."
             reload++
         }
     }
@@ -95,7 +98,8 @@ fun LibraryScreen(
         choices = null
         scope.launch {
             choices = withContext(Dispatchers.IO) {
-                namer.candidates(lap.sessionId, lap.lapIndex)
+                runCatching { namer.candidates(lap.sessionId, lap.lapIndex) }
+                    .getOrDefault(emptyList())
             }
         }
     }

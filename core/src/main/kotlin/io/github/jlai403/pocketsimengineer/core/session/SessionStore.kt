@@ -107,18 +107,31 @@ class SessionStore(private val rootDir: File) {
         videoFile: String,
         videoStartOffsetMs: Int,
     ): SessionMetadata? {
-        val lap = lap(sessionId, lapIndex) ?: return null
-        val source = lap.sourceFile?.let { File(sessionDir(sessionId), it) }
+        val metadata = load(sessionId) ?: return null
+        val lap = metadata.laps.firstOrNull { it.index == lapIndex } ?: return null
+        val dir = sessionDir(sessionId)
+        val source = lap.sourceFile?.let { File(dir, it) }
+        val previous = lap.videoFile.takeIf { it.isNotBlank() && it != videoFile }
         val updated = updateLap(
             sessionId,
             lap.copy(
                 videoFile = videoFile,
                 videoStartOffsetMs = videoStartOffsetMs,
+                syncOffsetMs = 0,
                 sourceFile = null,
                 needsCut = false,
             ),
         )
-        if (updated != null) source?.delete()
+        if (updated == null) return null
+        source?.delete()
+        previous
+            ?.takeIf { it != metadata.rawFile }
+            ?.takeIf { old -> metadata.laps.none { other -> other.index != lapIndex && other.videoFile == old } }
+            ?.let { old ->
+                File(dir, old).delete()
+                File(dir, old + ".tmp").delete()
+                File(dir, old + ".bak").delete()
+            }
         return updated
     }
 
@@ -135,6 +148,7 @@ class SessionStore(private val rootDir: File) {
             if (!shared && lap.videoFile != metadata.rawFile) {
                 File(dir, lap.videoFile).delete()
                 File(dir, lap.videoFile + ".tmp").delete()
+                File(dir, lap.videoFile + ".bak").delete()
             }
         }
         lap.sourceFile?.let { File(dir, it).delete() }

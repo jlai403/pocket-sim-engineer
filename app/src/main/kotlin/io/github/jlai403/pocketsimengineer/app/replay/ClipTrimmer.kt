@@ -99,8 +99,7 @@ class ClipTrimmer {
             mux.stop()
             started = false
             if (temp.length() <= 0L) return null
-            output.delete()
-            if (!temp.renameTo(output)) return null
+            if (!swap(temp, output)) return null
             result = TrimResult(output, ((startUs - keyframe) / 1_000).toInt())
         } catch (_: Exception) {
             result = null
@@ -111,6 +110,20 @@ class ClipTrimmer {
             if (result == null) temp.delete()
         }
         return result
+    }
+
+    /** Replaces an existing clip without losing it if the rename fails. */
+    private fun swap(temp: File, output: File): Boolean {
+        val backup = File(output.absolutePath + ".bak")
+        backup.delete()
+        val hadOutput = output.exists()
+        if (hadOutput && !output.renameTo(backup)) return false
+        if (temp.renameTo(output)) {
+            backup.delete()
+            return true
+        }
+        if (hadOutput) backup.renameTo(output)
+        return false
     }
 
     private companion object {

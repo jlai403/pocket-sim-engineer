@@ -165,9 +165,11 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 ### 8.5 Replay import
 
 - Accept `ACTION_SEND` with `video/*` and the SAF `OpenDocument` picker.
+- The share picker lists every lap; a lap that already has a replay is marked and can be replaced.
 - Copy into `sessions/<id>/laps/lap-<n>-source.mp4`.
 - Record `sourceFile` in lap metadata.
 - Reject unreadable URIs with a clear message; SAF remains available.
+- An interrupted replacement import keeps the current clip playable and offers resume.
 
 ### 8.6 Trim
 
@@ -175,7 +177,9 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - Seek to the previous video keyframe and copy samples into a new MP4.
 - Store the keyframe-to-line offset in `videoStartOffsetMs`; playback subtracts it.
 - Delete the source after `attachClip` succeeds.
-- Discard deletes the source and clears `sourceFile`.
+- Replacing a clip swaps the new file in only after the trim succeeds; the old clip is restored if the swap fails.
+- `attachClip` resets `syncOffsetMs` and deletes a superseded clip that no other lap shares.
+- Discard deletes the source and clears `sourceFile`; an existing clip keeps playing.
 
 ### 8.7 Playback
 
@@ -280,6 +284,7 @@ The core is plain Kotlin and the session files are portable. A Rust core or desk
 - Clip shorter than the lap: Save is blocked with the missing duration.
 - Unreadable share URI: clear message; use the file picker.
 - Process death during sync: `sourceFile` remains; the lap offers **Resume sync**.
+- Replacing a clip: the current replay plays until **Save clip** succeeds; discard or a failed trim leaves it attached.
 - Legacy lap with no clip: shown as **No replay**, charts still work.
 - Delete a lap removes its telemetry, trimmed clip, and pending source.
 

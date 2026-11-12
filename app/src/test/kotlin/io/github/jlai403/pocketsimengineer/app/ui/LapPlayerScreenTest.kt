@@ -68,6 +68,60 @@ class LapPlayerScreenTest {
             compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Add replay").assertDoesNotExist()
+        compose.onNodeWithText("Replace replay").assertExists()
+    }
+
+    @Test
+    fun `a pending import can be resumed or replaced`() {
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(
+                lapTimesMs = listOf(90_000),
+                withReplay = false,
+                pendingSource = true,
+            ),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Resume sync").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Choose another clip").assertExists()
+    }
+
+    @Test
+    fun `an existing clip survives a pending replacement import`() {
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(lapTimesMs = listOf(90_000), pendingSource = true),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Replace replay").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Resume import").assertExists()
+        compose.onNodeWithText("The current replay still plays.", substring = true).assertExists()
     }
 
     private companion object {

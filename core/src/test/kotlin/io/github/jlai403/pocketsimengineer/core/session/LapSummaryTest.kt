@@ -137,6 +137,25 @@ class LapSummaryTest {
     }
 
     @Test
+    fun `attachClip resets the sync offset from the previous clip`() {
+        val store = install()
+        store.setSyncOffset("s1", 250)
+
+        store.attachClip("s1", 1, "laps/lap-001.mp4", 1_234)
+
+        assertEquals(0, store.lap("s1", 1)!!.syncOffsetMs)
+    }
+
+    @Test
+    fun `attachClip deletes the clip it supersedes`() {
+        val store = install(videoFile = "laps/lap-001-old.mp4", createFile = true)
+
+        store.attachClip("s1", 1, "laps/lap-001.mp4", 1_234)
+
+        assertFalse(File(store.sessionDir("s1"), "laps/lap-001-old.mp4").exists())
+    }
+
+    @Test
     fun `filters by replay and track`() {
         install(id = "s1", trackLabel = "Suzuka")
         install(

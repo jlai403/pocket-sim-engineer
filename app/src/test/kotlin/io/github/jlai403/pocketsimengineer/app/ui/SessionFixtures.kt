@@ -19,6 +19,8 @@ object SessionFixtures {
         createdAt: String = "2026-11-10T10:00:00Z",
         lapTimesMs: List<Int> = listOf(90_000, 91_500),
         needsCut: Boolean = false,
+        withReplay: Boolean = true,
+        pendingSource: Boolean = false,
     ): SessionMetadata {
         val laps = lapTimesMs.mapIndexed { index, lapTime ->
             LapMetadata(
@@ -27,9 +29,14 @@ object SessionFixtures {
                 startNanos = index * 100_000_000_000L,
                 endNanos = index * 100_000_000_000L + lapTime * 1_000_000L,
                 sampleCount = 100,
-                videoFile = if (needsCut) "raw.mp4" else "laps/lap-%03d.mp4".format(index + 1),
+                videoFile = when {
+                    needsCut -> "raw.mp4"
+                    withReplay -> "laps/lap-%03d.mp4".format(index + 1)
+                    else -> ""
+                },
                 videoStartOffsetMs = 2_000,
                 needsCut = needsCut,
+                sourceFile = if (pendingSource) "laps/lap-%03d-source.mp4".format(index + 1) else null,
             )
         }
         return SessionMetadata(
@@ -56,6 +63,12 @@ object SessionFixtures {
                 File(store.sessionDir(metadata.sessionId), lap.videoFile).apply {
                     parentFile?.mkdirs()
                     writeText("video")
+                }
+            }
+            lap.sourceFile?.let { source ->
+                File(store.sessionDir(metadata.sessionId), source).apply {
+                    parentFile?.mkdirs()
+                    writeText("source")
                 }
             }
         }
