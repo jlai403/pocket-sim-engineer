@@ -19,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -278,7 +277,7 @@ fun LapPlayerScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                ReplaySourceButton(
+                ReplaySourcePill(
                     text = "Replace replay",
                     primary = false,
                     onFiles = { importLauncher.launch(arrayOf("video/*")) },
@@ -303,7 +302,7 @@ fun LapPlayerScreen(
                             onClick = { onImportSync(null) },
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        ReplaySourceButton(
+                        ReplaySourcePill(
                             text = "Choose another clip",
                             primary = false,
                             onFiles = { importLauncher.launch(arrayOf("video/*")) },
@@ -317,7 +316,7 @@ fun LapPlayerScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        ReplaySourceButton(
+                        ReplaySourcePill(
                             text = "Add replay",
                             primary = true,
                             onFiles = { importLauncher.launch(arrayOf("video/*")) },
@@ -416,64 +415,3 @@ fun LapPlayerScreen(
     }
 }
 
-@Composable
-private fun ReplaySourceButton(
-    text: String,
-    primary: Boolean,
-    onFiles: () -> Unit,
-    onPlayStation: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var open by remember { mutableStateOf(false) }
-    Box(modifier.fillMaxWidth()) {
-        if (primary) {
-            PrimaryPill(
-                text = text,
-                onClick = { open = true },
-                modifier = Modifier.fillMaxWidth(),
-                trailingIcon = Icons.Filled.KeyboardArrowDown,
-            )
-        } else {
-            GhostPill(
-                text = text,
-                onClick = { open = true },
-                modifier = Modifier.fillMaxWidth(),
-                trailingIcon = Icons.Filled.KeyboardArrowDown,
-            )
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(
-                text = {
-                    Column {
-                        Text("Files", style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            "Pick a video from this phone",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                onClick = {
-                    open = false
-                    onFiles()
-                },
-            )
-            DropdownMenuItem(
-                text = {
-                    Column {
-                        Text("PlayStation App", style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            "Download the replay, then pick it here",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                onClick = {
-                    open = false
-                    onPlayStation()
-                },
-            )
-        }
-    }
-}
