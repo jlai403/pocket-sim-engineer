@@ -85,6 +85,7 @@ object SessionFixtures {
         rpm: Float = 7_000f,
         x: Float = 0f,
         z: Float = 0f,
+        steering: Float = 0f,
     ) = Sample(
         timeNanos = timeNanos,
         speedMps = speedMps,
@@ -106,6 +107,7 @@ object SessionFixtures {
         tyreTempRL = 82f,
         tyreTempRR = 83f,
         packetId = 1,
+        steering = steering,
     )
 
     private fun samplesFor(lap: LapMetadata): List<Sample> {
