@@ -2,7 +2,9 @@ package io.github.jlai403.pocketsimengineer.core.lap
 
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class LapDetectorTest {
@@ -87,5 +89,23 @@ class LapDetectorTest {
         detector.onSample(sample(0, 1, packetId = 1))
         val boundary = detector.onSample(sample(75_000_000_000, 2, lastLapTimeMs = 0, packetId = 2))
         assertEquals(75_000, boundary?.lapTimeMs)
+    }
+
+    @Test
+    fun `lap start is unobserved until a crossing happens`() {
+        val detector = LapDetector()
+        detector.onSample(sample(30_000_000_000, 1, packetId = 1))
+        assertFalse(detector.currentLapStartObserved)
+
+        detector.onSample(sample(90_000_000_000, 2, lastLapTimeMs = 60_000, packetId = 2))
+        assertTrue(detector.currentLapStartObserved)
+    }
+
+    @Test
+    fun `lap reset makes the next start unobserved`() {
+        val detector = LapDetector()
+        detector.onSample(sample(0, 3, packetId = 1))
+        detector.onSample(sample(10_000_000_000, 1, packetId = 2))
+        assertFalse(detector.currentLapStartObserved)
     }
 }

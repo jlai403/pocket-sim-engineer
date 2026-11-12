@@ -16,6 +16,16 @@ class LapDetector {
     private var lastPacketId: Int? = null
     private var lastTimeNanos: Long = Long.MIN_VALUE
 
+    /** Start of the lap in progress, or null before the first sample. */
+    @Volatile
+    var currentLapStartNanos: Long? = null
+        private set
+
+    /** True only when a lap count increase proved the start/finish crossing was observed. */
+    @Volatile
+    var currentLapStartObserved: Boolean = false
+        private set
+
     fun onSample(sample: Sample): LapBoundary? {
         if (sample.packetId == lastPacketId) return null
         if (sample.timeNanos <= lastTimeNanos) return null
@@ -24,6 +34,8 @@ class LapDetector {
         if (previous == null) {
             previousLapCount = sample.lapCount
             lapStartNanos = sample.timeNanos
+            currentLapStartNanos = sample.timeNanos
+            currentLapStartObserved = false
             lastPacketId = sample.packetId
             lastTimeNanos = sample.timeNanos
             return null
@@ -32,6 +44,8 @@ class LapDetector {
         if (sample.lapCount < previous) {
             previousLapCount = sample.lapCount
             lapStartNanos = sample.timeNanos
+            currentLapStartNanos = sample.timeNanos
+            currentLapStartObserved = false
             lastPacketId = sample.packetId
             lastTimeNanos = sample.timeNanos
             return null
@@ -60,6 +74,8 @@ class LapDetector {
                 }
             }
             lapStartNanos = sample.timeNanos
+            currentLapStartNanos = sample.timeNanos
+            currentLapStartObserved = true
         }
 
         previousLapCount = sample.lapCount

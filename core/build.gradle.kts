@@ -18,6 +18,7 @@ kotlin {
 
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
