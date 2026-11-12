@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -89,7 +88,7 @@ internal fun LapCard(
             val edit = offset > 0f
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .matchParentSize()
                     .background(
                         if (edit) {
                             MaterialTheme.colorScheme.surfaceVariant
@@ -97,6 +96,7 @@ internal fun LapCard(
                             MaterialTheme.colorScheme.errorContainer
                         },
                     )
+                    .testTag("lap-card-action")
                     .padding(horizontal = 20.dp),
                 contentAlignment = if (edit) Alignment.CenterStart else Alignment.CenterEnd,
             ) {
