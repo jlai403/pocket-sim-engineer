@@ -1,6 +1,9 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
@@ -28,10 +31,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,18 +50,13 @@ import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
 import io.github.jlai403.pocketsimengineer.app.profile.countryFlagEmoji
 import io.github.jlai403.pocketsimengineer.core.session.LapSummary
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/**
- * One lap. Tap opens it, right swipe edits, left swipe asks to delete.
- * Long press and the accessibility actions expose the same two edits.
- */
+/** One lap. Tap opens it, right swipe edits, left swipe asks to delete. Long press and the accessibility actions expose the same two edits. */
 @Composable
 internal fun LapCard(
     lap: LapSummary,
     driver: DriverProfile?,
-    showDriver: Boolean,
     fastest: Boolean,
     deltaMs: Int?,
     onOpen: () -> Unit,
@@ -67,10 +65,17 @@ internal fun LapCard(
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(22.dp)
-    val scope = rememberCoroutineScope()
-    val offset = remember { Animatable(0f) }
     var width by remember { mutableIntStateOf(0) }
     var menuOpen by remember { mutableStateOf(false) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    // Snap under the finger, spring back to zero on release. A plain state target
+    // cannot race a late drag event the way a queued snapTo could.
+    val offset by animateFloatAsState(
+        targetValue = dragOffset,
+        animationSpec = if (dragging) snap() else spring(stiffness = Spring.StiffnessMediumLow),
+        label = "lap-card-swipe",
+    )
 
     Box(
         modifier = modifier
@@ -80,8 +85,8 @@ internal fun LapCard(
             .background(MaterialTheme.colorScheme.surface)
             .testTag("lap-card"),
     ) {
-        if (offset.value != 0f) {
-            val edit = offset.value > 0
+        if (offset != 0f) {
+            val edit = offset > 0f
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -125,24 +130,23 @@ internal fun LapCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                .offset { IntOffset(offset.roundToInt(), 0) }
                 .draggable(
                     state = rememberDraggableState { delta ->
-                        scope.launch { offset.snapTo(offset.value + delta) }
+                        val limit = width * 0.6f
+                        dragOffset = (dragOffset + delta).coerceIn(-limit, limit)
                     },
                     orientation = Orientation.Horizontal,
+                    onDragStarted = { dragging = true },
                     onDragStopped = {
                         val threshold = width * 0.35f
+                        val edit = dragOffset > threshold
+                        val delete = dragOffset < -threshold
+                        dragging = false
+                        dragOffset = 0f
                         when {
-                            offset.value > threshold -> {
-                                offset.animateTo(0f)
-                                onEdit()
-                            }
-                            offset.value < -threshold -> {
-                                offset.animateTo(0f)
-                                onDelete()
-                            }
-                            else -> offset.animateTo(0f)
+                            edit -> onEdit()
+                            delete -> onDelete()
                         }
                     },
                 )
@@ -173,9 +177,7 @@ internal fun LapCard(
                         style = MaterialTheme.typography.displaySmall,
                         modifier = Modifier.weight(1f),
                     )
-                    if (showDriver) {
-                        DriverLabel(lap.driverPsnId, driver)
-                    }
+                    DriverLabel(lap.driverPsnId, driver)
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -234,6 +236,7 @@ internal fun LapCard(
 
 @Composable
 private fun DriverLabel(psnId: String?, driver: DriverProfile?) {
+    val name = driver?.nickname ?: psnId
     Row(
         modifier = Modifier.widthIn(max = 132.dp).testTag("lap-driver"),
         verticalAlignment = Alignment.CenterVertically,
@@ -243,9 +246,13 @@ private fun DriverLabel(psnId: String?, driver: DriverProfile?) {
             Text(it, style = MaterialTheme.typography.bodyMedium)
         }
         Text(
-            driver?.nickname ?: psnId.orEmpty(),
+            name ?: "Driver not set",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (name == null) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

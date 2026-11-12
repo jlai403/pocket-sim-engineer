@@ -115,11 +115,14 @@ class LibraryScreenTest {
     }
 
     @Test
-    fun `hides the owner on their own lap and shows another driver`() {
+    fun `shows every lap driver with name and flag`() {
         val profiles = DriverProfileStore(context)
         profiles.setOwner(DriverProfile("skino2024", "Skino", "GB"))
         profiles.save(DriverProfile("friend", "Friend", "US"))
-        SessionFixtures.install(context, SessionFixtures.session(id = "mine", lapTimesMs = listOf(90_000), driverPsnId = "skino2024"))
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(id = "mine", lapTimesMs = listOf(90_000), driverPsnId = "skino2024"),
+        )
         SessionFixtures.install(
             context,
             SessionFixtures.session(
@@ -130,19 +133,32 @@ class LibraryScreenTest {
                 driverPsnId = "friend",
             ),
         )
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(
+                id = "legacy",
+                trackLabel = "Spa",
+                createdAt = "2026-11-12T10:00:00Z",
+                lapTimesMs = listOf(110_000),
+            ),
+        )
 
         compose.setContent {
             PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
         }
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("1:40.000").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("1:50.000").fetchSemanticsNodes().isNotEmpty()
         }
         assertEquals(
-            1,
+            3,
             compose.onAllNodesWithTag("lap-driver", useUnmergedTree = true).fetchSemanticsNodes().size,
         )
+        compose.onNodeWithText("Skino").assertExists()
+        compose.onNodeWithText("🇬🇧").assertExists()
         compose.onNodeWithText("Friend").assertExists()
+        compose.onNodeWithText("🇺🇸").assertExists()
+        compose.onNodeWithText("Driver not set").assertExists()
     }
 
     @Test
