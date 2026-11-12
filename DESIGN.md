@@ -122,7 +122,7 @@ Defined in `ui/Components.kt` unless noted.
 | `SectionCard` | 22 dp surface card with 16 dp padding, an optional uppercase title, and an optional trailing action |
 | `SectionLabel` | uppercase muted label for groups inside a card |
 | `StatusDot` | 10 dp circle: green when live, outline when idle |
-| `FrameRuler` | 64 dp surface strip with a fixed green needle; frame ticks, half-second labels, and horizontal drag at 6 dp per frame. The strip follows the finger, so drag right to rewind and left to move forward. The drag reports total frames from the playhead it started on; one haptic tick per step, unless disabled |
+| `FrameRuler` | 64 dp surface strip with a fixed green needle; frame ticks, half-second labels, and horizontal drag at 6 dp per frame. The strip follows the finger, so drag right to rewind and left to move forward. The drag reports total frames from the playhead it started on; the ruler and time readout jump to the requested frame at once while seeks are coalesced to one in flight, and one haptic tick fires per step unless disabled |
 | `LapCard` | flat feed row, no radius or surface box: leading 32 dp flag column, name and short date, track, hero lap time, car and replay state; tap opens, swipe edits or deletes, long press and custom actions repeat both |
 | Swipe actions | full-height action background under the card, Gmail-style; horizontal drag clamped to 60% of the card width; Edit pinned left on a right swipe, Delete pinned right on a left swipe; below the 35% threshold the card springs back to zero, and it always returns to the default state; never dismisses the card |
 | `PullToRefreshBox` | library list gesture; the spinner follows the refresh state |

@@ -62,6 +62,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.abs
 import kotlin.math.roundToLong
 
 @OptIn(UnstableApi::class)
@@ -116,6 +117,25 @@ fun LapPlayerScreen(
     var scrubBaseUs by remember { mutableLongStateOf(0L) }
     var message by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
+    // The frame the finger asked for; the decoder may land a few frames behind it.
+    var scrubTargetMs by remember { mutableStateOf<Long?>(null) }
+    var scrubbing by remember { mutableStateOf(false) }
+
+    lateinit var scrubSeeker: ScrubSeeker
+    fun seekClip(targetMs: Long, fromScrub: Boolean = false) {
+        val clamped = targetMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
+        player.seekTo(clamped)
+        positionMs = clamped
+        renderedUs = -1L
+        player.pause()
+        if (!fromScrub) {
+            scrubTargetMs = null
+            scrubSeeker.clearPending()
+        }
+    }
+    scrubSeeker = remember(player) {
+        ScrubSeeker(scope) { target -> seekClip(target, fromScrub = true) }
+    }
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
@@ -138,6 +158,7 @@ fun LapPlayerScreen(
         player.addListener(listener)
         player.setVideoFrameMetadataListener { presentationTimeUs, _, _, _ ->
             renderedUs = presentationTimeUs
+            scrubSeeker.onFrameRendered()
         }
         onDispose {
             player.removeListener(listener)
@@ -172,40 +193,52 @@ fun LapPlayerScreen(
         }
     }
 
-    fun seekClip(targetMs: Long) {
-        val clamped = targetMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
-        player.seekTo(clamped)
-        positionMs = clamped
-        renderedUs = -1L
-        player.pause()
-    }
-
     fun seekLap(targetMs: Long) {
         val active = lap ?: return
         val clamped = targetMs.coerceIn(0L, active.lapTimeMs.toLong())
         seekClip(PlaybackCursor.clipMs(clamped.toInt(), active.leadInMs, active.syncOffsetMs))
     }
 
-    val displayedUs = if (renderedUs >= 0) renderedUs else positionMs * 1_000
-    val displayedMs = if (renderedUs >= 0) renderedUs / 1_000 else positionMs
+    // While the ruler is under a finger, show the requested frame rather than the
+    // last one the decoder managed to render.
+    val displayedUs = scrubTargetMs?.times(1_000)
+        ?: if (renderedUs >= 0) renderedUs else positionMs * 1_000
+    val displayedMs = scrubTargetMs
+        ?: if (renderedUs >= 0) renderedUs / 1_000 else positionMs
     val cursorMs = lap?.let {
         PlaybackCursor.telemetryMs(displayedMs, it.leadInMs, it.syncOffsetMs, it.lapTimeMs)
     } ?: 0
 
-    fun seekFramesFrom(baseUs: Long, frames: Int) {
-        val active = lap ?: return
+    LaunchedEffect(scrubbing, renderedUs) {
+        val target = scrubTargetMs ?: return@LaunchedEffect
+        if (scrubbing) return@LaunchedEffect
+        if (renderedUs >= 0 && abs(renderedUs / 1_000 - target) <= frameStepMs * 2) {
+            scrubTargetMs = null
+        }
+    }
+
+    LaunchedEffect(scrubbing) {
+        if (scrubbing) return@LaunchedEffect
+        val target = scrubTargetMs ?: return@LaunchedEffect
+        delay(600)
+        if (scrubTargetMs == target) scrubTargetMs = null
+    }
+
+    fun scrubTarget(baseUs: Long, frames: Int): Long? {
+        val active = lap ?: return null
         val startMs = PlaybackCursor.clipMs(0, active.leadInMs, active.syncOffsetMs)
             .coerceAtLeast(0)
         val endMs = PlaybackCursor.clipMs(active.lapTimeMs, active.leadInMs, active.syncOffsetMs)
             .coerceAtMost(durationMs.coerceAtLeast(0))
-        val targetMs = frameStepTargetMs(baseUs, frames, frameDurationUs)
+        return frameStepTargetMs(baseUs, frames, frameDurationUs)
             .coerceIn(startMs, endMs.coerceAtLeast(startMs))
-        seekClip(targetMs)
+    }
+
+    fun seekFramesFrom(baseUs: Long, frames: Int) {
+        scrubTarget(baseUs, frames)?.let { seekClip(it) }
     }
 
     fun stepFrames(frames: Int) = seekFramesFrom(displayedUs, frames)
-
-    fun scrubFrames(frames: Int) = seekFramesFrom(scrubBaseUs, frames)
 
     Column(
         modifier = Modifier
@@ -368,8 +401,18 @@ fun LapPlayerScreen(
                     endMs = currentLap.lapTimeMs.toLong(),
                     frameStepMs = frameStepMs,
                     enabled = durationMs > 0,
-                    onScrubStart = { scrubBaseUs = displayedUs },
-                    onScrub = { frames -> scrubFrames(frames) },
+                    onScrubStart = {
+                        scrubBaseUs = displayedUs
+                        scrubTargetMs = null
+                        scrubbing = true
+                    },
+                    onScrub = { frames ->
+                        scrubTarget(scrubBaseUs, frames)?.let { target ->
+                            scrubTargetMs = target
+                            scrubSeeker.submit(target)
+                        }
+                    },
+                    onScrubEnd = { scrubbing = false },
                     hapticsEnabled = settings.hapticsEnabled,
                 )
                 Text(
