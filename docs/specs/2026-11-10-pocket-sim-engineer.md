@@ -70,9 +70,11 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - One anchor per clip, at the **lap-end** start/finish line crossing.
 - The GT7 lap time (`lastLapTimeMs`) is the ruler: `trimIn = anchor − lapTime`, `trimOut = anchor`.
 - Video is the master clock during playback. The mapping is linear for the whole lap, so anchor error does not accumulate.
-- Frame-step uses exact seeks and the rendered frame time; fine nudges are ±1/±10/±100 ms.
+- The playhead opens at the clip's last frame, with the anchor suggested there; the user verifies the line or rewinds and re-anchors.
+- A timeline scrubber covers the whole clip; a rotary jog wheel (one turn = 1 s, one haptic tick per frame) and ±1 frame/±0.01 s buttons provide precision.
+- Fine steps use exact seeks; transport is play/pause and ±10 s. Paused seeks keep the requested position rather than polling the player.
 - A clip shorter than the lap is blocked with the missing duration.
-- The computed start frame is shown with a **Jump to start** action; the user confirms it shows the line. With a single anchor the app cannot prove which lap the clip contains, so wrong-lap detection is visual.
+- The computed start frame is shown with a **Check start frame** action; the user confirms it shows the line. With a single anchor the app cannot prove which lap the clip contains, so wrong-lap detection is visual.
 - The imported original is kept only during sync and deleted after a successful trim or an explicit discard.
 
 ### Identity and library
@@ -112,8 +114,8 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 3. Media Gallery → Upload to PlayStation App.
 4. PS App → Download, or Share → Pocket Sim Engineer.
 5. PSE: open the lap → **Add replay**, or pick the lap after a share.
-6. Frame-step to the lap-end crossing, **Set anchor at this frame**.
-7. Confirm the computed start frame shows the line, preview, and **Save clip**.
+6. The playhead opens at the clip end with a suggested anchor; drag the timeline, turn the jog wheel, or use ±1 frame to reach the lap-end crossing, then **Set anchor at this frame**.
+7. **Check start frame**, preview, and **Save clip**.
 
 ### Review
 
@@ -309,7 +311,7 @@ The core is plain Kotlin and the session files are portable. A Rust core or desk
 - `Capture this lap` saves exactly one complete lap and rejects a mid-lap connect.
 - A lap without a replay opens with charts and map.
 - A PS App clip imports through share and SAF, copies into app storage, and can be trimmed.
-- Frame-step reaches the lap-end frame; the trim is one lap long.
+- The sync screen opens at the clip end with a suggested anchor, and frame-stepping reaches the lap-end frame; the trim is one lap long.
 - A clip shorter than the lap is blocked.
 - After save, the trimmed clip plays with the cursor aligned to the lap.
 - Discard deletes the imported copy and leaves the telemetry.

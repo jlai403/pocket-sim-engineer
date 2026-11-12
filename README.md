@@ -26,8 +26,8 @@ pocket-sim-engineer/
 2. Tap **Capture this lap** after crossing the start line. The app saves exactly one lap at the next crossing.
 3. In GT7, record the single-lap replay with HUD on and the race camera. Use the PS5 Create menu and keep a few seconds of lead-in.
 4. Media Gallery → **Upload to PlayStation App**; in the PS App, **Download** or **Share** to PSE. The lap screen's **PS App** button opens the app (or its store listing).
-5. Open the lap → **Add replay** → frame-step to the lap-end line → **Set anchor at this frame**.
-6. Preview, save, and review. The trimmed clip is one lap; the imported original is deleted.
+5. Open the lap → **Add replay**. The playhead starts at the clip's end with a suggested anchor there; drag the timeline, turn the jog wheel, or frame-step back to the lap-end line, then **Set anchor at this frame**.
+6. **Check start frame**, preview, save, and review. The trimmed clip is one lap; the imported original is deleted.
 
 The phone records no video and no audio. Only UDP 33739/33740 crosses the network.
 
@@ -39,7 +39,7 @@ The phone records no video and no audio. Only UDP 33739/33740 crosses the networ
 - Track identification from lap coordinates and bundled racing lines, including reverse layouts; ambiguous laps offer a candidate picker, and old `Unknown` laps are backfilled.
 - Flat lap library with filters (all / with replay / without replay, track) and sort.
 - Replay import through the Android share sheet and SAF file picker; a clip can be replaced on an existing lap.
-- Frame-step sync screen: exact seeks, ±1/±10/±100 ms, track %, preview, hard block for short clips.
+- Sync screen: end-of-clip start with a suggested anchor, timeline scrubber, rotary jog wheel (one turn = 1 s), play/±10 s, ±1 frame/±0.01 s, track %, preview, hard block for short clips.
 - Lossless MP4 trim with keyframe alignment and stored playback offset.
 - Lap player: Media3 video, speed/throttle/brake/RPM/gear charts, track map.
 - CSV export and MP4 sharing.
