@@ -1,6 +1,6 @@
 # Pocket Sim Engineer
 
-Android telemetry and synchronized replay for Gran Turismo 7. Capture one lap of GT7 telemetry, attach a single-lap replay from the PS5, and review the lap with charts, a track map, and a playhead that follows the video.
+Android telemetry and synchronized replay for Gran Turismo 7. Capture one lap of GT7 telemetry, attach a single-lap replay from the PS5, and review the lap with charts, a track map, and a telemetry cursor that follows the replay.
 
 **Status:** v0.2 development. Telemetry-only capture, replay import, frame-step sync, and lap review are implemented. On-device verification is pending.
 
@@ -8,6 +8,7 @@ Android telemetry and synchronized replay for Gran Turismo 7. Capture one lap of
 
 - [Product and technical spec](docs/specs/2026-11-10-pocket-sim-engineer.md)
 - [Design system](DESIGN.md)
+- [Glossary](GLOSSARY.md)
 - [Implementation plan](docs/superpowers/plans/2026-11-11-replay-import.md)
 
 ## Architecture
@@ -26,8 +27,8 @@ pocket-sim-engineer/
 1. **PSE → Live**: connect to GT7 and drive.
 2. Tap **Capture this lap** after crossing the start line. The app saves exactly one lap at the next crossing.
 3. In GT7, record the single-lap replay with HUD on and the race camera. Use the PS5 Create menu and keep a few seconds of lead-in.
-4. Media Gallery → **Upload to PlayStation App**; in the PS App, **Download** or **Share** to PSE. The lap screen's **PS App** button opens the app (or its store listing).
-5. Open the lap → **Add replay**. The playhead starts at the clip's end with a suggested anchor there; drag the timeline, turn the jog wheel, or frame-step back to the lap-end line, then **Set anchor at this frame**.
+4. Media Gallery → **Upload to PlayStation App**; in the PS App, **Download** or **Share** to PSE. The lap screen's replay source button opens Files or the PlayStation App (or its store listing).
+5. Open the lap → **Add replay** → **Files**. The playhead starts at the clip's end with a suggested anchor there; drag the timeline or the frame ruler, or frame-step back to the lap-end line, then **Set anchor at this frame**.
 6. **Check start frame**, preview, save, and review. The trimmed clip is one lap; the imported original is deleted.
 
 The phone records no video and no audio. Telemetry uses UDP 33739/33740; the only other network calls are update checks and the optional profile lookup.
@@ -40,10 +41,10 @@ The phone records no video and no audio. Telemetry uses UDP 33739/33740; the onl
 - Track identification from lap coordinates and bundled racing lines, including reverse layouts; ambiguous laps offer a candidate picker, and old `Unknown` laps are backfilled.
 - Flat lap library with filters (all / with replay / without replay, track) and sort; the owner profile and links sit above it, and every card shows its lap's driver.
 - Driver book: new captures default to the owner; the lap screen's Driver card selects a cached driver, adds one by PSN (with manual name/country fallback), or clears it.
-- Replay import through the Android share sheet and SAF file picker; a clip can be replaced on an existing lap.
-- Sync screen: end-of-clip start with a suggested anchor, timeline scrubber, rotary jog wheel (one turn = 1 s), play/±10 s, ±1 frame/±0.01 s, track %, preview, hard block for short clips.
-- Lossless MP4 trim with keyframe alignment and stored playback offset.
-- Lap player: Media3 video, speed/throttle/brake/RPM/gear charts, track map.
+- Replay import through the Android share sheet and SAF file picker; one source button opens Files or the PlayStation App, and a clip can be replaced on an existing lap.
+- Sync screen: end-of-clip start with a suggested anchor, timeline scrubber, frame ruler (6 dp per frame), play/±10 s, ±1 frame, track %, preview, hard block for short clips.
+- Lossless MP4 trim with keyframe alignment and stored lead-in.
+- Lap player: Media3 video with the same playback controls as sync, a lap-only slider and frame ruler, speed/throttle/brake/RPM/gear charts, and a track map.
 - CSV export and MP4 sharing.
 - In-app preview/stable updater.
 
@@ -82,7 +83,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 - `:core` — protocol/decrypt/decode, lap detection, capture coordination, track signatures, clip sync/trim planning, track progress, codecs, lap summaries, CSV, remux planning, playback cursor.
-- `:app` (JVM) — lap saver, replay copy, decode-failure text, telemetry notification text, settings, Compose UI for Live, Library, lap player, and import sync.
+- `:app` (JVM) — lap saver, replay copy, decode-failure text, telemetry notification text, settings, frame-ruler stepping, Compose UI for Live, Library, lap player, and import sync.
 - Not covered by JVM tests: real `MediaExtractor`/`MediaMuxer` trim output, real GT7 packets, actual video decode. Those stay device checks.
 
 ## Known gaps

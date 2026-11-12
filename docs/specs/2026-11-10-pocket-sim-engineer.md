@@ -71,7 +71,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - The GT7 lap time (`lastLapTimeMs`) is the ruler: `trimIn = anchor − lapTime`, `trimOut = anchor`.
 - Video is the master clock during playback. The mapping is linear for the whole lap, so anchor error does not accumulate.
 - The playhead opens at the clip's last frame, with the anchor suggested there; the user verifies the line or rewinds and re-anchors.
-- A timeline scrubber covers the whole clip; a rotary jog wheel (one turn = 1 s, one haptic tick per frame) and ±1 frame/±0.01 s buttons provide precision.
+- A timeline scrubber covers the whole clip; a frame ruler (about 6 dp per frame, one haptic tick per frame) and ±1 frame buttons provide precision.
 - Fine steps use exact seeks; transport is play/pause and ±10 s. Paused seeks keep the requested position rather than polling the player.
 - A clip shorter than the lap is blocked with the missing duration.
 - The computed start frame is shown with a **Check start frame** action; the user confirms it shows the line. With a single anchor the app cannot prove which lap the clip contains, so wrong-lap detection is visual.
@@ -113,8 +113,8 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 2. PS5 Create → Start Recording before the lap, Stop after the line. Keep a few seconds of lead-in.
 3. Media Gallery → Upload to PlayStation App.
 4. PS App → Download, or Share → Pocket Sim Engineer.
-5. PSE: open the lap → **Add replay**, or pick the lap after a share.
-6. The playhead opens at the clip end with a suggested anchor; drag the timeline, turn the jog wheel, or use ±1 frame to reach the lap-end crossing, then **Set anchor at this frame**.
+5. PSE: open the lap → the replay source button → **Files**, or pick the lap after a share.
+6. The playhead opens at the clip end with a suggested anchor; drag the timeline or the frame ruler, or use ±1 frame to reach the lap-end crossing, then **Set anchor at this frame**.
 7. **Check start frame**, preview, and **Save clip**.
 
 ### Review
@@ -172,13 +172,14 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - Record `sourceFile` in lap metadata.
 - Reject unreadable URIs with a clear message; SAF remains available.
 - An interrupted replacement import keeps the current clip playable and offers resume.
-- **PS App** opens the PlayStation App (`com.scee.psxandroid`), or its store listing when it is not installed.
+- One replay source button opens a menu: **Files** (the SAF picker) or **PlayStation App** (`com.scee.psxandroid`, or its store listing when it is not installed).
+- The button reads **Add replay**, **Replace replay**, or **Choose another clip** to match the lap's state; a pending clip adds a separate **Resume sync** action.
 
 ### 8.6 Trim
 
 - `TrimPlan` rejects a clip shorter than the lap or an anchor past the end.
 - Seek to the previous video keyframe and copy samples into a new MP4.
-- Store the keyframe-to-line offset in `videoStartOffsetMs`; playback subtracts it.
+- Store the keyframe-to-line lead-in in `leadInMs` (JSON key `videoStartOffsetMs`); playback subtracts it.
 - Delete the source after `attachClip` succeeds.
 - Replacing a clip swaps the new file in only after the trim succeeds; the old clip is restored if the swap fails.
 - `attachClip` resets `syncOffsetMs` and deletes a superseded clip that no other lap shares.
@@ -186,8 +187,10 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 ### 8.7 Playback
 
-- Media3 ExoPlayer; exact seeks for frame stepping.
-- `PlaybackCursor.telemetryMs(positionMs, videoStartOffsetMs, syncOffsetMs, lapTimeMs)` maps video to lap time.
+- Media3 ExoPlayer; exact seeks for frame stepping, and the rendered frame drives the cursor.
+- `PlaybackCursor.telemetryMs(positionMs, leadInMs, syncOffsetMs, lapTimeMs)` maps video to lap time; `clipMs(lapMs, leadInMs, syncOffsetMs)` is its inverse.
+- The sync screen's slider and frame ruler span the whole clip.
+- The lap screen's slider and frame ruler span only the lap; play/pause, ±10 s, the ruler, and ±1 frame control the replay, and the charts and track map follow the rendered frame while paused.
 - Charts and track map follow the cursor.
 - Legacy screen-recorded clips keep their stored offsets.
 
@@ -232,9 +235,9 @@ New captures use `rawFile = ""`, `rawDeleted = true`, no audio file, and one lap
 
 ### 9.3 Lap metadata (`lap-001.json`)
 
-`schemaVersion`, `index`, `lapTimeMs`, `startNanos`, `endNanos`, `sampleCount`, `videoFile`, `videoStartOffsetMs`, `syncOffsetMs`, `needsCut`, `sourceFile`, `driverPsnId`.
+`schemaVersion`, `index`, `lapTimeMs`, `startNanos`, `endNanos`, `sampleCount`, `videoFile`, `leadInMs`, `syncOffsetMs`, `needsCut`, `sourceFile`, `driverPsnId`.
 
-`videoFile` is blank until a replay is attached. `sourceFile` is set while an imported clip awaits sync. `driverPsnId` is null for legacy laps and for new laps captured without an owner.
+`leadInMs` serializes as `videoStartOffsetMs` so existing sessions keep loading. `videoFile` is blank until a replay is attached. `sourceFile` is set while an imported clip awaits sync. `driverPsnId` is null for legacy laps and for new laps captured without an owner.
 
 ### 9.4 Binary telemetry (`lap-001.gt7lap`)
 
@@ -328,6 +331,8 @@ The core is plain Kotlin and the session files are portable. A Rust core or desk
 - The sync screen opens at the clip end with a suggested anchor, and frame-stepping reaches the lap-end frame; the trim is one lap long.
 - A clip shorter than the lap is blocked.
 - After save, the trimmed clip plays with the cursor aligned to the lap.
+- The lap screen's frame ruler and ±1 frame move the playhead one frame and the charts and map follow while paused.
+- The replay source button offers Files and the PlayStation App in every lap state.
 - Discard deletes the imported copy and leaves the telemetry.
 - `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` passes.
 

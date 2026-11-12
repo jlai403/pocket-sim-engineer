@@ -120,6 +120,8 @@ Defined in `ui/Components.kt` unless noted.
 | `SectionCard` | 22 dp surface card with 16 dp padding, an optional uppercase title, and an optional trailing action |
 | `SectionLabel` | uppercase muted label for groups inside a card |
 | `StatusDot` | 10 dp circle: green when live, outline when idle |
+| `FrameRuler` | 64 dp surface strip with a fixed green needle; frame ticks, half-second labels, and horizontal drag at 6 dp per frame with one haptic tick per frame |
+| `Replay source menu` | pill with a trailing chevron; dropdown rows for Files and PlayStation App, each with a one-line subtitle |
 | `AppBottomBar` (App.kt) | Library / Record / Settings tabs, green indicator, no elevation |
 
 Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; cancel stays neutral.
@@ -156,11 +158,12 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 ### Player
 
 - Header: `Lap N · M:SS.mmm`, track subtitle, back button, `Share` / `CSV` ghost pills.
-- Video: 16:9, black, clipped to 22 dp.
-- Missing video: card explaining the raw recording is kept until remux succeeds.
-- Cursor line: `current / lap · sync +N ms`.
-- Sync card: `-500`, `-50`, `+50`, `+500`, then `Reset` / `Save sync offset`.
-- Telemetry card contains the chart stack; track map is its own card with the text “Track map”.
+- Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden.
+- Replay source: one pill (`Add replay`, `Replace replay`, or `Choose another clip`) with a chevron, opening Files or PlayStation App; a pending clip adds `Resume sync`.
+- Missing video: `Replay` card with a one-sentence explanation and the source pill.
+- Cursor line: `current / lap` in mono.
+- Playback: lap-only slider with 0 / lap labels, `FrameRuler`, `TransportRow`, then `FrameStepRow` (−1 / +1 frame). The rendered frame drives the charts and map, including while paused.
+- Driver card below the playback block; telemetry card contains the chart stack; track map is its own card.
 
 ### Settings
 
