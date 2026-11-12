@@ -44,7 +44,7 @@ The phone records no video and no audio. Telemetry uses UDP 33739/33740; the onl
 - Developer preview toggle renders the empty library without deleting laps; it only appears on preview builds.
 - Driver book: new captures default to the owner; the lap screen's Driver card selects a cached driver, adds one by PSN (with manual name/country fallback), or clears it.
 - Replay import through the Android share sheet and SAF file picker; one source button opens Files or the PlayStation App, and a clip can be replaced on an existing lap.
-- Sync screen: end-of-clip start with a suggested anchor, timeline scrubber, frame ruler (6 dp per frame), play/±10 s, ±1 frame, track %, preview, hard block for short clips.
+- Sync screen: end-of-clip start with a suggested anchor, timeline scrubber, frame ruler (6 dp per frame, optional haptics), play/±10 s, ±1 frame, track %, preview, hard block for short clips.
 - Lossless MP4 trim with keyframe alignment and stored lead-in.
 - Lap player: Media3 video with the same playback controls as sync, a lap-only slider and frame ruler, speed/throttle/brake/RPM/gear charts, and a track map.
 - CSV export and MP4 sharing.

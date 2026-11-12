@@ -57,6 +57,7 @@ fun SettingsScreen(
         }
     }
     var imperial by remember { mutableStateOf(settings.imperialUnits) }
+    var haptics by remember { mutableStateOf(settings.hapticsEnabled) }
     var previewEmpty by remember { mutableStateOf(settings.previewEmptyLibrary) }
 
     Column(
@@ -118,6 +119,19 @@ fun SettingsScreen(
                 imperial = it
                 settings.imperialUnits = it
             }
+            SettingToggle(
+                label = "Frame ruler haptics",
+                checked = haptics,
+                modifier = Modifier.testTag("haptics"),
+            ) {
+                haptics = it
+                settings.hapticsEnabled = it
+            }
+            Text(
+                "Ticks as you drag the ruler.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         if (BuildConfig.UPDATE_CHANNEL != "stable") {

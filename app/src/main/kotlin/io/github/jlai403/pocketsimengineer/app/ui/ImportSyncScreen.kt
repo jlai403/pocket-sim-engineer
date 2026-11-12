@@ -50,6 +50,7 @@ import androidx.media3.ui.PlayerView
 import io.github.jlai403.pocketsimengineer.app.replay.ClipTrimmer
 import io.github.jlai403.pocketsimengineer.app.replay.ReplayStore
 import io.github.jlai403.pocketsimengineer.app.replay.probeClip
+import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.core.clip.ClipSync
 import io.github.jlai403.pocketsimengineer.core.clip.SyncCheck
 import io.github.jlai403.pocketsimengineer.core.clip.SyncValidator
@@ -79,6 +80,8 @@ fun ImportSyncScreen(
     val scope = rememberCoroutineScope()
     val store = remember { SessionStore(context.filesDir) }
     val trimmer = remember { ClipTrimmer() }
+    val settings = remember { SettingsStore(context) }
+    val hapticsEnabled = settings.hapticsEnabled
     val player = remember(sessionId, lapIndex) {
         ExoPlayer.Builder(context).build().apply {
             setSeekParameters(SeekParameters.EXACT)
@@ -91,6 +94,7 @@ fun ImportSyncScreen(
     var durationMs by remember { mutableLongStateOf(0L) }
     var frameStepMs by remember { mutableLongStateOf(33L) }
     var frameDurationUs by remember { mutableLongStateOf(33_000L) }
+    var scrubBaseUs by remember { mutableLongStateOf(0L) }
     var positionMs by remember { mutableLongStateOf(0L) }
     var renderedUs by remember { mutableLongStateOf(-1L) }
     var anchorMs by remember { mutableStateOf<Long?>(null) }
@@ -316,7 +320,11 @@ fun ImportSyncScreen(
             endMs = durationMs,
             frameStepMs = frameStepMs,
             enabled = durationMs > 0,
-            onFrames = { frames -> stepFrames(frames) },
+            onScrubStart = { scrubBaseUs = displayedUs },
+            onScrub = { frames ->
+                seekTo(frameStepTargetMs(scrubBaseUs, frames, frameDurationUs).coerceIn(0, durationMs))
+            },
+            hapticsEnabled = hapticsEnabled,
         )
         Text(
             "Frame ruler · drag to step one frame",

@@ -71,7 +71,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - The GT7 lap time (`lastLapTimeMs`) is the ruler: `trimIn = anchor − lapTime`, `trimOut = anchor`.
 - Video is the master clock during playback. The mapping is linear for the whole lap, so anchor error does not accumulate.
 - The playhead opens at the clip's last frame, with the anchor suggested there; the user verifies the line or rewinds and re-anchors.
-- A timeline scrubber covers the whole clip; a frame ruler (about 6 dp per frame, one haptic tick per frame) and ±1 frame buttons provide precision.
+- A timeline scrubber covers the whole clip; a frame ruler (about 6 dp per frame, a haptic tick per step unless disabled in Settings) and ±1 frame buttons provide precision. A drag steps from the playhead it started on, so the value never snaps back.
 - Fine steps use exact seeks; transport is play/pause and ±10 s. Paused seeks keep the requested position rather than polling the player.
 - A clip shorter than the lap is blocked with the missing duration.
 - The computed start frame is shown with a **Check start frame** action; the user confirms it shows the line. With a single anchor the app cannot prove which lap the clip contains, so wrong-lap detection is visual.

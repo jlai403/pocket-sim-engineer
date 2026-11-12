@@ -120,7 +120,7 @@ Defined in `ui/Components.kt` unless noted.
 | `SectionCard` | 22 dp surface card with 16 dp padding, an optional uppercase title, and an optional trailing action |
 | `SectionLabel` | uppercase muted label for groups inside a card |
 | `StatusDot` | 10 dp circle: green when live, outline when idle |
-| `FrameRuler` | 64 dp surface strip with a fixed green needle; frame ticks, half-second labels, and horizontal drag at 6 dp per frame with one haptic tick per frame |
+| `FrameRuler` | 64 dp surface strip with a fixed green needle; frame ticks, half-second labels, and horizontal drag at 6 dp per frame. The drag reports total frames from the playhead it started on, so the value follows the finger; one haptic tick per step, unless disabled |
 | `LapCard` | three-row lap card; tap opens, swipe edits or deletes, long press and custom actions repeat both; 22 dp radius, 14 dp padding |
 | Swipe actions | horizontal drag with a 35% threshold and spring-back; Edit on the start side, Delete on the end side; never dismisses the card |
 | `PullToRefreshBox` | library list gesture; the spinner follows the refresh state |
@@ -182,7 +182,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Console card: IP field.
 - Video card: resolution and codec segmented controls, bitrate label + slider.
 - Recording card: `Keep raw recording` toggle row.
-- Display card: `Imperial units` toggle row.
+- Display card: `Imperial units` and `Frame ruler haptics` toggle rows; haptics are on by default.
 - Updates card: channel-aware status line (`Checks the rolling debug build once a day.`, `You are on the latest build.`, `Version X (build N) is available.`), then one action: `Check for updates`, `Download X`, `Downloading N%`, `Install update`, or `Installing…`. Failures use `error` color and name the next action.
 - Build card: version name, version code, update channel (`preview`/`stable`), CI build number (or `local`), and short commit SHA.
 - When an update is found, a launch dialog offers `Download` / `Later`; Settings remains the place to retry or install.

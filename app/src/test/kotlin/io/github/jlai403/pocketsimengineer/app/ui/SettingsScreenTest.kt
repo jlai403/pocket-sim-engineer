@@ -41,6 +41,7 @@ class SettingsScreenTest {
     fun clearProfile() {
         DriverProfileStore(context).clear()
         SettingsStore(context).previewEmptyLibrary = false
+        SettingsStore(context).hapticsEnabled = true
     }
 
     @Test
@@ -165,6 +166,17 @@ class SettingsScreenTest {
         compose.onNodeWithTag("imperial").performScrollTo().performClick()
 
         assertTrue(SettingsStore(context).imperialUnits)
+    }
+
+    @Test
+    fun `frame ruler haptics toggle persists`() {
+        compose.setContent {
+            PocketSimEngineerTheme { SettingsScreen() }
+        }
+
+        compose.onNodeWithTag("haptics").performScrollTo().performClick()
+
+        assertFalse(SettingsStore(context).hapticsEnabled)
     }
 
     @Test

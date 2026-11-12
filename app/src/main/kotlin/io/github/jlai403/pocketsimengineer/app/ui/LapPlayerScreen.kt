@@ -113,6 +113,7 @@ fun LapPlayerScreen(
     var durationMs by remember { mutableLongStateOf(0L) }
     var frameStepMs by remember { mutableLongStateOf(33L) }
     var frameDurationUs by remember { mutableLongStateOf(33_000L) }
+    var scrubBaseUs by remember { mutableLongStateOf(0L) }
     var message by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
 
@@ -191,16 +192,20 @@ fun LapPlayerScreen(
         PlaybackCursor.telemetryMs(displayedMs, it.leadInMs, it.syncOffsetMs, it.lapTimeMs)
     } ?: 0
 
-    fun stepFrames(frames: Int) {
+    fun seekFramesFrom(baseUs: Long, frames: Int) {
         val active = lap ?: return
         val startMs = PlaybackCursor.clipMs(0, active.leadInMs, active.syncOffsetMs)
             .coerceAtLeast(0)
         val endMs = PlaybackCursor.clipMs(active.lapTimeMs, active.leadInMs, active.syncOffsetMs)
             .coerceAtMost(durationMs.coerceAtLeast(0))
-        val targetMs = frameStepTargetMs(displayedUs, frames, frameDurationUs)
+        val targetMs = frameStepTargetMs(baseUs, frames, frameDurationUs)
             .coerceIn(startMs, endMs.coerceAtLeast(startMs))
         seekClip(targetMs)
     }
+
+    fun stepFrames(frames: Int) = seekFramesFrom(displayedUs, frames)
+
+    fun scrubFrames(frames: Int) = seekFramesFrom(scrubBaseUs, frames)
 
     Column(
         modifier = Modifier
@@ -363,7 +368,9 @@ fun LapPlayerScreen(
                     endMs = currentLap.lapTimeMs.toLong(),
                     frameStepMs = frameStepMs,
                     enabled = durationMs > 0,
-                    onFrames = { frames -> stepFrames(frames) },
+                    onScrubStart = { scrubBaseUs = displayedUs },
+                    onScrub = { frames -> scrubFrames(frames) },
+                    hapticsEnabled = settings.hapticsEnabled,
                 )
                 Text(
                     "Frame ruler · drag to step one frame",
