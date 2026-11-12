@@ -19,8 +19,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,12 +54,18 @@ import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.ui.PlayerView
 import io.github.jlai403.pocketsimengineer.app.replay.PlayStationApp
 import io.github.jlai403.pocketsimengineer.app.replay.probeClip
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
+import io.github.jlai403.pocketsimengineer.app.profile.countryFlagEmoji
 import io.github.jlai403.pocketsimengineer.app.share.Sharing
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import io.github.jlai403.pocketsimengineer.app.track.TrackCatalog
+import io.github.jlai403.pocketsimengineer.app.track.TrackNamer
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.playback.PlaybackCursor
+import io.github.jlai403.pocketsimengineer.core.session.LapSummary
 import io.github.jlai403.pocketsimengineer.core.session.SessionMetadata
 import io.github.jlai403.pocketsimengineer.core.session.SessionStore
+import io.github.jlai403.pocketsimengineer.core.track.TrackCandidate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -76,6 +85,8 @@ fun LapPlayerScreen(
     val scope = rememberCoroutineScope()
     val store = remember { SessionStore(context.filesDir) }
     val settings = remember { SettingsStore(context) }
+    val profileStore = remember { DriverProfileStore(context) }
+    val namer = remember { TrackNamer(store, TrackCatalog(context)) }
     fun openPlayStationApp() {
         if (!PlayStationApp.open(context)) {
             Toast.makeText(context, "PlayStation App is not available.", Toast.LENGTH_SHORT).show()
@@ -95,6 +106,13 @@ fun LapPlayerScreen(
     val samples by produceState<List<Sample>>(emptyList(), sessionId, lapIndex) {
         value = withContext(Dispatchers.IO) {
             runCatching { store.readSamples(sessionId, lapIndex) }.getOrDefault(emptyList())
+        }
+    }
+    val summary by produceState<LapSummary?>(null, sessionId, lapIndex, sessionReload) {
+        value = withContext(Dispatchers.IO) {
+            store.summaries().firstOrNull {
+                it.sessionId == sessionId && it.lapIndex == lapIndex
+            }
         }
     }
 
@@ -120,6 +138,9 @@ fun LapPlayerScreen(
     // The frame the finger asked for; the decoder may land a few frames behind it.
     var scrubTargetMs by remember { mutableStateOf<Long?>(null) }
     var scrubbing by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
+    var candidates by remember { mutableStateOf<List<TrackCandidate>?>(null) }
 
     lateinit var scrubSeeker: ScrubSeeker
     LaunchedEffect(playbackSpeed) {
@@ -139,6 +160,43 @@ fun LapPlayerScreen(
     }
     scrubSeeker = remember(player) {
         ScrubSeeker(scope) { target -> seekClip(target, fromScrub = true) }
+    }
+
+    fun shareVideo() {
+        val file = videoFile
+        if (file == null) {
+            message = "No video yet"
+        } else {
+            Sharing.shareFile(context, file, "video/mp4", "Share lap $lapIndex")
+        }
+    }
+
+    fun exportCsv() {
+        val active = lap ?: return
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    Sharing.exportCsv(context, store, sessionId, active)
+                }
+            }.onSuccess {
+                Sharing.shareFile(context, it, "text/csv", "Export lap $lapIndex")
+            }.onFailure {
+                message = "CSV export failed: ${it.message}"
+            }
+        }
+    }
+
+    fun openEdit() {
+        editing = true
+        candidates = null
+        if (session?.trackLabel == TrackNamer.UNKNOWN) {
+            scope.launch {
+                val found = withContext(Dispatchers.IO) {
+                    runCatching { namer.candidates(sessionId, lapIndex) }.getOrDefault(emptyList())
+                }
+                if (editing) candidates = found
+            }
+        }
     }
 
     DisposableEffect(player) {
@@ -238,34 +296,53 @@ fun LapPlayerScreen(
             .coerceIn(startMs, endMs.coerceAtLeast(startMs))
     }
 
+    val driverProfile = remember(lap?.driverPsnId, sessionReload) {
+        lap?.driverPsnId?.let { profileStore.profile(it) } ?: profileStore.owner()
+    }
+    val driverLabel = driverProfile?.let {
+        listOfNotNull(countryFlagEmoji(it.countryCode), it.nickname).joinToString(" ")
+    }
+    val subtitle = listOfNotNull(session?.trackLabel, driverLabel).joinToString(" · ").ifBlank { null }
+
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             title = lap?.let { "Lap ${it.index} · ${lapTimeLabel(it.lapTimeMs)}" } ?: "Lap",
-            subtitle = session?.trackLabel,
+            subtitle = subtitle,
             onBack = onBack,
             actions = {
-                GhostPill("Share", onClick = {
-                    val file = videoFile
-                    if (file != null) {
-                        Sharing.shareFile(context, file, "video/mp4", "Share lap $lapIndex")
-                    } else {
-                        message = "No video yet"
+                Box {
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "More")
                     }
-                })
-                GhostPill("CSV", onClick = {
-                    scope.launch {
-                        runCatching {
-                            withContext(Dispatchers.IO) {
-                                Sharing.exportCsv(context, store, sessionId, lap ?: error("no lap"))
-                            }
-                        }.onSuccess {
-                            Sharing.shareFile(context, it, "text/csv", "Export lap $lapIndex")
-                        }.onFailure {
-                            message = "CSV export failed: ${it.message}"
-                        }
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Share video") },
+                            enabled = videoFile != null,
+                            onClick = {
+                                menuOpen = false
+                                shareVideo()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Export CSV") },
+                            onClick = {
+                                menuOpen = false
+                                exportCsv()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Edit lap") },
+                            onClick = {
+                                menuOpen = false
+                                openEdit()
+                            },
+                        )
                     }
-                })
+                }
             },
         )
 
@@ -307,27 +384,6 @@ fun LapPlayerScreen(
                         modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                     )
                 }
-                if (currentLap.sourceFile != null) {
-                    PrimaryPill(
-                        text = "Resume sync",
-                        onClick = { onImportSync(null) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-                ReplaySourcePill(
-                    text = "Replace replay",
-                    primary = false,
-                    onFiles = { importLauncher.launch(arrayOf("video/*")) },
-                    onPlayStation = { openPlayStationApp() },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (currentLap.sourceFile != null) {
-                    Text(
-                        "A newer clip is waiting to be synced. The current replay still plays.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             } else {
                 SectionCard(title = "Replay") {
                     if (currentLap.sourceFile != null) {
@@ -338,13 +394,6 @@ fun LapPlayerScreen(
                         PrimaryPill(
                             text = "Resume sync",
                             onClick = { onImportSync(null) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        ReplaySourcePill(
-                            text = "Choose another clip",
-                            primary = false,
-                            onFiles = { importLauncher.launch(arrayOf("video/*")) },
-                            onPlayStation = { openPlayStationApp() },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     } else {
@@ -365,13 +414,6 @@ fun LapPlayerScreen(
                     }
                 }
             }
-
-            DriverSection(
-                sessionId = sessionId,
-                lapIndex = lapIndex,
-                driverPsnId = currentLap.driverPsnId,
-                onChanged = { sessionReload++ },
-            )
 
             message?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
@@ -428,6 +470,56 @@ fun LapPlayerScreen(
                 },
                 onForward = { seekLap(cursorMs + TRANSPORT_MS) },
                 onSpeedChange = { playbackSpeed = it },
+            )
+        }
+    }
+
+    if (editing) {
+        summary?.let { sheetLap ->
+            EditLapSheet(
+                lap = sheetLap,
+                driver = sheetLap.driverPsnId?.let { profileStore.profile(it) },
+                owner = profileStore.owner(),
+                profiles = profileStore.profiles(),
+                candidates = candidates,
+                onDismiss = { editing = false },
+                onSaveTrack = { name ->
+                    editing = false
+                    scope.launch {
+                        val renamed = withContext(Dispatchers.IO) {
+                            runCatching { store.rename(sessionId, name) }.getOrNull()
+                        }
+                        if (renamed == null) message = "Track name could not be saved."
+                        sessionReload++
+                    }
+                },
+                onAssignDriver = { profile ->
+                    scope.launch {
+                        val updated = withContext(Dispatchers.IO) {
+                            runCatching {
+                                store.setLapDriver(sessionId, lapIndex, profile?.psnId)
+                            }.getOrNull()
+                        }
+                        if (updated == null) {
+                            message = "Driver could not be saved."
+                        } else {
+                            profile?.let { profileStore.save(it) }
+                            sessionReload++
+                        }
+                    }
+                },
+                onAddReplay = {
+                    editing = false
+                    importLauncher.launch(arrayOf("video/*"))
+                },
+                onOpenPlayStation = {
+                    editing = false
+                    openPlayStationApp()
+                },
+                onResumeSync = {
+                    editing = false
+                    onImportSync(null)
+                },
             )
         }
     }

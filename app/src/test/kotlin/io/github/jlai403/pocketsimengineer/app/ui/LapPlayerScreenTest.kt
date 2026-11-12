@@ -8,6 +8,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import org.junit.Before
 import org.junit.Rule
@@ -134,6 +136,56 @@ class LapPlayerScreenTest {
     }
 
     @Test
+    fun `edit lap opens from the header and offers replay replacement`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithText("Edit lap").performClick()
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Replace replay").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun `the lap header shows the assigned driver`() {
+        DriverProfileStore(context).setOwner(DriverProfile("skino2024", "Skino", "GB"))
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(lapTimesMs = listOf(90_000), driverPsnId = "skino2024"),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Suzuka · 🇬🇧 Skino").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
     fun `a pending import can be resumed or replaced`() {
         SessionFixtures.install(
             context,
@@ -156,9 +208,14 @@ class LapPlayerScreenTest {
         }
 
         compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithText("Edit lap").performClick()
+
+        compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("Resume sync").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Choose another clip").assertExists()
     }
 
     @Test
@@ -180,10 +237,15 @@ class LapPlayerScreenTest {
         }
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Replace replay").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithText("Edit lap").performClick()
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Sync pending").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Resume sync").assertExists()
-        compose.onNodeWithText("The current replay still plays.", substring = true).assertExists()
     }
 
     private companion object {
