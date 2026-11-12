@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,8 @@ fun App(
     onDisconnect: () -> Unit,
     onCapture: () -> Unit,
     onCancelCapture: () -> Unit,
+    sharedVideoUri: String?,
+    onSharedVideoHandled: () -> Unit,
     update: UpdateManager.State,
     onCheckUpdate: () -> Unit,
     onDownloadUpdate: () -> Unit,
@@ -53,8 +56,17 @@ fun App(
         else -> null
     }
 
+    LaunchedEffect(sharedVideoUri) {
+        val uri = sharedVideoUri ?: return@LaunchedEffect
+        screen = Screen.ImportPick(uri)
+        onSharedVideoHandled()
+    }
+
     BackHandler(enabled = screen != Screen.Library) {
-        screen = Screen.Library
+        screen = when (val current = screen) {
+            is Screen.ImportSync -> Screen.Player(current.sessionId, current.lapIndex)
+            else -> Screen.Library
+        }
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -68,6 +80,22 @@ fun App(
                     when (val current = screen) {
                         Screen.Library -> LibraryScreen(
                             onOpenLap = { id, index -> screen = Screen.Player(id, index) },
+                        )
+
+                        is Screen.ImportPick -> ImportPickScreen(
+                            uri = current.uri,
+                            onPick = { id, index ->
+                                screen = Screen.ImportSync(id, index, current.uri)
+                            },
+                            onClose = { screen = Screen.Library },
+                        )
+
+                        is Screen.ImportSync -> ImportSyncScreen(
+                            sessionId = current.sessionId,
+                            lapIndex = current.lapIndex,
+                            sourceUri = current.sourceUri,
+                            onDone = { screen = Screen.Player(current.sessionId, current.lapIndex) },
+                            onCancel = { screen = Screen.Library },
                         )
 
                         is Screen.Player -> LapPlayerScreen(

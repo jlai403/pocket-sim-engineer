@@ -3,6 +3,7 @@ package io.github.jlai403.pocketsimengineer.app
 import android.app.ActivityManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -16,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import io.github.jlai403.pocketsimengineer.app.service.TelemetryService
@@ -25,10 +27,12 @@ import io.github.jlai403.pocketsimengineer.app.ui.CaptureUiState
 import io.github.jlai403.pocketsimengineer.app.ui.PocketSimEngineerTheme
 import io.github.jlai403.pocketsimengineer.app.updater.UpdateManager
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private lateinit var settings: SettingsStore
+    private val pendingShare = MutableStateFlow<String?>(null)
 
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -46,6 +50,7 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         settings = SettingsStore(this)
+        handleShareIntent(intent)
         setContent {
             val serviceState by TelemetryService.state.collectAsStateWithLifecycle()
             val telemetryRunning by TelemetryService.running.collectAsStateWithLifecycle()
@@ -53,6 +58,7 @@ class MainActivity : ComponentActivity() {
             val capture by TelemetryService.capture.collectAsStateWithLifecycle()
             val telemetryEvents by TelemetryService.events.collectAsStateWithLifecycle()
             val completedLaps by TelemetryService.completedLaps.collectAsStateWithLifecycle()
+            val sharedVideo by pendingShare.collectAsStateWithLifecycle()
             val update by UpdateManager.state.collectAsStateWithLifecycle()
             var ip by rememberSaveable { mutableStateOf(settings.ps5Ip) }
 
@@ -96,6 +102,8 @@ class MainActivity : ComponentActivity() {
                     onDisconnect = { disconnect() },
                     onCapture = { sendServiceAction(TelemetryService.ACTION_CAPTURE) },
                     onCancelCapture = { sendServiceAction(TelemetryService.ACTION_CANCEL_CAPTURE) },
+                    sharedVideoUri = sharedVideo,
+                    onSharedVideoHandled = { pendingShare.value = null },
                     update = update,
                     onCheckUpdate = { UpdateManager.check(applicationContext) },
                     onDownloadUpdate = { UpdateManager.download(applicationContext) },
@@ -103,6 +111,19 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShareIntent(intent)
+    }
+
+    private fun handleShareIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND) return
+        if (!intent.type.orEmpty().startsWith("video/")) return
+        val uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+        if (uri != null) pendingShare.value = uri.toString()
     }
 
     private fun connect(raw: String) {
