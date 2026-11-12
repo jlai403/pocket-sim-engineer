@@ -26,7 +26,7 @@ class FrameRulerTest {
     val compose = createComposeRule()
 
     @Test
-    fun `drag totals follow the whole gesture`() {
+    fun `right drag rewinds by the whole gesture`() {
         val totals = mutableListOf<Int>()
         var pxPerFrame = 0f
 
@@ -34,7 +34,7 @@ class FrameRulerTest {
             pxPerFrame = with(LocalDensity.current) { 6.dp.toPx() }
             PocketSimEngineerTheme {
                 FrameRuler(
-                    valueMs = 0,
+                    valueMs = 5_000,
                     startMs = 0,
                     endMs = 10_000,
                     frameStepMs = 33,
@@ -55,7 +55,7 @@ class FrameRulerTest {
         }
 
         assertTrue("expected two scrub events, got $totals", totals.size >= 2)
-        assertTrue("totals must accumulate, got $totals", totals.last() >= 16)
+        assertTrue("totals must accumulate backward, got $totals", totals.last() <= -16)
     }
 
     @Test
@@ -90,7 +90,7 @@ class FrameRulerTest {
     }
 
     @Test
-    fun `dragging back reports a negative total`() {
+    fun `left drag forwards`() {
         val totals = mutableListOf<Int>()
         var pxPerFrame = 0f
 
@@ -117,8 +117,8 @@ class FrameRulerTest {
             up()
         }
 
-        assertTrue("expected a backward scrub, got $totals", totals.isNotEmpty())
-        assertTrue("backward drag must go negative, got $totals", totals.last() < 0)
+        assertTrue("expected a forward scrub, got $totals", totals.isNotEmpty())
+        assertTrue("leftward drag must go forward, got $totals", totals.last() > 0)
     }
 
     @Test
