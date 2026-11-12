@@ -3,11 +3,18 @@ package io.github.jlai403.pocketsimengineer.app.ui
 import android.app.Application
 import android.content.Context
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
+import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,6 +30,12 @@ class LapPlayerScreenTest {
     val compose = createComposeRule()
 
     private val context: Context get() = ApplicationProvider.getApplicationContext()
+
+    @Before
+    fun resetPlaybackPreferences() {
+        SettingsStore(context).defaultPlaybackSpeed = 1f
+        SettingsStore(context).telemetryHud = true
+    }
 
     @Test
     fun `lap without a clip still shows charts and add replay`() {
@@ -97,10 +110,82 @@ class LapPlayerScreenTest {
             compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Add replay").assertDoesNotExist()
-        compose.onNodeWithText("Replace replay").assertExists()
         compose.onNodeWithContentDescription("Frame ruler").assertExists()
-        compose.onNodeWithText("−1 frame").assertExists()
-        compose.onNodeWithText("+1 frame").assertExists()
+        compose.onNodeWithText("−1 frame").assertDoesNotExist()
+        compose.onNodeWithText("+1 frame").assertDoesNotExist()
+        compose.onNodeWithText("1×").assertExists()
+    }
+
+    @Test
+    fun `the speed menu offers playback rates`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("1×").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("1×").performClick()
+        compose.onNodeWithText("2×").assertExists()
+    }
+
+    @Test
+    fun `edit lap opens from the header and offers replay replacement`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithText("Edit lap").performClick()
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Replace replay").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun `the lap header shows the assigned driver`() {
+        DriverProfileStore(context).setOwner(DriverProfile("skino2024", "Skino", "GB"))
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(lapTimesMs = listOf(90_000), driverPsnId = "skino2024"),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Suzuka · 🇬🇧 Skino").fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test
@@ -126,9 +211,14 @@ class LapPlayerScreenTest {
         }
 
         compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithText("Edit lap").performClick()
+
+        compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("Resume sync").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Choose another clip").assertExists()
     }
 
     @Test
@@ -150,10 +240,88 @@ class LapPlayerScreenTest {
         }
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Replace replay").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Newer clip waiting to be synced.").assertExists()
+        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithText("Edit lap").performClick()
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Sync pending").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Resume sync").assertExists()
-        compose.onNodeWithText("The current replay still plays.", substring = true).assertExists()
+    }
+
+    @Test
+    fun `the telemetry hud shows over the replay by default`() {
+        SettingsStore(context).telemetryHud = true
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen("session-1", 1, onBack = {}, onImportSync = {})
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun `the hud stays hidden when disabled in settings`() {
+        SettingsStore(context).telemetryHud = false
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen("session-1", 1, onBack = {}, onImportSync = {})
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(0, compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `an unknown driver shows the psn instead of the owner`() {
+        DriverProfileStore(context).setOwner(DriverProfile("owner", "Owner", "GB"))
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(lapTimesMs = listOf(90_000), driverPsnId = "other"),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen("session-1", 1, onBack = {}, onImportSync = {})
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Suzuka · other").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun `share video is disabled without a clip`() {
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(lapTimesMs = listOf(90_000), needsCut = true),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen("session-1", 1, onBack = {}, onImportSync = {})
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithText("Share video").assertIsNotEnabled()
     }
 
     private companion object {

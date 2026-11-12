@@ -4,6 +4,7 @@ import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
 
@@ -59,6 +60,36 @@ class UiStateTest {
     @Test
     fun `sample of an empty window is null`() {
         assertNull(emptyList<Sample>().sampleAt(lap, 0))
+    }
+
+    @Test
+    fun `window around keeps samples within the radius`() {
+        val longLap = LapMetadata(
+            index = 1,
+            lapTimeMs = 5_000,
+            startNanos = 0,
+            endNanos = 5_000_000_000L,
+            sampleCount = 6,
+            videoFile = "",
+            leadInMs = 0,
+        )
+        val window = listOf(0, 1_000, 2_000, 3_000, 4_000, 5_000)
+            .map { ms -> SessionFixtures.sample(timeNanos = ms * 1_000_000L) }
+            .windowAround(longLap, 3_000, 1_500)
+        assertEquals(listOf(2_000L, 3_000L, 4_000L), window.map { it.timeNanos / 1_000_000 })
+    }
+
+    @Test
+    fun `window around an empty lap is empty`() {
+        assertTrue(emptyList<Sample>().windowAround(lap, 0, 5_000).isEmpty())
+    }
+
+    @Test
+    fun `window around clamps to the lap bounds`() {
+        val samples = listOf(-1_000, 0, 1_000, 2_000, 3_000)
+            .map { ms -> SessionFixtures.sample(timeNanos = ms * 1_000_000L) }
+        val window = samples.windowAround(lap, 0, 5_000)
+        assertEquals(listOf(0L, 1_000L, 2_000L), window.map { it.timeNanos / 1_000_000 })
     }
 
     private fun samples() = listOf(

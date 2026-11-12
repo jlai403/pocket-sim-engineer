@@ -171,13 +171,13 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 
 ### Player
 
-- Header: `Lap N · M:SS.mmm`, track subtitle, back button, `Share` / `CSV` ghost pills.
-- Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden.
-- Replay source: one pill (`Add replay`, `Replace replay`, or `Choose another clip`) with a chevron, opening Files or PlayStation App; a pending clip adds `Resume sync`.
+- Header: `Lap N · M:SS.mmm`, `Track · flag name` subtitle, back button, and one overflow menu (`Share video`, `Export CSV`, `Edit lap`).
+- Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden. A telemetry HUD (speed, gear, ±5 s throttle/brake traces) overlays the top centre when enabled in Settings.
+- Replay management lives in the `Edit lap` sheet: track, driver, and add/replace replay or resume a pending sync. The main screen keeps only `Add replay` when no clip exists.
 - Missing video: `Replay` card with a one-sentence explanation and the source pill.
-- Cursor line: `current / lap` in mono.
-- Playback: lap-only slider with 0 / lap labels, `FrameRuler`, `TransportRow`, then `FrameStepRow` (−1 / +1 frame). The rendered frame drives the charts and map, including while paused.
-- Driver card below the playback block; telemetry card contains the chart stack; track map is its own card.
+- Playback footer (sticky): `current / lap` in mono, the frame ruler, then compact transport and a speed dropdown (0.5×/1×/1.5×/2×). The ruler is the only scrubber and shows a progress track plus event dots.
+- Scrolling content above the footer: video, telemetry card, track-map card. The rendered frame drives the charts and map, including while paused.
+- Speed changes last until you leave the lap screen; the default comes from Settings.
 
 ### Settings
 
@@ -185,7 +185,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Console card: IP field.
 - Video card: resolution and codec segmented controls, bitrate label + slider.
 - Recording card: `Keep raw recording` toggle row.
-- Display card: `Imperial units` and `Frame ruler haptics` toggle rows; haptics are on by default.
+- Display card: `Imperial units`, `Frame ruler haptics`, and `Telemetry HUD` toggle rows, plus a `Default playback speed` dropdown (0.5×/1×/1.5×/2×); haptics are on by default, HUD is on by default.
 - Updates card: channel-aware status line (`Checks the rolling debug build once a day.`, `You are on the latest build.`, `Version X (build N) is available.`), then one action: `Check for updates`, `Download X`, `Downloading N%`, `Install update`, or `Installing…`. Failures use `error` color and name the next action.
 - Build card: version name, version code, update channel (`preview`/`stable`), CI build number (or `local`), and short commit SHA.
 - When an update is found, a launch dialog offers `Download` / `Later`; Settings remains the place to retry or install.
@@ -196,14 +196,15 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 `ui/TelemetryCharts.kt`.
 
 - Speed: blue trace, max scaled to session peak.
-- Throttle: green; brake: red; both 0–255.
+- Throttle: green; brake: red; both 0–255 on one combined chart.
 - RPM: amber, scaled to peak.
 - Gear: amber step trace.
 - Axis: 1 px `outlineVariant`; cursor: 2 px `onSurface` at 75%.
-- Trace stroke: 2 px. Chart heights: speed/throttle/brake/RPM 52 dp, gear 40 dp.
-- Map: 3 px `onSurfaceVariant` polyline, 7 px green dot at the cursor, 240 dp tall.
+- Trace stroke: 2 px. Chart heights: speed/throttle-brake/RPM 52 dp, gear 40 dp.
+- Map: 3 px `onSurfaceVariant` polyline, 7 px green dot at the cursor, 200 dp tall.
+- Event dots on the map and matching dots on the ruler: brake red, coast grey, throttle green, turn amber; turn comes from steering peaks, or track curvature when steering is unavailable. A legend sits under the map.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.
-- Current values above the charts: speed with unit, gear, throttle %, brake %, RPM.
+- Current values above the charts: speed with unit and gear as text; throttle, brake, and RPM as colored value bars with ±5 s sparklines; a 2×2 tire heatmap below (blue cold → green optimal → red hot).
 - Values and the map dot interpolate between the two samples that bracket the cursor time; gear snaps to the nearest sample. The cursor line stays on the video frame.
 
 ## Recording feedback outside the app

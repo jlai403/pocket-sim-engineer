@@ -2,6 +2,7 @@ package io.github.jlai403.pocketsimengineer.app.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -58,6 +63,9 @@ fun SettingsScreen(
     }
     var imperial by remember { mutableStateOf(settings.imperialUnits) }
     var haptics by remember { mutableStateOf(settings.hapticsEnabled) }
+    var defaultSpeed by remember { mutableStateOf(settings.defaultPlaybackSpeed) }
+    var speedMenu by remember { mutableStateOf(false) }
+    var hud by remember { mutableStateOf(settings.telemetryHud) }
     var previewEmpty by remember { mutableStateOf(settings.previewEmptyLibrary) }
 
     Column(
@@ -129,6 +137,46 @@ fun SettingsScreen(
             }
             Text(
                 "Ticks as you drag the ruler.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Default playback speed",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Box {
+                    GhostPill(
+                        text = playbackSpeedLabel(defaultSpeed),
+                        onClick = { speedMenu = true },
+                        modifier = Modifier.testTag("default-playback-speed"),
+                        trailingIcon = Icons.Filled.KeyboardArrowDown,
+                    )
+                    DropdownMenu(expanded = speedMenu, onDismissRequest = { speedMenu = false }) {
+                        PLAYBACK_SPEEDS.forEach { speed ->
+                            DropdownMenuItem(
+                                text = { Text(playbackSpeedLabel(speed)) },
+                                onClick = {
+                                    defaultSpeed = speed
+                                    settings.defaultPlaybackSpeed = speed
+                                    speedMenu = false
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            SettingToggle(
+                label = "Telemetry HUD",
+                checked = hud,
+                modifier = Modifier.testTag("telemetry-hud"),
+            ) {
+                hud = it
+                settings.telemetryHud = it
+            }
+            Text(
+                "Speed, gear, and pedal sparklines over the replay.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

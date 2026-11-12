@@ -19,15 +19,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -51,12 +54,18 @@ import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.ui.PlayerView
 import io.github.jlai403.pocketsimengineer.app.replay.PlayStationApp
 import io.github.jlai403.pocketsimengineer.app.replay.probeClip
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
+import io.github.jlai403.pocketsimengineer.app.profile.countryFlagEmoji
 import io.github.jlai403.pocketsimengineer.app.share.Sharing
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import io.github.jlai403.pocketsimengineer.app.track.TrackCatalog
+import io.github.jlai403.pocketsimengineer.app.track.TrackNamer
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.playback.PlaybackCursor
+import io.github.jlai403.pocketsimengineer.core.session.LapSummary
 import io.github.jlai403.pocketsimengineer.core.session.SessionMetadata
 import io.github.jlai403.pocketsimengineer.core.session.SessionStore
+import io.github.jlai403.pocketsimengineer.core.track.TrackCandidate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -77,6 +86,8 @@ fun LapPlayerScreen(
     val scope = rememberCoroutineScope()
     val store = remember { SessionStore(context.filesDir) }
     val settings = remember { SettingsStore(context) }
+    val profileStore = remember { DriverProfileStore(context) }
+    val namer = remember { TrackNamer(store, TrackCatalog(context)) }
     fun openPlayStationApp() {
         if (!PlayStationApp.open(context)) {
             Toast.makeText(context, "PlayStation App is not available.", Toast.LENGTH_SHORT).show()
@@ -98,6 +109,13 @@ fun LapPlayerScreen(
             runCatching { store.readSamples(sessionId, lapIndex) }.getOrDefault(emptyList())
         }
     }
+    val summary by produceState<LapSummary?>(null, sessionId, lapIndex, sessionReload) {
+        value = withContext(Dispatchers.IO) {
+            store.summaries().firstOrNull {
+                it.sessionId == sessionId && it.lapIndex == lapIndex
+            }
+        }
+    }
 
     val videoFile = lap
         ?.takeIf { !it.needsCut && it.videoFile != session?.rawFile }
@@ -117,11 +135,19 @@ fun LapPlayerScreen(
     var scrubBaseUs by remember { mutableLongStateOf(0L) }
     var message by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
+    var playbackSpeed by remember { mutableFloatStateOf(settings.defaultPlaybackSpeed) }
     // The frame the finger asked for; the decoder may land a few frames behind it.
     var scrubTargetMs by remember { mutableStateOf<Long?>(null) }
     var scrubbing by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
+    var candidates by remember { mutableStateOf<List<TrackCandidate>?>(null) }
 
     lateinit var scrubSeeker: ScrubSeeker
+    LaunchedEffect(playbackSpeed) {
+        player.setPlaybackSpeed(playbackSpeed)
+    }
+
     fun seekClip(targetMs: Long, fromScrub: Boolean = false) {
         val clamped = targetMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
         player.seekTo(clamped)
@@ -135,6 +161,43 @@ fun LapPlayerScreen(
     }
     scrubSeeker = remember(player) {
         ScrubSeeker(scope) { target -> seekClip(target, fromScrub = true) }
+    }
+
+    fun shareVideo() {
+        val file = videoFile
+        if (file == null) {
+            message = "No video yet"
+        } else {
+            Sharing.shareFile(context, file, "video/mp4", "Share lap $lapIndex")
+        }
+    }
+
+    fun exportCsv() {
+        val active = lap ?: return
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    Sharing.exportCsv(context, store, sessionId, active)
+                }
+            }.onSuccess {
+                Sharing.shareFile(context, it, "text/csv", "Export lap $lapIndex")
+            }.onFailure {
+                message = "CSV export failed: ${it.message}"
+            }
+        }
+    }
+
+    fun openEdit() {
+        editing = true
+        candidates = null
+        if (session?.trackLabel == TrackNamer.UNKNOWN) {
+            scope.launch {
+                val found = withContext(Dispatchers.IO) {
+                    runCatching { namer.candidates(sessionId, lapIndex) }.getOrDefault(emptyList())
+                }
+                if (editing) candidates = found
+            }
+        }
     }
 
     DisposableEffect(player) {
@@ -234,43 +297,60 @@ fun LapPlayerScreen(
             .coerceIn(startMs, endMs.coerceAtLeast(startMs))
     }
 
-    fun seekFramesFrom(baseUs: Long, frames: Int) {
-        scrubTarget(baseUs, frames)?.let { seekClip(it) }
+    val driverProfile = remember(lap?.driverPsnId, sessionReload) {
+        lap?.driverPsnId?.let { profileStore.profile(it) }
     }
+    val driverLabel = when {
+        driverProfile != null -> listOfNotNull(
+            countryFlagEmoji(driverProfile.countryCode),
+            driverProfile.nickname,
+        ).joinToString(" ")
+        lap?.driverPsnId != null -> lap.driverPsnId
+        else -> profileStore.owner()?.let {
+            listOfNotNull(countryFlagEmoji(it.countryCode), it.nickname).joinToString(" ")
+        }
+    }
+    val subtitle = listOfNotNull(session?.trackLabel, driverLabel).joinToString(" · ").ifBlank { null }
 
-    fun stepFrames(frames: Int) = seekFramesFrom(displayedUs, frames)
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             title = lap?.let { "Lap ${it.index} · ${lapTimeLabel(it.lapTimeMs)}" } ?: "Lap",
-            subtitle = session?.trackLabel,
+            subtitle = subtitle,
             onBack = onBack,
             actions = {
-                GhostPill("Share", onClick = {
-                    val file = videoFile
-                    if (file != null) {
-                        Sharing.shareFile(context, file, "video/mp4", "Share lap $lapIndex")
-                    } else {
-                        message = "No video yet"
+                Box {
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "More")
                     }
-                })
-                GhostPill("CSV", onClick = {
-                    scope.launch {
-                        runCatching {
-                            withContext(Dispatchers.IO) {
-                                Sharing.exportCsv(context, store, sessionId, lap ?: error("no lap"))
-                            }
-                        }.onSuccess {
-                            Sharing.shareFile(context, it, "text/csv", "Export lap $lapIndex")
-                        }.onFailure {
-                            message = "CSV export failed: ${it.message}"
-                        }
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Share video") },
+                            enabled = videoFile != null,
+                            onClick = {
+                                menuOpen = false
+                                shareVideo()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Export CSV") },
+                            onClick = {
+                                menuOpen = false
+                                exportCsv()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Edit lap") },
+                            onClick = {
+                                menuOpen = false
+                                openEdit()
+                            },
+                        )
                     }
-                })
+                }
             },
         )
 
@@ -284,11 +364,15 @@ fun LapPlayerScreen(
         }
         val currentLap = lap
 
+        val events = remember(samples, currentLap) {
+            lapEvents(samples.lapWindow(currentLap), currentLap)
+        }
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(top = 14.dp),
+                .padding(horizontal = 20.dp)
+                .padding(top = 14.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (videoFile != null) {
@@ -307,24 +391,19 @@ fun LapPlayerScreen(
                         },
                         modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                     )
+                    if (settings.telemetryHud) {
+                        TelemetryHud(
+                            window = samples,
+                            lap = currentLap,
+                            cursorMs = cursorMs,
+                            imperial = settings.imperialUnits,
+                            modifier = Modifier.align(Alignment.TopCenter).padding(8.dp),
+                        )
+                    }
                 }
-                if (currentLap.sourceFile != null) {
-                    PrimaryPill(
-                        text = "Resume sync",
-                        onClick = { onImportSync(null) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-                ReplaySourcePill(
-                    text = "Replace replay",
-                    primary = false,
-                    onFiles = { importLauncher.launch(arrayOf("video/*")) },
-                    onPlayStation = { openPlayStationApp() },
-                    modifier = Modifier.fillMaxWidth(),
-                )
                 if (currentLap.sourceFile != null) {
                     Text(
-                        "A newer clip is waiting to be synced. The current replay still plays.",
+                        "Newer clip waiting to be synced.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -339,13 +418,6 @@ fun LapPlayerScreen(
                         PrimaryPill(
                             text = "Resume sync",
                             onClick = { onImportSync(null) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        ReplaySourcePill(
-                            text = "Choose another clip",
-                            primary = false,
-                            onFiles = { importLauncher.launch(arrayOf("video/*")) },
-                            onPlayStation = { openPlayStationApp() },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     } else {
@@ -367,83 +439,6 @@ fun LapPlayerScreen(
                 }
             }
 
-            if (videoFile != null) {
-                NumericText(
-                    "%s / %s".format(
-                        formatMillis(cursorMs.toLong()),
-                        lapTimeLabel(currentLap.lapTimeMs),
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Slider(
-                    value = cursorMs.toFloat().coerceIn(0f, currentLap.lapTimeMs.toFloat()),
-                    onValueChange = { seekLap(it.roundToLong()) },
-                    valueRange = 0f..currentLap.lapTimeMs.coerceAtLeast(1).toFloat(),
-                    enabled = durationMs > 0 && currentLap.lapTimeMs > 0,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "0:00.000",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        lapTimeLabel(currentLap.lapTimeMs),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                FrameRuler(
-                    valueMs = cursorMs.toLong(),
-                    startMs = 0,
-                    endMs = currentLap.lapTimeMs.toLong(),
-                    frameStepMs = frameStepMs,
-                    enabled = durationMs > 0,
-                    onScrubStart = {
-                        scrubBaseUs = displayedUs
-                        scrubTargetMs = null
-                        scrubbing = true
-                    },
-                    onScrub = { frames ->
-                        scrubTarget(scrubBaseUs, frames)?.let { target ->
-                            scrubTargetMs = target
-                            scrubSeeker.submit(target)
-                        }
-                    },
-                    onScrubEnd = { scrubbing = false },
-                    hapticsEnabled = settings.hapticsEnabled,
-                )
-                Text(
-                    "Frame ruler · drag to step one frame",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                TransportRow(
-                    playing = playing,
-                    enabled = durationMs > 0,
-                    onRewind = { seekLap(cursorMs - TRANSPORT_MS) },
-                    onPlayPause = {
-                        if (player.isPlaying) {
-                            player.pause()
-                        } else {
-                            if (cursorMs >= currentLap.lapTimeMs) seekLap(0)
-                            player.play()
-                        }
-                    },
-                    onForward = { seekLap(cursorMs + TRANSPORT_MS) },
-                )
-                FrameStepRow(enabled = durationMs > 0, onStep = ::stepFrames)
-            }
-
-            DriverSection(
-                sessionId = sessionId,
-                lapIndex = lapIndex,
-                driverPsnId = currentLap.driverPsnId,
-                onChanged = { sessionReload++ },
-            )
-
             message?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
@@ -464,6 +459,95 @@ fun LapPlayerScreen(
             }
 
             Spacer(Modifier.padding(bottom = 8.dp))
+        }
+
+        if (videoFile != null) {
+            PlaybackFooter(
+                cursorMs = cursorMs,
+                lapTimeMs = currentLap.lapTimeMs,
+                frameStepMs = frameStepMs,
+                enabled = durationMs > 0,
+                playing = playing,
+                speed = playbackSpeed,
+                events = events,
+                hapticsEnabled = settings.hapticsEnabled,
+                onScrubStart = {
+                    scrubBaseUs = displayedUs
+                    scrubTargetMs = null
+                    scrubbing = true
+                },
+                onScrub = { frames ->
+                    scrubTarget(scrubBaseUs, frames)?.let { target ->
+                        scrubTargetMs = target
+                        scrubSeeker.submit(target)
+                    }
+                },
+                onScrubEnd = { scrubbing = false },
+                onSeekFraction = { fraction ->
+                    seekLap((fraction * currentLap.lapTimeMs).roundToLong())
+                },
+                onRewind = { seekLap(cursorMs - TRANSPORT_MS) },
+                onPlayPause = {
+                    if (player.isPlaying) {
+                        player.pause()
+                    } else {
+                        if (cursorMs >= currentLap.lapTimeMs) seekLap(0)
+                        player.play()
+                    }
+                },
+                onForward = { seekLap(cursorMs + TRANSPORT_MS) },
+                onSpeedChange = { playbackSpeed = it },
+            )
+        }
+    }
+
+    if (editing) {
+        summary?.let { sheetLap ->
+            EditLapSheet(
+                lap = sheetLap,
+                driver = sheetLap.driverPsnId?.let { profileStore.profile(it) },
+                owner = profileStore.owner(),
+                profiles = profileStore.profiles(),
+                candidates = candidates,
+                onDismiss = { editing = false },
+                onSaveTrack = { name ->
+                    editing = false
+                    scope.launch {
+                        val renamed = withContext(Dispatchers.IO) {
+                            runCatching { store.rename(sessionId, name) }.getOrNull()
+                        }
+                        if (renamed == null) message = "Track name could not be saved."
+                        sessionReload++
+                    }
+                },
+                onAssignDriver = { profile ->
+                    scope.launch {
+                        val updated = withContext(Dispatchers.IO) {
+                            runCatching {
+                                store.setLapDriver(sessionId, lapIndex, profile?.psnId)
+                            }.getOrNull()
+                        }
+                        if (updated == null) {
+                            message = "Driver could not be saved."
+                        } else {
+                            profile?.let { profileStore.save(it) }
+                            sessionReload++
+                        }
+                    }
+                },
+                onAddReplay = {
+                    editing = false
+                    importLauncher.launch(arrayOf("video/*"))
+                },
+                onOpenPlayStation = {
+                    editing = false
+                    openPlayStationApp()
+                },
+                onResumeSync = {
+                    editing = false
+                    onImportSync(null)
+                },
+            )
         }
     }
 }

@@ -5,8 +5,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
@@ -182,5 +184,56 @@ class FrameRulerTest {
         }
 
         assertEquals(1, ends)
+    }
+
+    @Test
+    fun `ruler renders progress and event markers`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                FrameRuler(
+                    valueMs = 5_000,
+                    startMs = 0,
+                    endMs = 10_000,
+                    frameStepMs = 33,
+                    enabled = true,
+                    onScrubStart = {},
+                    onScrub = {},
+                    events = listOf(LapEvent(LapEventType.Brake, 2_000)),
+                    showProgress = true,
+                    hapticsEnabled = false,
+                    modifier = Modifier.testTag("ruler"),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("ruler").assertExists()
+    }
+
+    @Test
+    fun `the ruler exposes a seek progress action`() {
+        var fraction: Float? = null
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                FrameRuler(
+                    valueMs = 5_000,
+                    startMs = 0,
+                    endMs = 10_000,
+                    frameStepMs = 33,
+                    enabled = true,
+                    onScrubStart = {},
+                    onScrub = {},
+                    onSeekFraction = { fraction = it },
+                    hapticsEnabled = false,
+                    modifier = Modifier.testTag("ruler"),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("ruler").performSemanticsAction(SemanticsActions.SetProgress) {
+            it(0.5f)
+        }
+
+        assertEquals(0.5f, fraction)
     }
 }

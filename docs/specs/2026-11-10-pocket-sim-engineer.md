@@ -190,8 +190,11 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - Media3 ExoPlayer; exact seeks for frame stepping, and the rendered frame drives the cursor. Ruler drags keep at most one seek in flight, always to the newest target, and the readout shows that target until the frame lands.
 - `PlaybackCursor.telemetryMs(positionMs, leadInMs, syncOffsetMs, lapTimeMs)` maps video to lap time; `clipMs(lapMs, leadInMs, syncOffsetMs)` is its inverse.
 - The sync screen's slider and frame ruler span the whole clip.
-- The lap screen's slider and frame ruler span only the lap; play/pause, ±10 s, the ruler, and ±1 frame control the replay, and the charts and track map follow the rendered frame while paused.
+- The lap screen's playback controls sit in a sticky footer: one time readout, the frame ruler as the only scrubber, compact play/pause and ±10 s, and a speed dropdown (0.5×/1×/1.5×/2×). Changes last until the screen closes; the default comes from Settings.
+- The ruler shows a progress track and dots for brake, coast, throttle, and turn events; the track map shows the same dots with a legend. Turn dots use steering when present and track curvature otherwise.
+- A setting-controlled telemetry HUD overlays the video's top centre with speed, gear, and ±5 s throttle/brake traces.
 - Charts and track map follow the cursor. Readouts and the map dot interpolate between the two samples bracketing the cursor time; gear snaps to the nearest sample and the cursor line stays on the video frame.
+- The chart stack combines throttle and brake into one 0–255 chart, shows speed and gear as text, and adds throttle/brake/RPM value bars, ±5 s sparklines, and a four-wheel tire heatmap (blue cold, green optimal, red hot).
 - Legacy screen-recorded clips keep their stored offsets.
 
 ### 8.8 Library
@@ -329,15 +332,15 @@ The core is plain Kotlin and the session files are portable. A Rust core or desk
 
 - A real GT7 session decodes at ~60 pps with no decode errors, including when another telemetry app is running.
 - A fetched owner profile shows the name and flag in Settings and above the library; both external links open the matching profile page.
-- A new capture inherits the owner as its driver; an existing lap stays unassigned until the lap screen's Driver card sets a cached or manual driver, and the library card reflects it.
+- A new capture inherits the owner as its driver; an existing lap stays unassigned until the lap screen's `Edit lap` sheet sets a cached or manual driver, and the library card reflects it.
 - `Capture this lap` saves exactly one complete lap and rejects a mid-lap connect.
 - A lap without a replay opens with charts and map.
 - A PS App clip imports through share and SAF, copies into app storage, and can be trimmed.
 - The sync screen opens at the clip end with a suggested anchor, and frame-stepping reaches the lap-end frame; the trim is one lap long.
 - A clip shorter than the lap is blocked.
 - After save, the trimmed clip plays with the cursor aligned to the lap.
-- The lap screen's frame ruler and ±1 frame move the playhead one frame and the charts and map follow while paused.
-- The replay source button offers Files and the PlayStation App in every lap state.
+- The lap screen's frame ruler moves the playhead one frame and the charts and map follow while paused; the footer's speed dropdown changes playback rate without changing the seek target.
+- The replay source actions offer Files and the PlayStation App from the `Edit lap` sheet in every lap state.
 - Discard deletes the imported copy and leaves the telemetry.
 - `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` passes.
 

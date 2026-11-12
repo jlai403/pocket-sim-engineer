@@ -18,6 +18,7 @@ class SessionStoreTest {
         createdAt: String,
         carCode: Int = 3474,
         trackLabel: String = "Suzuka",
+        sourceFile: String? = null,
     ): File {
         val dir = File(temp, "sessions/$id")
         dir.mkdirs()
@@ -38,6 +39,7 @@ class SessionStoreTest {
                     sampleCount = 1,
                     videoFile = "laps/lap-001.mp4",
                     leadInMs = 2_000,
+                    sourceFile = sourceFile,
                 ),
             ),
         )
@@ -90,6 +92,24 @@ class SessionStoreTest {
         val store = SessionStore(temp)
         store.rename("s1", "Nurburgring")
         assertEquals("Nurburgring", store.load("s1")?.trackLabel)
+    }
+
+    @Test
+    fun `track and driver edits preserve a pending source`() {
+        writeSession(
+            "s1",
+            "2026-11-10T10:00:00Z",
+            sourceFile = "laps/lap-001-source.mp4",
+        )
+        val store = SessionStore(temp)
+
+        store.rename("s1", "Nurburgring")
+        store.setLapDriver("s1", 1, "skino2024")
+
+        val lap = store.lap("s1", 1)!!
+        assertEquals("laps/lap-001-source.mp4", lap.sourceFile)
+        assertEquals("Nurburgring", store.load("s1")?.trackLabel)
+        assertEquals("skino2024", lap.driverPsnId)
     }
 
     @Test

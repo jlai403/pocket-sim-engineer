@@ -4,16 +4,24 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -21,28 +29,43 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
 import kotlin.math.floor
 
 internal const val TRANSPORT_MS = 10_000L
+
+/** Playback rates offered in Settings and the lap footer. */
+internal val PLAYBACK_SPEEDS = listOf(0.5f, 1f, 1.5f, 2f)
+
+internal fun playbackSpeedLabel(speed: Float): String =
+    if (speed % 1f == 0f) "%.0f×".format(speed) else "%.1f×".format(speed)
 
 private val FrameStepWidth = 6.dp
 
@@ -99,12 +122,14 @@ private fun TransportButton(
     enabled: Boolean,
     onClick: () -> Unit,
     primary: Boolean = false,
+    size: Dp = if (primary) 64.dp else 52.dp,
+    iconSize: Dp = if (primary) 34.dp else 26.dp,
 ) {
     IconButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
-            .size(if (primary) 64.dp else 52.dp)
+            .size(size)
             .clip(CircleShape)
             .background(
                 if (primary) {
@@ -122,8 +147,117 @@ private fun TransportButton(
             } else {
                 MaterialTheme.colorScheme.onSurface
             },
-            modifier = Modifier.size(if (primary) 34.dp else 26.dp),
+            modifier = Modifier.size(iconSize),
         )
+    }
+}
+
+/** Sticky playback controls for the lap screen. */
+@Composable
+internal fun PlaybackFooter(
+    cursorMs: Int,
+    lapTimeMs: Int,
+    frameStepMs: Long,
+    enabled: Boolean,
+    playing: Boolean,
+    speed: Float,
+    events: List<LapEvent>,
+    hapticsEnabled: Boolean,
+    onScrubStart: () -> Unit,
+    onScrub: (Int) -> Unit,
+    onScrubEnd: () -> Unit,
+    onSeekFraction: (Float) -> Unit,
+    onRewind: () -> Unit,
+    onPlayPause: () -> Unit,
+    onForward: () -> Unit,
+    onSpeedChange: (Float) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        HorizontalDivider(thickness = 1.dp, color = Hairline)
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            NumericText(
+                "%s / %s".format(formatMillis(cursorMs.toLong()), lapTimeLabel(lapTimeMs)),
+                style = MaterialTheme.typography.labelMedium,
+            )
+            FrameRuler(
+                valueMs = cursorMs.toLong(),
+                startMs = 0,
+                endMs = lapTimeMs.toLong(),
+                frameStepMs = frameStepMs,
+                enabled = enabled,
+                onScrubStart = onScrubStart,
+                onScrub = onScrub,
+                onScrubEnd = onScrubEnd,
+                events = events,
+                showProgress = true,
+                onSeekFraction = onSeekFraction,
+                hapticsEnabled = hapticsEnabled,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                TransportButton(
+                    icon = TransportIcons.Rewind,
+                    description = "Rewind 10 seconds",
+                    enabled = enabled,
+                    onClick = onRewind,
+                    size = 36.dp,
+                    iconSize = 20.dp,
+                )
+                TransportButton(
+                    icon = if (playing) TransportIcons.Pause else Icons.Filled.PlayArrow,
+                    description = if (playing) "Pause" else "Play",
+                    enabled = enabled,
+                    onClick = onPlayPause,
+                    primary = true,
+                    size = 44.dp,
+                    iconSize = 24.dp,
+                )
+                TransportButton(
+                    icon = TransportIcons.Forward,
+                    description = "Forward 10 seconds",
+                    enabled = enabled,
+                    onClick = onForward,
+                    size = 36.dp,
+                    iconSize = 20.dp,
+                )
+                Spacer(Modifier.weight(1f))
+                SpeedPill(speed = speed, onSpeedChange = onSpeedChange)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpeedPill(speed: Float, onSpeedChange: (Float) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        GhostPill(
+            text = playbackSpeedLabel(speed),
+            onClick = { open = true },
+            modifier = Modifier.testTag("speed-menu"),
+            trailingIcon = Icons.Filled.KeyboardArrowDown,
+        )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            PLAYBACK_SPEEDS.forEach { rate ->
+                DropdownMenuItem(
+                    text = { Text(playbackSpeedLabel(rate)) },
+                    onClick = {
+                        onSpeedChange(rate)
+                        open = false
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -182,6 +316,9 @@ internal fun FrameRuler(
     onScrubStart: () -> Unit,
     onScrub: (framesFromStart: Int) -> Unit,
     onScrubEnd: () -> Unit = {},
+    events: List<LapEvent> = emptyList(),
+    showProgress: Boolean = false,
+    onSeekFraction: (Float) -> Unit = {},
     hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -193,27 +330,45 @@ internal fun FrameRuler(
     val currentOnScrubStart by rememberUpdatedState(onScrubStart)
     val currentOnScrub by rememberUpdatedState(onScrub)
     val currentOnScrubEnd by rememberUpdatedState(onScrubEnd)
+    val currentOnSeekFraction by rememberUpdatedState(onSeekFraction)
     val currentHapticsEnabled by rememberUpdatedState(hapticsEnabled)
     val textMeasurer = rememberTextMeasurer()
     val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     val tickColor = MaterialTheme.colorScheme.onSurfaceVariant
     val needleColor = MaterialTheme.colorScheme.primary
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val eventColors = mapOf(
+        LapEventType.Brake to MaterialTheme.colorScheme.error,
+        LapEventType.Coast to MaterialTheme.colorScheme.onSurfaceVariant,
+        LapEventType.Throttle to MaterialTheme.colorScheme.primary,
+        LapEventType.Turn to MaterialTheme.colorScheme.tertiary,
+    )
     val labelStyle = MaterialTheme.typography.labelSmall.copy(
         fontFamily = GeistMonoFamily,
         color = labelColor,
     )
     val step = frameStepMs.coerceAtLeast(1L)
     val labelEvery = (500L / step).coerceAtLeast(1L)
+    val progress = ((valueMs - startMs).toFloat() / (endMs - startMs).coerceAtLeast(1L))
+        .coerceIn(0f, 1f)
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .height(52.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(trackColor)
             .alpha(if (enabled) 1f else 0.5f)
-            .semantics { contentDescription = "Frame ruler" }
+            .semantics {
+                contentDescription = "Frame ruler"
+                progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
+                if (enabled) {
+                    setProgress { value ->
+                        currentOnSeekFraction(value)
+                        true
+                    }
+                }
+            }
             .pointerInput(enabled, pxPerFrame, step) {
                 if (!enabled) return@pointerInput
                 detectHorizontalDragGestures(
@@ -246,7 +401,7 @@ internal fun FrameRuler(
     ) {
         if (size.width <= 0f || size.height <= 0f) return@Canvas
         val centerX = size.width / 2f
-        val baseline = size.height - 20.dp.toPx()
+        val baseline = size.height - 24.dp.toPx()
         val pxPerMs = pxPerFrame / step.toFloat()
         val halfSpan = centerX / pxPerMs
         val firstFrame = floor((valueMs - halfSpan) / step).toLong()
@@ -277,7 +432,7 @@ internal fun FrameRuler(
                     textLayoutResult = layout,
                     topLeft = Offset(
                         (x - layout.size.width / 2f).coerceIn(pad, maxX),
-                        baseline + 6.dp.toPx(),
+                        baseline + 4.dp.toPx(),
                     ),
                 )
             }
@@ -304,6 +459,35 @@ internal fun FrameRuler(
             },
             color = needleColor,
         )
+        events.forEach { event ->
+            if (event.timeMs < startMs || event.timeMs > endMs) return@forEach
+            val x = centerX + (event.timeMs.toLong() - valueMs).toFloat() * pxPerMs
+            if (x < 0f || x > size.width) return@forEach
+            drawCircle(
+                color = eventColors.getValue(event.type),
+                radius = 2.dp.toPx(),
+                center = Offset(x, 4.dp.toPx()),
+            )
+        }
+        if (showProgress) {
+            val span = (endMs - startMs).coerceAtLeast(1L)
+            val fraction = ((valueMs - startMs).toFloat() / span).coerceIn(0f, 1f)
+            val trackTop = size.height - 4.dp.toPx()
+            val trackSize = Size(size.width, 4.dp.toPx())
+            val corner = CornerRadius(2.dp.toPx())
+            drawRoundRect(
+                color = tickColor.copy(alpha = 0.25f),
+                topLeft = Offset(0f, trackTop),
+                size = trackSize,
+                cornerRadius = corner,
+            )
+            drawRoundRect(
+                color = needleColor.copy(alpha = 0.75f),
+                topLeft = Offset(0f, trackTop),
+                size = Size(size.width * fraction, 4.dp.toPx()),
+                cornerRadius = corner,
+            )
+        }
     }
 }
 

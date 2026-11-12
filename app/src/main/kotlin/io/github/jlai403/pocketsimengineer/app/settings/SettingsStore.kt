@@ -26,6 +26,16 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_HAPTICS, true)
         set(value) = prefs.edit().putBoolean(KEY_HAPTICS, value).apply()
 
+    /** Playback rate used when a replay opens; changes on the lap screen last one session. */
+    var defaultPlaybackSpeed: Float
+        get() = prefs.getFloat(KEY_PLAYBACK_SPEED, 1f)
+        set(value) = prefs.edit().putFloat(KEY_PLAYBACK_SPEED, value).apply()
+
+    /** Show speed, gear, and pedal sparklines over the replay. */
+    var telemetryHud: Boolean
+        get() = prefs.getBoolean(KEY_TELEMETRY_HUD, true)
+        set(value) = prefs.edit().putBoolean(KEY_TELEMETRY_HUD, value).apply()
+
     /** Developer preview: show the empty library while laps stay on disk. */
     var previewEmptyLibrary: Boolean
         get() = prefs.getBoolean(KEY_PREVIEW_EMPTY, false)
@@ -42,6 +52,8 @@ class SettingsStore(context: Context) {
         const val KEY_IP = "ps5_ip"
         const val KEY_IMPERIAL = "imperial_units"
         const val KEY_HAPTICS = "frame_ruler_haptics"
+        const val KEY_PLAYBACK_SPEED = "default_playback_speed"
+        const val KEY_TELEMETRY_HUD = "telemetry_hud"
         const val KEY_PREVIEW_EMPTY = "preview_empty_library"
         const val KEY_TRACK_ID_VERSION = "track_id_version"
     }
