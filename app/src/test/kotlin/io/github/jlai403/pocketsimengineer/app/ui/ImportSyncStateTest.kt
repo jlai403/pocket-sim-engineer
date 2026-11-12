@@ -18,6 +18,30 @@ class ImportSyncStateTest {
     }
 
     @Test
+    fun `the default position is the last frame`() {
+        val state = ImportSyncState(
+            durationMs = 10_000,
+            positionMs = 0,
+            renderedMs = 0,
+            anchorMs = null,
+            frameStepMs = 33,
+        )
+        assertEquals(9_967L, state.initialPosition())
+    }
+
+    @Test
+    fun `an empty clip starts at zero`() {
+        val state = ImportSyncState(
+            durationMs = 0,
+            positionMs = 0,
+            renderedMs = 0,
+            anchorMs = null,
+            frameStepMs = 33,
+        )
+        assertEquals(0L, state.initialPosition())
+    }
+
+    @Test
     fun `nudge never leaves the clip`() {
         val state = ImportSyncState(
             durationMs = 10_000,

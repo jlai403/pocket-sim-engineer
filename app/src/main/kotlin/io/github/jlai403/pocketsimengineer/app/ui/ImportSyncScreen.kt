@@ -109,6 +109,9 @@ fun ImportSyncScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var confirmCancel by remember { mutableStateOf(false) }
     var hadClip by remember { mutableStateOf(false) }
+    var anchorSuggested by remember { mutableStateOf(false) }
+    var started by remember { mutableStateOf(false) }
+    var tipsOpen by remember { mutableStateOf(false) }
 
     fun seekTo(targetMs: Long) {
         val clamped = targetMs.coerceIn(0, durationMs.coerceAtLeast(0))
@@ -183,6 +186,17 @@ fun ImportSyncScreen(
         frameStepMs = probe.second
         player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
         player.prepare()
+    }
+
+    LaunchedEffect(player, lap) {
+        if (lap == null || started) return@LaunchedEffect
+        while (player.duration <= 0) delay(50)
+        durationMs = maxOf(durationMs, player.duration)
+        val last = lastFrameMs(player.duration, frameStepMs)
+        anchorMs = last
+        anchorSuggested = true
+        seekTo(last)
+        started = true
     }
 
     LaunchedEffect(player) {
@@ -339,17 +353,55 @@ fun ImportSyncScreen(
             }
         }
 
-        PrimaryPill(
-            text = "Set anchor at this frame",
-            onClick = { anchorMs = displayedMs },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = durationMs > 0,
-        )
+        currentLap?.let { activeLap ->
+            SectionCard(title = "Anchor") {
+                Text(
+                    "The finish line that ends this lap",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    "The clip is trimmed to exactly one lap (${lapTimeLabel(activeLap.lapTimeMs)}) " +
+                        "backwards from this frame. Get this frame right and the clip is right.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                MetricLine("Anchor", anchor?.let(::formatMillis) ?: "Not set")
+                if (anchorSuggested) {
+                    Text(
+                        "Suggested at the clip's end — verify the front bumper is on the line, " +
+                            "or rewind and set it again.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                TextButton(onClick = { tipsOpen = !tipsOpen }) {
+                    Text(if (tipsOpen) "Hide tips" else "How to find the finish frame")
+                }
+                if (tipsOpen) {
+                    AnchorTip(
+                        "Pause when the HUD lap timer freezes on " +
+                            "${lapTimeLabel(activeLap.lapTimeMs)} — the next lap starts just after.",
+                    )
+                    AnchorTip("No lap timer? Frame-step until the front bumper touches the start/finish line.")
+                    AnchorTip("Record a few seconds before the start line: the whole lap must fit before the anchor.")
+                    AnchorTip("The playhead starts at the clip's end, so rewind instead of fast-forwarding.")
+                }
+                PrimaryPill(
+                    text = "Set anchor at this frame",
+                    onClick = {
+                        anchorMs = displayedMs
+                        anchorSuggested = false
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = durationMs > 0,
+                )
+            }
+        }
 
-        SectionCard(title = "Trim") {
+        SectionCard(title = "Trimmed clip") {
             if (sync == null) {
                 Text(
-                    "Frame-step to the lap-end line, then set the anchor.",
+                    "Set an anchor to see the clip range.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -359,13 +411,13 @@ fun ImportSyncScreen(
                 MetricLine("Lap", lapTimeLabel(sync.lapTimeMs))
                 range?.let { MetricLine("Start frame", formatMillis(it.startMs)) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GhostPill("Jump to start", {
+                    GhostPill("Check start frame", {
                         range?.let {
                             seekTo(it.startMs)
                         }
                     }, Modifier.weight(1f))
                     GhostPill(
-                        if (previewing) "Stop preview" else "Preview",
+                        if (previewing) "Stop preview" else "Preview lap",
                         {
                             if (previewing) {
                                 previewing = false
@@ -377,9 +429,15 @@ fun ImportSyncScreen(
                         Modifier.weight(1f),
                     )
                 }
+                Text(
+                    "Start and anchor are the same point on the track, one lap apart.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 when (val result = check) {
                     is SyncCheck.ClipTooShort -> Text(
-                        "Clip is ${result.missingMs} ms too short. Record a few seconds more before the lap.",
+                        "The clip is %.1f s short of a full lap from this anchor — record more lead-in before the line."
+                            .format(result.missingMs / 1_000.0),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -389,7 +447,7 @@ fun ImportSyncScreen(
                         style = MaterialTheme.typography.bodySmall,
                     )
                     else -> Text(
-                        "Verify the start frame shows the line, then save.",
+                        "Check that the start frame shows the line, then save.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -591,6 +649,22 @@ private fun TrimBar(
             color = marker,
             radius = size.height / 2.2f,
             center = Offset(right, size.height / 2f),
+        )
+    }
+}
+
+@Composable
+private fun AnchorTip(text: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "•",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
