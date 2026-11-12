@@ -1,36 +1,49 @@
 # Pocket Sim Engineer
 
-Android telemetry and synchronized replay for Gran Turismo 7. Record a race through Chiaki-Up, tie each completed lap to its own video and telemetry file, and review the lap with charts, a track map, and a playhead that follows the video.
+Android telemetry and synchronized replay for Gran Turismo 7. Capture one lap of GT7 telemetry, attach a single-lap replay from the PS5, and review the lap with charts, a track map, and a playhead that follows the video.
 
-**Status:** v0.1 feature work in progress. Core protocol, capture spike, per-lap remux, session library, and the synchronized player are implemented. On-device verification is still pending.
+**Status:** v0.2 development. Telemetry-only capture, replay import, frame-step sync, and lap review are implemented. On-device verification is pending.
 
 ## Documents
 
 - [Product and technical spec](docs/specs/2026-11-10-pocket-sim-engineer.md)
 - [Design system](DESIGN.md)
-- [Implementation plan](docs/superpowers/plans/2026-11-10-pocket-sim-engineer-spike.md)
+- [Implementation plan](docs/superpowers/plans/2026-11-11-replay-import.md)
 
 ## Architecture
 
 ```text
 pocket-sim-engineer/
-├── core/   # Kotlin JVM: protocol, lap detection, session codecs, CSV, remux math
-└── app/    # Android: Compose UI, foreground services, MediaProjection, Media3
+├── core/   # Kotlin JVM: protocol, lap detection, track ID, clip sync math, session codecs
+└── app/    # Android: Compose UI, foreground telemetry service, replay trim, Media3
 ```
 
 `core` has no Android imports, so a future desktop app can reuse it and a future Rust core can replace it behind the same interfaces.
 
+## Workflow
+
+1. **PSE → Live**: connect to GT7 and drive.
+2. Tap **Capture this lap** after crossing the start line. The app saves exactly one lap at the next crossing.
+3. In GT7, record the single-lap replay with HUD on and the race camera. Use the PS5 Create menu and keep a few seconds of lead-in.
+4. Media Gallery → **Upload to PlayStation App**; in the PS App, **Download** or **Share** to PSE.
+5. Open the lap → **Add replay** → frame-step to the lap-end line → **Set anchor at this frame**.
+6. Preview, save, and review. The trimmed clip is one lap; the imported original is deleted.
+
+The phone records no video and no audio. Only UDP 33739/33740 crosses the network.
+
 ## What works
 
-- GT7 packet A Salsa20 decrypt and parse at ~60 Hz.
-- Lap detection with plausible-time filtering.
-- Foreground UDP telemetry service with a Wi-Fi lock, and a wake lock while recording.
-- Explicit `Connect` with a live stream gate: `Start recording` stays disabled until decoded GT7 packets are arriving; recording then auto-starts when the car is on track.
-- 1080p60/720p60 H.264/HEVC screen capture and internal audio capture.
-- Session and per-lap telemetry persistence under `files/sessions/<id>/`.
-- Post-stop per-lap MP4 remux with 2 s pre-roll, 1 s post-roll, keyframe alignment, and audio muxing.
-- Session library with grouping, rename, delete, and CSV/MP4 sharing.
-- Lap player: Media3 video, speed/throttle/brake/RPM/gear charts, track map, sync nudge.
+- GT7 packet formats A, B, `~`, and C: Salsa20 decrypt, correct XOR constant per size, ~60 Hz parse.
+- Decode-failure diagnostics with packet size and reason.
+- Single-lap capture: line-to-line, one session per lap, no video required.
+- Track identification from lap coordinates using a bundled CC0 signature table.
+- Flat lap library with filters (all / with replay / without replay, track) and sort.
+- Replay import through the Android share sheet and SAF file picker.
+- Frame-step sync screen: exact seeks, ±1/±10/±100 ms, track %, preview, hard block for short clips.
+- Lossless MP4 trim with keyframe alignment and stored playback offset.
+- Lap player: Media3 video, speed/throttle/brake/RPM/gear charts, track map.
+- CSV export and MP4 sharing.
+- In-app preview/stable updater.
 
 ## Update channels
 
@@ -56,16 +69,9 @@ Requires JDK 17+ and the Android SDK (compileSdk 36).
 
 ```bash
 export ANDROID_HOME=/opt/android-sdk
-./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
-
-## Known gaps
-
-- Thermal fallback from 1080p60 to 720p60 is not implemented yet.
-- Audio silence is reported after the session stops; it is not cut off mid-recording.
-- Packet C (steering, live lap timer) is not parsed yet.
-- The desktop/Rust core and cloud backup remain future work.
 
 ## Tests
 
@@ -73,62 +79,29 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ./gradlew :core:test :app:testDebugUnitTest
 ```
 
-- `:core` — protocol/decrypt/decode, lap detection, codecs, library grouping, CSV, remux planning, playback cursor math.
-- `:app` (JVM) — recording controller, session finalizer, telemetry stats.
-- `:app` Compose UI (Robolectric, no emulator) — session library grouping and open, session lap list and uncut marker, player charts/map/uncut-video path, settings persistence.
+- `:core` — protocol/decrypt/decode, lap detection, capture coordination, track signatures, clip sync/trim planning, track progress, codecs, lap summaries, CSV, remux planning, playback cursor.
+- `:app` (JVM) — lap saver, replay copy, decode-failure text, telemetry notification text, settings, Compose UI for Live, Library, lap player, and import sync.
+- Not covered by JVM tests: real `MediaExtractor`/`MediaMuxer` trim output, real GT7 packets, actual video decode. Those stay device checks.
 
-Not covered by JVM tests: MediaProjection capture, real `MediaExtractor`/`MediaMuxer` remux, internal audio, real GT7 packets, and actual video decode. Those stay device checks.
+## Known gaps
 
-## Update channels
-
-- **Preview** — every push to `main` replaces the `preview-latest` prerelease: `PocketSimEngineer-preview.apk` plus `latest.json`. Preview builds check this channel.
-- **Stable** — a `v*` tag creates the latest release with `PocketSimEngineer-<tag>.apk` plus `latest.json`. Tag builds check `releases/latest`.
-
-The app checks once a day (or from Settings → Updates), compares `versionCode`, downloads the APK, verifies its SHA-256, and hands it to Android's installer. The user always confirms the install. Checks are skipped when the app was installed by F-Droid or Play.
-
-**Play Protect will likely warn about this app.** It flags APKs that download and install updates outside a store, which is exactly what the in-app updater does. This is a deliberate trade-off: keeping one-tap updates means accepting the warning (choose `Install anyway`, or turn off scanning for this app). If Play Protect blocks an install, [appeal it](https://support.google.com/googleplay/android-developer/contact/protectappeals); the verdict is server-side. Stripping `REQUEST_INSTALL_PACKAGES` is the only reliable way to stop the warning, at the cost of handing every update to the browser.
-
-`versionCode` is `1000 + commit count`, so every commit sorts after the previous one.
-
-```bash
-# preview APK
-gh release download preview-latest -p PocketSimEngineer-preview.apk -D dist --clobber
-# stable APK
-gh release download latest -p 'PocketSimEngineer-*.apk' -D dist --clobber
-```
-
-## Builds from GitHub Actions
-
-Push the repository to GitHub; `.github/workflows/android.yml` then runs on every push and pull request:
-
-1. Open the **Actions** tab and select the latest **Android** run.
-2. Download the `pocketsimengineer-debug-<sha>` artifact.
-3. Unzip it and install `app-debug.apk` (`adb install -r app-debug.apk`, or sideload it on the phone).
-
-Pushing a tag such as `v0.1.0` also publishes a GitHub Release with a directly downloadable `pocketsimengineer-v0.1.0.apk`.
-
-`ci/debug.keystore` is an intentionally public debug signing key, checked in so every CI build shares one signature and new APKs install over old ones. Release builds must use a private key.
-
-## Remaining verification (needs a device)
-
-Task 12 in the plan is blocked without an attached Pixel 10:
-
-- Real GT7 packets at 60 packets/s for 30 s.
-- Clean video (not black) and real game audio, or the silent-video warning.
-- Two lap markers aligned with the visible line within a few frames.
-- Notification, shade, lock/unlock, projection-stop, and service-lifecycle behavior.
-- 10-minute 1080p60 thermal run and the 720p60 fallback.
+- Wrong-lap detection is visual: a single anchor cannot prove which lap a clip contains. A clip shorter than the lap is blocked.
+- PS App clips are limited to under 3 minutes and ≤1080p; long laps need USB or a broadcast MP4.
+- The replay must be recorded with enough lead-in that the trimmed start is inside the clip.
+- Car names are `Car #<code>`.
+- Packet C extras (steering, live lap timer) are not parsed yet.
+- The desktop/Rust core and cloud backup remain future work.
 
 ## Key decisions
 
 - Android only for now: Kotlin + Jetpack Compose.
 - Two modules: `:core` (plain Kotlin JVM) and `:app` (Android).
-- Capture path: Chiaki-Up fullscreen with On-Screen Controls off; the app records the display and internal game audio.
-- Per-lap files are cut after the raw recording is finalized, because `MediaMuxer` writes the MP4 index only on stop.
-- Telemetry: GT7 UDP packet A; packet C later.
-- Local-first: no accounts, cloud, ads, or tracking in v0.1.
+- Telemetry-only capture; no MediaProjection, audio capture, Remote Play, or Chiaki.
+- One lap per record; video is optional and attached later.
+- One frame anchor at the lap end; GT7 lap time is the ruler.
+- Track name inferred from coordinates; manual rename overrides.
+- Local-first: no accounts, cloud, ads, or tracking.
 - License: GPLv3 + contributor CLA.
-- Future: Rust core and a desktop app that reads the same session files.
 
 ## Target
 
