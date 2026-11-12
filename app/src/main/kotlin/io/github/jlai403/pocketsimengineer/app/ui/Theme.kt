@@ -23,6 +23,12 @@ val Panel = Color(0xFF111821)
 val PanelRaised = Color(0xFF1A2431)
 val MutedText = Color(0xFF93A4B5)
 
+/** Library feed hairline: visible on Ink without reading as a border. */
+val Hairline = Color(0xFF33414F)
+
+/** Pressed lap row, one step above the background. */
+val RowPressed = Color(0xFF10171F)
+
 /** Geist Sans for interface text. OFL-1.1; see licenses/Geist-OFL.txt. */
 val GeistSansFamily = FontFamily(
     Font(R.font.geist_regular, FontWeight.Normal),

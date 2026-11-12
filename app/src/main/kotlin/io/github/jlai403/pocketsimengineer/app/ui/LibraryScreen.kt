@@ -38,7 +38,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileLinks
@@ -363,8 +362,8 @@ fun LibraryScreen(
                             if (index != visible.lastIndex) {
                                 HorizontalDivider(
                                     modifier = Modifier.testTag("lap-divider"),
-                                    thickness = Dp.Hairline,
-                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                    thickness = 1.dp,
+                                    color = Hairline,
                                 )
                             }
                         }
