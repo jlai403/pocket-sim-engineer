@@ -54,6 +54,7 @@ class EditLapSheetTest {
                     onSaveTrack = { saved = it },
                     onAssignDriver = {},
                     onAddReplay = {},
+                    onOpenPlayStation = {},
                     onResumeSync = {},
                 )
             }
@@ -82,6 +83,7 @@ class EditLapSheetTest {
                     onSaveTrack = { saved = it },
                     onAssignDriver = {},
                     onAddReplay = {},
+                    onOpenPlayStation = {},
                     onResumeSync = {},
                 )
             }
@@ -109,6 +111,7 @@ class EditLapSheetTest {
                     onSaveTrack = {},
                     onAssignDriver = {},
                     onAddReplay = {},
+                    onOpenPlayStation = {},
                     onResumeSync = {},
                 )
             }
@@ -121,10 +124,40 @@ class EditLapSheetTest {
     }
 
     @Test
+    fun `replace replay opens the playstation app from its own row`() {
+        var addReplay = 0
+        var playStation = 0
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                EditLapSheet(
+                    lap = lap.copy(hasReplay = true),
+                    driver = null,
+                    owner = null,
+                    profiles = emptyList(),
+                    candidates = null,
+                    onDismiss = {},
+                    onSaveTrack = {},
+                    onAssignDriver = {},
+                    onAddReplay = { addReplay++ },
+                    onOpenPlayStation = { playStation++ },
+                    onResumeSync = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Replace replay").performClick()
+        compose.onNodeWithText("PlayStation App").performClick()
+
+        assertEquals(0, addReplay)
+        assertEquals(1, playStation)
+    }
+
+    @Test
     fun `offers to add a replay when there is none`() {
         compose.setContent {
             PocketSimEngineerTheme {
-                EditLapSheet(lap, null, null, emptyList(), null, {}, {}, {}, {}, {})
+                EditLapSheet(lap, null, null, emptyList(), null, {}, {}, {}, {}, {}, {})
             }
         }
 
@@ -136,7 +169,7 @@ class EditLapSheetTest {
     fun `offers to resume a pending sync`() {
         compose.setContent {
             PocketSimEngineerTheme {
-                EditLapSheet(lap.copy(replayPending = true), null, null, emptyList(), null, {}, {}, {}, {}, {})
+                EditLapSheet(lap.copy(replayPending = true), null, null, emptyList(), null, {}, {}, {}, {}, {}, {})
             }
         }
 
@@ -148,7 +181,7 @@ class EditLapSheetTest {
     fun `offers to replace a saved replay`() {
         compose.setContent {
             PocketSimEngineerTheme {
-                EditLapSheet(lap.copy(hasReplay = true), null, null, emptyList(), null, {}, {}, {}, {}, {})
+                EditLapSheet(lap.copy(hasReplay = true), null, null, emptyList(), null, {}, {}, {}, {}, {}, {})
             }
         }
 

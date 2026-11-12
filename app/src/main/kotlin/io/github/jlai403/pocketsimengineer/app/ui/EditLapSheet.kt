@@ -42,6 +42,7 @@ internal fun EditLapSheet(
     onSaveTrack: (String) -> Unit,
     onAssignDriver: (DriverProfile?) -> Unit,
     onAddReplay: () -> Unit,
+    onOpenPlayStation: () -> Unit,
     onResumeSync: () -> Unit,
 ) {
     var track by remember(lap.trackLabel) {
@@ -141,7 +142,7 @@ internal fun EditLapSheet(
                         },
                         onPlayStation = {
                             onDismiss()
-                            onAddReplay()
+                            onOpenPlayStation()
                         },
                     )
                     else -> ReplaySourcePill(
@@ -153,7 +154,7 @@ internal fun EditLapSheet(
                         },
                         onPlayStation = {
                             onDismiss()
-                            onAddReplay()
+                            onOpenPlayStation()
                         },
                     )
                 }

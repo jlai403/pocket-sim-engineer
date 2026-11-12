@@ -136,12 +136,13 @@ class LapCardTest {
     }
 
     @Test
-    fun `swipe right edits`() {
+    fun `swipe right edits without opening the lap`() {
+        var opened = 0
         var edited = 0
 
         compose.setContent {
             PocketSimEngineerTheme {
-                LapCard(lap, null, false, false, null, {}, { edited++ }, {})
+                LapCard(lap, null, false, false, null, { opened++ }, { edited++ }, {})
             }
         }
 
@@ -150,15 +151,17 @@ class LapCardTest {
         }
         compose.mainClock.advanceTimeBy(1_000)
         assertEquals(1, edited)
+        assertEquals(0, opened)
     }
 
     @Test
-    fun `swipe left deletes`() {
+    fun `swipe left deletes without opening the lap`() {
+        var opened = 0
         var deleted = 0
 
         compose.setContent {
             PocketSimEngineerTheme {
-                LapCard(lap, null, false, false, null, {}, {}, { deleted++ })
+                LapCard(lap, null, false, false, null, { opened++ }, {}, { deleted++ })
             }
         }
 
@@ -167,5 +170,6 @@ class LapCardTest {
         }
         compose.mainClock.advanceTimeBy(1_000)
         assertEquals(1, deleted)
+        assertEquals(0, opened)
     }
 }

@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -40,6 +42,7 @@ import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileLinks
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
 import io.github.jlai403.pocketsimengineer.app.profile.countryFlagEmoji
+import io.github.jlai403.pocketsimengineer.app.replay.PlayStationApp
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.track.TrackCatalog
 import io.github.jlai403.pocketsimengineer.app.track.TrackNamer
@@ -51,6 +54,7 @@ import io.github.jlai403.pocketsimengineer.core.session.applyFilter
 import io.github.jlai403.pocketsimengineer.core.session.applySort
 import io.github.jlai403.pocketsimengineer.core.session.fastestPerTrack
 import io.github.jlai403.pocketsimengineer.core.session.sameLap
+import io.github.jlai403.pocketsimengineer.core.session.trackKey
 import io.github.jlai403.pocketsimengineer.core.track.TrackCandidate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -119,9 +123,10 @@ fun LibraryScreen(
         candidates = null
         if (lap.trackLabel == TrackNamer.UNKNOWN) {
             scope.launch {
-                candidates = withContext(Dispatchers.IO) {
+                val found = withContext(Dispatchers.IO) {
                     runCatching { namer.candidates(lap.sessionId, lap.lapIndex) }.getOrDefault(emptyList())
                 }
+                if (editing?.sameLap(lap) == true) candidates = found
             }
         }
     }
@@ -155,9 +160,10 @@ fun LibraryScreen(
 
     val all = laps
     val visible = all?.applyFilter(filter)?.applySort(sort)
-    val tracks = all?.map { it.trackLabel }?.distinct()?.sorted().orEmpty()
-    val fastest = all?.fastestPerTrack().orEmpty()
-    val trackCounts = all?.groupingBy { it.trackLabel }?.eachCount().orEmpty()
+    val tracks = all?.distinctBy { it.trackKey }?.map { it.trackLabel }?.sorted().orEmpty()
+    val rankable = all?.filter { it.trackLabel != TrackNamer.UNKNOWN }
+    val fastest = rankable?.fastestPerTrack().orEmpty()
+    val trackCounts = rankable?.groupingBy { it.trackKey }?.eachCount().orEmpty()
 
     Column(
         modifier = Modifier
@@ -197,6 +203,7 @@ fun LibraryScreen(
                     GhostPill(
                         text = filter.trackLabel ?: "All tracks",
                         onClick = { trackMenu = true },
+                        trailingIcon = Icons.Filled.KeyboardArrowDown,
                     )
                     DropdownMenu(expanded = trackMenu, onDismissRequest = { trackMenu = false }) {
                         DropdownMenuItem(
@@ -218,7 +225,11 @@ fun LibraryScreen(
                     }
                 }
                 Box {
-                    GhostPill(text = sort.label, onClick = { sortMenu = true })
+                    GhostPill(
+                        text = sort.label,
+                        onClick = { sortMenu = true },
+                        trailingIcon = Icons.Filled.KeyboardArrowDown,
+                    )
                     DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                         LapSort.entries.forEach { option ->
                             DropdownMenuItem(
@@ -308,8 +319,8 @@ fun LibraryScreen(
                     }
 
                     else -> items(visible, key = { "${it.sessionId}:${it.lapIndex}" }) { lap ->
-                        val fastestLap = fastest[lap.trackLabel]
-                        val ranked = (trackCounts[lap.trackLabel] ?: 0) >= 2
+                        val fastestLap = fastest[lap.trackKey]
+                        val ranked = (trackCounts[lap.trackKey] ?: 0) >= 2
                         val isFastest = ranked && fastestLap?.sameLap(lap) == true
                         val deltaMs = if (ranked && !isFastest && fastestLap != null) {
                             lap.lapTimeMs - fastestLap.lapTimeMs
@@ -350,6 +361,9 @@ fun LibraryScreen(
             onAddReplay = {
                 syncTarget = lap
                 picker.launch(arrayOf("video/*"))
+            },
+            onOpenPlayStation = {
+                if (!PlayStationApp.open(context)) message = "PlayStation App is not available."
             },
             onResumeSync = { onOpenSync(lap.sessionId, lap.lapIndex, null) },
         )

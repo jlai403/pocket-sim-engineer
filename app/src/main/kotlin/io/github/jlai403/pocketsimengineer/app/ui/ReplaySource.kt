@@ -2,7 +2,6 @@ package io.github.jlai403.pocketsimengineer.app.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
@@ -31,14 +30,14 @@ internal fun ReplaySourcePill(
             PrimaryPill(
                 text = text,
                 onClick = { open = true },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = modifier,
                 trailingIcon = Icons.Filled.KeyboardArrowDown,
             )
         } else {
             GhostPill(
                 text = text,
                 onClick = { open = true },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = modifier,
                 trailingIcon = Icons.Filled.KeyboardArrowDown,
             )
         }

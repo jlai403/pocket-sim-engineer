@@ -146,6 +146,23 @@ class LibraryScreenTest {
     }
 
     @Test
+    fun `unknown laps never claim a fastest badge`() {
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(trackLabel = "Unknown", lapTimesMs = listOf(90_000, 91_000)),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(0, compose.onAllNodesWithText("Fastest lap").fetchSemanticsNodes().size)
+    }
+
+    @Test
     fun `empty library explains where to capture`() {
         var record = 0
 
@@ -190,11 +207,12 @@ class LibraryScreenTest {
     }
 
     @Test
-    fun `swipe right opens the edit sheet`() {
+    fun `swipe right opens the edit sheet without opening the lap`() {
         SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+        var opened = 0
 
         compose.setContent {
-            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> opened++ }) }
         }
 
         compose.waitUntil(TIMEOUT) {
@@ -205,14 +223,16 @@ class LibraryScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("Edit lap").fetchSemanticsNodes().isNotEmpty()
         }
+        assertEquals(0, opened)
     }
 
     @Test
-    fun `swipe left asks to delete the lap`() {
+    fun `swipe left asks to delete without opening the lap`() {
         SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+        var opened = 0
 
         compose.setContent {
-            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> opened++ }) }
         }
 
         compose.waitUntil(TIMEOUT) {
@@ -223,6 +243,7 @@ class LibraryScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("Delete lap?").fetchSemanticsNodes().isNotEmpty()
         }
+        assertEquals(0, opened)
     }
 
     @Test

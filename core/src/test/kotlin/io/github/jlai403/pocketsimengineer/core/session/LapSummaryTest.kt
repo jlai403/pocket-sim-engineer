@@ -203,15 +203,15 @@ class LapSummaryTest {
 
         val fastest = laps.fastestPerTrack()
 
-        assertEquals(2, fastest.getValue("Suzuka").lapIndex)
-        assertEquals(1, fastest.getValue("Monza").lapIndex)
+        assertEquals(2, fastest.getValue("suzuka").lapIndex)
+        assertEquals(1, fastest.getValue("monza").lapIndex)
     }
 
     @Test
     fun `fastest per track returns a lone lap for its track`() {
         val fastest = listOf(summary("a", 1, 90_000, "Suzuka", "2026-11-11T10:00:00Z")).fastestPerTrack()
 
-        assertEquals(90_000, fastest.getValue("Suzuka").lapTimeMs)
+        assertEquals(90_000, fastest.getValue("suzuka").lapTimeMs)
     }
 
     @Test
@@ -221,7 +221,33 @@ class LapSummaryTest {
             summary("earlier", 1, 90_000, "Suzuka", "2026-11-10T10:00:00Z"),
         )
 
-        assertEquals("earlier", laps.fastestPerTrack().getValue("Suzuka").sessionId)
+        assertEquals("earlier", laps.fastestPerTrack().getValue("suzuka").sessionId)
+    }
+
+    @Test
+    fun `fastest per track ignores label case and padding`() {
+        val laps = listOf(
+            summary("a", 1, 91_500, " Suzuka ", "2026-11-11T10:00:00Z"),
+            summary("b", 1, 90_000, "suzuka", "2026-11-11T10:00:00Z"),
+        )
+
+        val fastest = laps.fastestPerTrack()
+
+        assertEquals(1, fastest.size)
+        assertEquals("b", fastest.getValue("suzuka").sessionId)
+    }
+
+    @Test
+    fun `track filter ignores label case and padding`() {
+        val laps = listOf(
+            summary("a", 1, 90_000, "Suzuka", "2026-11-11T10:00:00Z"),
+            summary("b", 1, 91_000, "suzuka", "2026-11-11T10:00:00Z"),
+            summary("c", 1, 92_000, "Monza", "2026-11-11T10:00:00Z"),
+        )
+
+        val filtered = laps.applyFilter(LapFilter(trackLabel = " Suzuka "))
+
+        assertEquals(listOf("a", "b"), filtered.map { it.sessionId })
     }
 
     @Test
