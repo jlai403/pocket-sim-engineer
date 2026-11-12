@@ -4,19 +4,32 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,6 +44,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -92,6 +109,15 @@ fun ImportSyncScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var confirmCancel by remember { mutableStateOf(false) }
     var hadClip by remember { mutableStateOf(false) }
+
+    fun seekTo(targetMs: Long) {
+        val clamped = targetMs.coerceIn(0, durationMs.coerceAtLeast(0))
+        player.seekTo(clamped)
+        positionMs = clamped
+        renderedMs = -1
+        player.pause()
+        previewing = false
+    }
 
     BackHandler { confirmCancel = true }
 
@@ -162,7 +188,8 @@ fun ImportSyncScreen(
     LaunchedEffect(player) {
         while (true) {
             if (player.duration > 0) durationMs = maxOf(durationMs, player.duration)
-            positionMs = player.currentPosition
+            // Paused seeks keep the exact position we set; polling would race the frame steps.
+            if (player.isPlaying) positionMs = player.currentPosition
             delay(50)
         }
     }
@@ -178,15 +205,6 @@ fun ImportSyncScreen(
             if (player.currentPosition >= range.endMs) player.seekTo(range.startMs)
             delay(50)
         }
-    }
-
-    fun seekTo(targetMs: Long) {
-        val clamped = targetMs.coerceIn(0, durationMs)
-        player.seekTo(clamped)
-        positionMs = clamped
-        renderedMs = -1
-        player.pause()
-        previewing = false
     }
 
     val currentLap = lap
@@ -245,29 +263,80 @@ fun ImportSyncScreen(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.fillMaxWidth(),
         )
+        Text(
+            "Anchor: the finish-line frame that ends the lap",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            GhostPill("−1f", { seekTo(ImportSyncState(durationMs, positionMs, renderedMs, anchor, frameStepMs).stepFrame(false)) }, Modifier.weight(1f))
-            GhostPill("−100", { seekTo(positionMs - 100) }, Modifier.weight(1f))
-            GhostPill("−10", { seekTo(positionMs - 10) }, Modifier.weight(1f))
-            GhostPill("−1", { seekTo(positionMs - 1) }, Modifier.weight(1f))
-            GhostPill(
-                if (playing) "Pause" else "Play",
-                {
-                    if (player.isPlaying) player.pause() else player.play()
-                },
-                Modifier.weight(1f),
+        Slider(
+            value = positionMs.coerceIn(0, durationMs).toFloat(),
+            onValueChange = { seekTo(it.roundToLong()) },
+            valueRange = 0f..durationMs.coerceAtLeast(1).toFloat(),
+            enabled = durationMs > 0,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "0:00.000",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                formatMillis(durationMs),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            GhostPill("+1", { seekTo(positionMs + 1) }, Modifier.weight(1f))
-            GhostPill("+10", { seekTo(positionMs + 10) }, Modifier.weight(1f))
-            GhostPill("+100", { seekTo(positionMs + 100) }, Modifier.weight(1f))
-            GhostPill(
-                "+1f",
-                { seekTo(ImportSyncState(durationMs, positionMs, renderedMs, anchor, frameStepMs).stepFrame(true)) },
-                Modifier.weight(1f),
+
+        range?.let {
+            TrimBar(startMs = it.startMs, endMs = it.endMs, durationMs = durationMs)
+            Text(
+                "Shaded range = the lap that will be saved",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+
+        TransportRow(
+            playing = playing,
+            enabled = durationMs > 0,
+            onRewind = { seekTo(positionMs - REWIND_MS) },
+            onPlayPause = {
+                if (player.isPlaying) {
+                    player.pause()
+                    positionMs = player.currentPosition
+                } else {
+                    previewing = false
+                    player.play()
+                }
+            },
+            onForward = { seekTo(positionMs + REWIND_MS) },
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            JogWheel(
+                frameStepMs = frameStepMs,
+                enabled = durationMs > 0,
+                onFrames = { frames -> seekTo(positionMs + frames * frameStepMs) },
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    StepButton("−1 frame", { seekTo(positionMs - frameStepMs) }, Modifier.weight(1f))
+                    StepButton("+1 frame", { seekTo(positionMs + frameStepMs) }, Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    StepButton("−0.01 s", { seekTo(positionMs - 10) }, Modifier.weight(1f))
+                    StepButton("+0.01 s", { seekTo(positionMs + 10) }, Modifier.weight(1f))
+                }
+            }
         }
 
         PrimaryPill(
@@ -412,6 +481,116 @@ fun ImportSyncScreen(
             dismissButton = {
                 TextButton(onClick = { confirmCancel = false }) { Text("Keep") }
             },
+        )
+    }
+}
+
+private const val REWIND_MS = 10_000L
+
+@Composable
+private fun TransportRow(
+    playing: Boolean,
+    enabled: Boolean,
+    onRewind: () -> Unit,
+    onPlayPause: () -> Unit,
+    onForward: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TransportButton(TransportIcons.Rewind, "Rewind 10 seconds", enabled, onRewind)
+        TransportButton(
+            icon = if (playing) TransportIcons.Pause else Icons.Filled.PlayArrow,
+            description = if (playing) "Pause" else "Play",
+            enabled = enabled,
+            onClick = onPlayPause,
+            primary = true,
+        )
+        TransportButton(TransportIcons.Forward, "Forward 10 seconds", enabled, onForward)
+    }
+}
+
+@Composable
+private fun TransportButton(
+    icon: ImageVector,
+    description: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    primary: Boolean = false,
+) {
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .size(if (primary) 64.dp else 52.dp)
+            .clip(CircleShape)
+            .background(
+                if (primary) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+            ),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = if (primary) {
+                MaterialTheme.colorScheme.onPrimary
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            modifier = Modifier.size(if (primary) 34.dp else 26.dp),
+        )
+    }
+}
+
+/** Fine steps need tighter padding than a full-width pill to keep the labels on one line. */
+@Composable
+private fun StepButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.height(42.dp),
+        shape = CircleShape,
+        contentPadding = PaddingValues(horizontal = 6.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+    ) {
+        Text(text, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+    }
+}
+
+@Composable
+private fun TrimBar(
+    startMs: Long,
+    endMs: Long,
+    durationMs: Long,
+    modifier: Modifier = Modifier,
+) {
+    val track = MaterialTheme.colorScheme.surfaceVariant
+    val lap = MaterialTheme.colorScheme.primary
+    val marker = MaterialTheme.colorScheme.onPrimary
+    Canvas(modifier.fillMaxWidth().height(10.dp)) {
+        if (durationMs <= 0 || size.width <= 0f) return@Canvas
+        val radius = CornerRadius(size.height / 2f)
+        drawRoundRect(color = track, cornerRadius = radius)
+        val left = (startMs.toFloat() / durationMs * size.width).coerceIn(0f, size.width)
+        val right = (endMs.toFloat() / durationMs * size.width).coerceIn(0f, size.width)
+        if (right - left >= 1f) {
+            drawRoundRect(
+                color = lap,
+                topLeft = Offset(left, 0f),
+                size = Size(right - left, size.height),
+                cornerRadius = radius,
+            )
+        }
+        drawCircle(
+            color = marker,
+            radius = size.height / 2.2f,
+            center = Offset(right, size.height / 2f),
         )
     }
 }
