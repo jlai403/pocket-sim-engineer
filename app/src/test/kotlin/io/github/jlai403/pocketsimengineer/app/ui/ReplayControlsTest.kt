@@ -75,4 +75,12 @@ class ReplayControlsTest {
         assertEquals(17, frameStepTargetMs(33_366, -1, frameUs))
         assertEquals(0, frameStepTargetMs(0, -1, frameUs))
     }
+
+    @Test
+    fun `playback speed labels drop trailing zeros`() {
+        assertEquals("0.5×", playbackSpeedLabel(0.5f))
+        assertEquals("1×", playbackSpeedLabel(1f))
+        assertEquals("1.5×", playbackSpeedLabel(1.5f))
+        assertEquals("2×", playbackSpeedLabel(2f))
+    }
 }

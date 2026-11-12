@@ -192,6 +192,23 @@ class SettingsScreenTest {
         assertFalse(SettingsStore(context).previewEmptyLibrary)
     }
 
+    @Test
+    fun `default playback speed and hud persist`() {
+        SettingsStore(context).defaultPlaybackSpeed = 1f
+        SettingsStore(context).telemetryHud = true
+        compose.setContent {
+            PocketSimEngineerTheme { SettingsScreen() }
+        }
+
+        compose.onNodeWithTag("default-playback-speed").performScrollTo().performClick()
+        compose.onNodeWithText("2×").performClick()
+
+        compose.onNodeWithTag("telemetry-hud").performScrollTo().performClick()
+
+        assertEquals(2f, SettingsStore(context).defaultPlaybackSpeed)
+        assertFalse(SettingsStore(context).telemetryHud)
+    }
+
     private companion object {
         const val TIMEOUT = 10_000L
     }

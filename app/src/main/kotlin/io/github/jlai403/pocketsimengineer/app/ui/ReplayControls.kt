@@ -44,6 +44,12 @@ import kotlin.math.floor
 
 internal const val TRANSPORT_MS = 10_000L
 
+/** Playback rates offered in Settings and the lap footer. */
+internal val PLAYBACK_SPEEDS = listOf(0.5f, 1f, 1.5f, 2f)
+
+internal fun playbackSpeedLabel(speed: Float): String =
+    if (speed % 1f == 0f) "%.0f×".format(speed) else "%.1f×".format(speed)
+
 private val FrameStepWidth = 6.dp
 
 /** Turns horizontal drag pixels into whole frames, carrying the remainder and the drag total. */
