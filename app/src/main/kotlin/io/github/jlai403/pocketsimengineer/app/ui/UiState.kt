@@ -1,6 +1,7 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
 import io.github.jlai403.pocketsimengineer.app.service.TelemetryEvent
+import io.github.jlai403.pocketsimengineer.core.capture.CaptureState
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
 import kotlin.math.abs
@@ -20,6 +21,7 @@ data class CaptureUiState(
     val rawPackets: Long = 0,
     val foreignPackets: Long = 0,
     val lastForeignSource: String = "",
+    val lastDecodeFailure: String = "",
     val lastPacketAgeMs: Long = -1,
     val lapCount: Int = 0,
     val speedMps: Float = 0f,
@@ -31,8 +33,8 @@ data class CaptureUiState(
     val carCode: Int = 0,
     val flags: Int = 0,
     val lastLapTimeMs: Int = 0,
-    val recording: Boolean = false,
-    val audioWarning: String? = null,
+    val lapStartObserved: Boolean = false,
+    val capture: CaptureState = CaptureState.Idle,
     val notice: String? = null,
     val events: List<TelemetryEvent> = emptyList(),
     val completedLaps: Int = 0,
@@ -47,7 +49,7 @@ sealed interface Screen {
     data object Library : Screen
     data class Session(val sessionId: String) : Screen
     data class Player(val sessionId: String, val lapIndex: Int) : Screen
-    data object Capture : Screen
+    data object Live : Screen
     data object Settings : Screen
 }
 

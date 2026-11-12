@@ -1,5 +1,9 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -26,10 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
@@ -37,24 +36,24 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.BuildConfig
 import io.github.jlai403.pocketsimengineer.app.Diagnostics
+import io.github.jlai403.pocketsimengineer.core.capture.CaptureState
 import io.github.jlai403.pocketsimengineer.core.network.Ipv4
 import io.github.jlai403.pocketsimengineer.core.telemetry.TelemetryHealth
 
 @Composable
-fun CaptureScreen(
+fun LiveScreen(
     state: CaptureUiState,
     onSaveIp: (String) -> Unit,
     onConnect: (String) -> Unit,
     onDisconnect: () -> Unit,
-    onStartRecording: () -> Unit,
-    onTestRecord: () -> Unit,
-    onStop: () -> Unit,
+    onCapture: () -> Unit,
+    onCancelCapture: () -> Unit,
+    onOpenLap: (String, Int) -> Unit,
 ) {
     var ip by remember(state.ps5Ip) { mutableStateOf(state.ps5Ip) }
     var savedIp by remember { mutableStateOf<String?>(null) }
     var ipError by remember { mutableStateOf(false) }
     var starting by remember { mutableStateOf(false) }
-    var showInstructions by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(state.telemetryRunning, state.telemetryError) {
         if (state.telemetryRunning || state.telemetryError != null) starting = false
@@ -83,8 +82,8 @@ fun CaptureScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         ScreenHeader(
-            title = "Record",
-            subtitle = "Telemetry and screen capture",
+            title = "Live",
+            subtitle = "Telemetry only · replay comes later",
         )
 
         SectionCard {
@@ -138,7 +137,21 @@ fun CaptureScreen(
             }
         }
 
-        Warnings(state)
+        state.notice?.let { notice ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(14.dp),
+            ) {
+                Text(
+                    notice,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        }
 
         SectionCard(title = "Console") {
             OutlinedTextField(
@@ -170,7 +183,6 @@ fun CaptureScreen(
                         starting -> "Starting…"
                         else -> "Connect"
                     },
-                    enabled = !state.recording,
                     onClick = {
                         if (state.telemetryRunning) {
                             onDisconnect()
@@ -201,30 +213,90 @@ fun CaptureScreen(
             )
         }
 
-        PrimaryPill(
-            text = if (state.recording) "Recording…" else "Start recording",
-            onClick = onStartRecording,
-            enabled = state.connected && !state.recording,
-            modifier = Modifier.fillMaxWidth(),
+        CaptureCard(
+            state = state,
+            onCapture = onCapture,
+            onCancelCapture = onCancelCapture,
+            onOpenLap = onOpenLap,
         )
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun CaptureCard(
+    state: CaptureUiState,
+    onCapture: () -> Unit,
+    onCancelCapture: () -> Unit,
+    onOpenLap: (String, Int) -> Unit,
+) {
+    val canCapture = state.connected && state.lapStartObserved
+    val hint = when {
+        !state.telemetryRunning -> "Connect before capturing a lap."
+        !state.connected -> "Waiting for the first packet."
+        !state.lapStartObserved -> "Cross the start line to begin a lap."
+        else -> "Captures this lap and saves it at the next line."
+    }
+
+    SectionCard(title = "Capture") {
+        when (val capture = state.capture) {
+            is CaptureState.Saved -> {
+                Text(
+                    "Saved ${lapTimeLabel(capture.lapTimeMs)}",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PrimaryPill(
+                        text = "Capture another lap",
+                        onClick = onCapture,
+                        modifier = Modifier.weight(1f),
+                        enabled = canCapture,
+                    )
+                    GhostPill(
+                        text = "View lap",
+                        onClick = { onOpenLap(capture.sessionId, 1) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+
+            CaptureState.Capturing -> {
+                Text(
+                    "Capturing lap — finishes at the next line",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                GhostPill("Cancel", onCancelCapture)
+            }
+
+            is CaptureState.Rejected -> {
+                Text(
+                    capture.reason,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                PrimaryPill(
+                    text = "Capture this lap",
+                    onClick = onCapture,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = canCapture,
+                )
+            }
+
+            CaptureState.Idle -> {
+                PrimaryPill(
+                    text = "Capture this lap",
+                    onClick = onCapture,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = canCapture,
+                )
+            }
+        }
         Text(
-            when {
-                state.recording -> "Tap Stop to finish the session."
-                !state.telemetryRunning -> "Connect before recording."
-                !state.connected -> "Waiting for the first packet."
-                else -> "Recording begins when the car is on track."
-            },
-            modifier = Modifier.fillMaxWidth(),
+            hint,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GhostPill("Test 10 s", onTestRecord, Modifier.weight(1f))
-            GhostPill("Stop", onStop, Modifier.weight(1f), enabled = state.recording)
-        }
-
-        RecordingInstructions(showInstructions) { showInstructions = it }
-        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -316,6 +388,9 @@ private fun StreamCard(state: CaptureUiState) {
                 color = MaterialTheme.colorScheme.error,
             )
         }
+        if (state.lastDecodeFailure.isNotBlank()) {
+            MetricRow("Last decode failure", state.lastDecodeFailure)
+        }
         MetricRow(
             "Laps",
             "%d detected · GT7 lap %d · last %s".format(
@@ -388,6 +463,7 @@ private fun copyDiagnostics(context: Context, state: CaptureUiState) {
         appendLine("Connected: ${state.connected}")
         appendLine("Packets/s: %.1f".format(state.packetsPerSecond))
         appendLine("Accepted: ${state.acceptedPackets}, decode errors: ${state.decodeErrors}")
+        appendLine("Last decode failure: ${state.lastDecodeFailure.ifBlank { "none" }}")
         appendLine(
             "Datagrams: ${state.rawPackets} received, ${state.foreignPackets} from other hosts " +
                 "(${state.lastForeignSource.ifBlank { "none" }})",
@@ -405,6 +481,7 @@ private fun copyDiagnostics(context: Context, state: CaptureUiState) {
             "Speed: %.1f m/s, gear ${state.gear}, throttle ${state.throttle}, " +
                 "brake ${state.brake}, rpm %.0f".format(state.speedMps, state.rpm),
         )
+        appendLine("Capture: ${state.capture}")
         appendLine("Events:")
         state.events.take(5).forEach {
             appendLine("- ${formatEventTime(it.atEpochMs)} ${it.message}")
@@ -415,119 +492,4 @@ private fun copyDiagnostics(context: Context, state: CaptureUiState) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText("GT7 diagnostics", text))
     Toast.makeText(context, "Diagnostics copied", Toast.LENGTH_SHORT).show()
-}
-
-private val recordingSteps = listOf(
-    "Connect Chiaki-Up to the PS5 and open GT7.",
-    "In Chiaki-Up, swipe down from the top edge and turn On-Screen Controls off. The bar fades after a moment.",
-    "Enter a race or time trial and park on track. GT7 sends telemetry only while a car is on screen.",
-    "Enter the PS5 IPv4 address above and tap Connect.",
-    "Wait for the stream card or the notification to show about 60 pps.",
-    "Tap Start recording, then allow screen capture.",
-    "Switch back to Chiaki-Up and drive. Recording begins when the car is on track.",
-    "Return to the menu for 5 seconds, or tap Stop in the notification.",
-    "Wait for \"Finalizing…\" to finish, then open Library and pick a lap.",
-)
-
-@Composable
-private fun RecordingInstructions(expanded: Boolean, onExpandedChange: (Boolean) -> Unit) {
-    SectionCard(
-        title = "How to record",
-        action = {
-            GhostPill(
-                text = if (expanded) "Hide steps" else "Show steps",
-                onClick = { onExpandedChange(!expanded) },
-            )
-        },
-    ) {
-        if (!expanded) {
-            Text(
-                "9 steps · about a minute before your first lap",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            return@SectionCard
-        }
-
-        recordingSteps.forEachIndexed { index, step ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    NumericText(
-                        "${index + 1}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                Text(
-                    step,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.errorContainer)
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                "Keep in mind",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-            Text(
-                "Keep Chiaki-Up in front. Locking the screen or stopping projection ends capture.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-            Text(
-                "If Android blocks internal audio, the lap records silently and a warning appears.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-            Text(
-                "Chiaki-Up's bar is recorded if it stays on screen. Swipe it away before a lap; swipe from the top to get the controls back.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-            Text(
-                "Test 10 s only verifies capture; it does not create a library session.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-        }
-    }
-}
-
-@Composable
-private fun Warnings(state: CaptureUiState) {
-    val warning = state.audioWarning ?: state.notice
-    if (warning != null) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.errorContainer)
-                .padding(14.dp),
-        ) {
-            Text(
-                warning,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-        }
-    }
 }

@@ -9,16 +9,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,9 +28,6 @@ import io.github.jlai403.pocketsimengineer.BuildConfig
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.updater.UpdateManager
 import io.github.jlai403.pocketsimengineer.core.network.Ipv4
-import io.github.jlai403.pocketsimengineer.app.settings.VideoCodec
-import io.github.jlai403.pocketsimengineer.app.settings.VideoQuality
-import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
@@ -59,10 +53,6 @@ fun SettingsScreen(
             settings.savePs5Ip(normalized)
         }
     }
-    var quality by remember { mutableStateOf(settings.quality) }
-    var codec by remember { mutableStateOf(settings.codec) }
-    var bitrate by remember { mutableFloatStateOf(settings.bitrateMbps.toFloat()) }
-    var keepRaw by remember { mutableStateOf(settings.keepRaw) }
     var imperial by remember { mutableStateOf(settings.imperialUnits) }
 
     Column(
@@ -74,7 +64,7 @@ fun SettingsScreen(
     ) {
         ScreenHeader(
             title = "Settings",
-            subtitle = "Capture, video, and units",
+            subtitle = "Console, units, and updates",
         )
 
         SectionCard(title = "Console") {
@@ -110,55 +100,6 @@ fun SettingsScreen(
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
                 )
-            }
-        }
-
-        SectionCard(title = "Video") {
-            SectionLabel("Resolution")
-            SegmentedChoice(
-                options = listOf("1080p60", "720p60"),
-                selectedIndex = if (quality == VideoQuality.P1080) 0 else 1,
-                onSelect = {
-                    quality = if (it == 0) VideoQuality.P1080 else VideoQuality.P720
-                    settings.quality = quality
-                },
-            )
-            SectionLabel("Codec")
-            SegmentedChoice(
-                options = listOf("H.264", "HEVC"),
-                selectedIndex = if (codec == VideoCodec.H264) 0 else 1,
-                onSelect = {
-                    codec = if (it == 0) VideoCodec.H264 else VideoCodec.HEVC
-                    settings.codec = codec
-                },
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Bitrate", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "  ${bitrate.roundToInt()} Mbps",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            Slider(
-                value = bitrate,
-                onValueChange = {
-                    bitrate = it
-                    settings.bitrateMbps = it.roundToInt()
-                },
-                valueRange = 4f..20f,
-                steps = 15,
-            )
-        }
-
-        SectionCard(title = "Recording") {
-            SettingToggle(
-                label = "Keep raw recording",
-                checked = keepRaw,
-                modifier = Modifier.testTag("keep-raw"),
-            ) {
-                keepRaw = it
-                settings.keepRaw = it
             }
         }
 
@@ -241,14 +182,10 @@ private fun BuildRow(label: String, value: String) {
         Text(
             label,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        NumericText(
-            value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        NumericText(value, style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -257,17 +194,19 @@ private fun SettingToggle(
     label: String,
     checked: Boolean,
     modifier: Modifier = Modifier,
-    onChange: (Boolean) -> Unit,
+    onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { onChange(!checked) }
-            .padding(vertical = 4.dp),
+            .clickable { onCheckedChange(!checked) },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-        Switch(checked = checked, onCheckedChange = null)
+        Text(
+            label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

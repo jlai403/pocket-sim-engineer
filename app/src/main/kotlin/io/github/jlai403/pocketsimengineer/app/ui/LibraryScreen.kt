@@ -32,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
 import io.github.jlai403.pocketsimengineer.core.session.SessionGroup
 import io.github.jlai403.pocketsimengineer.core.session.SessionMetadata
 import io.github.jlai403.pocketsimengineer.core.session.SessionStore
@@ -52,22 +51,7 @@ fun LibraryScreen(
     var reload by remember { mutableStateOf(0) }
 
     LaunchedEffect(reload) {
-        val active = RecordingService.activeSessionDir.value
-        groups = withContext(Dispatchers.IO) {
-            if (active == null) {
-                store.groups()
-            } else {
-                store.groups()
-                    .map { group ->
-                        group.copy(
-                            sessions = group.sessions.filter {
-                                store.sessionDir(it.sessionId).absolutePath != active
-                            },
-                        )
-                    }
-                    .filter { it.sessions.isNotEmpty() }
-            }
-        }
+        groups = withContext(Dispatchers.IO) { store.groups() }
     }
 
     Column(

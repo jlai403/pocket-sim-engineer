@@ -3,15 +3,14 @@ package io.github.jlai403.pocketsimengineer.app.ui
 import android.app.Application
 import android.content.Context
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.updater.UpdateManager
 import io.github.jlai403.pocketsimengineer.core.update.UpdateManifest
-import io.github.jlai403.pocketsimengineer.app.settings.VideoQuality
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -29,17 +28,6 @@ class SettingsScreenTest {
     val compose = createComposeRule()
 
     private val context: Context get() = ApplicationProvider.getApplicationContext()
-
-    @Test
-    fun `keep raw toggle persists`() {
-        compose.setContent {
-            PocketSimEngineerTheme { SettingsScreen() }
-        }
-
-        compose.onNodeWithTag("keep-raw").performScrollTo().performClick()
-
-        assertTrue(SettingsStore(context).keepRaw)
-    }
 
     @Test
     fun `shows the version and build identity`() {
@@ -88,13 +76,13 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun `resolution choice persists`() {
+    fun `imperial units toggle persists`() {
         compose.setContent {
             PocketSimEngineerTheme { SettingsScreen() }
         }
 
-        compose.onNodeWithText("720p60").performClick()
+        compose.onNodeWithTag("imperial").performScrollTo().performClick()
 
-        assertEquals(VideoQuality.P720, SettingsStore(context).quality)
+        assertTrue(SettingsStore(context).imperialUnits)
     }
 }

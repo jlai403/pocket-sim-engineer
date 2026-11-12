@@ -1,21 +1,14 @@
 package io.github.jlai403.pocketsimengineer.app.recording
 
 import io.github.jlai403.pocketsimengineer.app.service.TelemetryUiState
+import io.github.jlai403.pocketsimengineer.core.capture.CaptureState
 
 object StreamNotificationText {
-    fun streamSummary(state: TelemetryUiState): String =
-        if (state.connected) {
-            "GT7 stream · %.0f pps".format(state.packetsPerSecond)
-        } else {
-            "GT7 stream · waiting"
-        }
-
-    fun summary(base: String, state: TelemetryUiState): String =
-        if (state.connected) {
-            "%s · %.0f pps · %d err".format(base, state.packetsPerSecond, state.decodeErrors)
-        } else {
-            "$base · waiting for GT7"
-        }
+    fun streamSummary(state: TelemetryUiState, capture: CaptureState): String = when (capture) {
+        is CaptureState.Saved -> "GT7 stream · saved ${lapTime(capture.lapTimeMs)}"
+        CaptureState.Capturing -> "GT7 stream · capturing lap"
+        else -> if (state.connected) "GT7 stream · ready" else "GT7 stream · waiting"
+    }
 
     fun details(state: TelemetryUiState, lastEvent: String?): String = buildString {
         appendLine(if (state.connected) "Streaming" else "Waiting for GT7 telemetry")
@@ -25,6 +18,9 @@ object StreamNotificationText {
                 state.decodeErrors,
             ),
         )
+        if (state.lastDecodeFailure.isNotBlank()) {
+            appendLine("Last decode failure: ${state.lastDecodeFailure}")
+        }
         appendLine(
             if (state.lastPacketAgeMs < 0) {
                 "Last packet: none yet"

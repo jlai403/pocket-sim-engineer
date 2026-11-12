@@ -38,9 +38,8 @@ fun App(
     onSaveIp: (String) -> Unit,
     onConnect: (String) -> Unit,
     onDisconnect: () -> Unit,
-    onStartRecording: () -> Unit,
-    onTestRecord: () -> Unit,
-    onStop: () -> Unit,
+    onCapture: () -> Unit,
+    onCancelCapture: () -> Unit,
     update: UpdateManager.State,
     onCheckUpdate: () -> Unit,
     onDownloadUpdate: () -> Unit,
@@ -49,7 +48,7 @@ fun App(
     var screen by remember { mutableStateOf<Screen>(Screen.Library) }
     val activeTab = when (screen) {
         Screen.Library -> 0
-        Screen.Capture -> 1
+        Screen.Live -> 1
         Screen.Settings -> 2
         else -> null
     }
@@ -87,14 +86,14 @@ fun App(
                             onBack = { screen = Screen.Session(current.sessionId) },
                         )
 
-                        Screen.Capture -> CaptureScreen(
+                        Screen.Live -> LiveScreen(
                             state = capture,
                             onSaveIp = onSaveIp,
                             onConnect = onConnect,
                             onDisconnect = onDisconnect,
-                            onStartRecording = onStartRecording,
-                            onTestRecord = onTestRecord,
-                            onStop = onStop,
+                            onCapture = onCapture,
+                            onCancelCapture = onCancelCapture,
+                            onOpenLap = { id, index -> screen = Screen.Player(id, index) },
                         )
 
                         Screen.Settings -> SettingsScreen(
@@ -114,7 +113,7 @@ fun App(
                     AppBottomBar(selected = activeTab) { tab ->
                         screen = when (tab) {
                             0 -> Screen.Library
-                            1 -> Screen.Capture
+                            1 -> Screen.Live
                             else -> Screen.Settings
                         }
                     }
@@ -186,7 +185,7 @@ private fun AppBottomBar(selected: Int, onSelect: (Int) -> Unit) {
             selected = selected == 1,
             onClick = { onSelect(1) },
             icon = { Icon(Icons.Filled.PlayArrow, contentDescription = null) },
-            label = { Text("Record") },
+            label = { Text("Live") },
             colors = colors,
         )
         NavigationBarItem(

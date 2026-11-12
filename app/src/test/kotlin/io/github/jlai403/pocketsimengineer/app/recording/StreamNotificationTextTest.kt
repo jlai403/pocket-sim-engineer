@@ -1,6 +1,7 @@
 package io.github.jlai403.pocketsimengineer.app.recording
 
 import io.github.jlai403.pocketsimengineer.app.service.TelemetryUiState
+import io.github.jlai403.pocketsimengineer.core.capture.CaptureState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -31,21 +32,26 @@ class StreamNotificationTextTest {
     )
 
     @Test
-    fun `summary shows rate and errors while streaming`() {
+    fun `stream summary follows the capture state`() {
         assertEquals(
-            "Recording lap 3 · 60 pps · 0 err",
-            StreamNotificationText.summary("Recording lap 3", state()),
+            "GT7 stream · waiting",
+            StreamNotificationText.streamSummary(state(connected = false), CaptureState.Idle),
         )
         assertEquals(
-            "Armed · waiting for GT7",
-            StreamNotificationText.summary("Armed", state(connected = false)),
+            "GT7 stream · ready",
+            StreamNotificationText.streamSummary(state(), CaptureState.Idle),
         )
-    }
-
-    @Test
-    fun `stream summary is explicit while waiting`() {
-        assertEquals("GT7 stream · waiting", StreamNotificationText.streamSummary(state(connected = false)))
-        assertEquals("GT7 stream · 60 pps", StreamNotificationText.streamSummary(state()))
+        assertEquals(
+            "GT7 stream · capturing lap",
+            StreamNotificationText.streamSummary(state(), CaptureState.Capturing),
+        )
+        assertEquals(
+            "GT7 stream · saved 2:39.831",
+            StreamNotificationText.streamSummary(
+                state(),
+                CaptureState.Saved(sessionId = "s1", lapTimeMs = 159_831),
+            ),
+        )
     }
 
     @Test

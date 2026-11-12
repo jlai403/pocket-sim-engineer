@@ -16,7 +16,6 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
 import io.github.jlai403.pocketsimengineer.app.capture.LapSaver
-import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
 import io.github.jlai403.pocketsimengineer.app.recording.StreamNotificationText
 import io.github.jlai403.pocketsimengineer.app.Diagnostics
 import io.github.jlai403.pocketsimengineer.core.capture.CaptureState
@@ -154,10 +153,7 @@ class TelemetryService : Service() {
                     decoder = Gt7Decoder(),
                     lapDetector = lapDetector,
                     stats = TelemetryStats(),
-                    onSample = {
-                        coordinator.onSample(it)
-                        RecordingService.instance?.onTelemetry(it)
-                    },
+                    onSample = { coordinator.onSample(it) },
                     onLap = {
                         coordinator.onBoundary(it)
                         handleLap(it)
@@ -223,10 +219,9 @@ class TelemetryService : Service() {
         if (next.connected && onTrack != wasOnTrack) {
             recordEvent(if (onTrack) "Car on track" else "Car off track")
         }
-        if (!next.connected) RecordingService.instance?.onNoPackets()
         syncWakeLock()
         updateNotification()
-        if (next.connected && !previous.connected && !RecordingService.isRecording.value) {
+        if (next.connected && !previous.connected) {
             streamToast("GT7 stream OK · %.0f pps".format(next.packetsPerSecond))
         }
     }
@@ -243,7 +238,7 @@ class TelemetryService : Service() {
         if (!force && now - lastNotifyNanos < 1_000_000_000L) return
         lastNotifyNanos = now
         val telemetry = state.value
-        val summary = StreamNotificationText.streamSummary(telemetry)
+        val summary = StreamNotificationText.streamSummary(telemetry, capture.value)
         val details = StreamNotificationText.details(
             telemetry,
             events.value.firstOrNull()?.message,
@@ -256,7 +251,7 @@ class TelemetryService : Service() {
     }
 
     private fun syncWakeLock() {
-        if (RecordingService.isRecording.value) {
+        if (running.value) {
             if (wakeLock?.isHeld != true) {
                 wakeLock = getSystemService(PowerManager::class.java)
                     .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PocketSimEngineer:telemetry")
@@ -271,7 +266,6 @@ class TelemetryService : Service() {
     private fun handleLap(boundary: LapBoundary) {
         completedLaps.update { it + 1 }
         recordEvent("Lap ${boundary.lapNumber} complete · ${formatLapTime(boundary.lapTimeMs)}")
-        RecordingService.instance?.onLap(boundary)
     }
 
     private fun recordEvent(message: String) {
@@ -296,7 +290,13 @@ class TelemetryService : Service() {
             Intent(this, TelemetryService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_IMMUTABLE,
         )
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val cancelCapture = PendingIntent.getService(
+            this,
+            2,
+            Intent(this, TelemetryService::class.java).setAction(ACTION_CANCEL_CAPTURE),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(summary)
             .setContentText(
                 if (state.value.connected) {
@@ -309,9 +309,12 @@ class TelemetryService : Service() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Disconnect", disconnect)
             .apply { details?.let { setStyle(NotificationCompat.BigTextStyle().bigText(it)) } }
-            .build()
+        if (capture.value is CaptureState.Capturing) {
+            builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel capture", cancelCapture)
+        }
+        builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Disconnect", disconnect)
+        return builder.build()
     }
 
     private fun acquireLocks() {
