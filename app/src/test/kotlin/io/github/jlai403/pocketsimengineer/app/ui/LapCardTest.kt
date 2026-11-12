@@ -50,7 +50,8 @@ class LapCardTest {
 
         compose.onNodeWithText("1:30.000").assertExists()
         compose.onNodeWithText("Suzuka").assertExists()
-        compose.onNodeWithText("BRZ GT300 '21 · 2026-11-11").assertExists()
+        compose.onNodeWithText("BRZ GT300 '21").assertExists()
+        compose.onNodeWithText("Nov 11").assertExists()
     }
 
     @Test

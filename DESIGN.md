@@ -93,7 +93,7 @@ Layout:
 
 - Screen padding: **20 dp horizontal, 8 dp vertical**.
 - Section gap: **14 dp** (Library, Record, Settings, Session); **12 dp** inside the player.
-- Card padding: **16 dp**; lap cards use **14 dp**.
+- Card padding: **16 dp**; library lap rows use **14 dp vertical and 20 dp horizontal**, with no card surface.
 - Row gap: **8–10 dp**; chip padding **14 × 12 dp**.
 - Primary pill: **50 dp** tall, 24 dp horizontal padding, `CircleShape`.
 - Secondary/ghost pill: **44 dp** tall, 18 dp horizontal padding.
@@ -121,7 +121,7 @@ Defined in `ui/Components.kt` unless noted.
 | `SectionLabel` | uppercase muted label for groups inside a card |
 | `StatusDot` | 10 dp circle: green when live, outline when idle |
 | `FrameRuler` | 64 dp surface strip with a fixed green needle; frame ticks, half-second labels, and horizontal drag at 6 dp per frame. The strip follows the finger, so drag right to rewind and left to move forward. The drag reports total frames from the playhead it started on; one haptic tick per step, unless disabled |
-| `LapCard` | three-row lap card; tap opens, swipe edits or deletes, long press and custom actions repeat both; 22 dp radius, 14 dp padding |
+| `LapCard` | flat feed row, no radius or surface box: leading 32 dp flag column, name and short date, track, hero lap time, car and replay state; tap opens, swipe edits or deletes, long press and custom actions repeat both |
 | Swipe actions | full-height action background under the card, Gmail-style; horizontal drag clamped to 60% of the card width; Edit pinned left on a right swipe, Delete pinned right on a left swipe; below the 35% threshold the card springs back to zero, and it always returns to the default state; never dismisses the card |
 | `PullToRefreshBox` | library list gesture; the spinner follows the refresh state |
 | `DriverPickerRow` | flag, nickname, PSN, Change menu; pass `onOpenLink` to add GT GridStats and GTSH-Rank |
@@ -139,7 +139,8 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Header: “Library”, subtitle `N laps · M tracks · Best M:SS.mmm` (hidden when the library is empty or previewing), owner chip (`🇬🇧 Nickname ▾`) opening GT GridStats, GTSH-Rank, and Edit profile. A profile is optional; without one the chip reads `Add GT profile`.
 - Toolbar: `All tracks ▾`, the sort pill, `Clear` while a filter is active, then an All / Replay / No replay segmented control. The toolbar hides when the library is empty or previewing.
 - Pull to refresh replaces the refresh button. The spinner follows the gesture and the manual reload only, not the automatic reload after an edit.
-- Card: 34 sp mono lap time on the left with the driver on the right; track name with the `Fastest lap` badge or a `+0.412` delta; car and short date with `Replay` or `Sync pending`. The whole card opens the lap.
+- Card: flat feed row with no surface box or radius. Leading flag column, then the driver name and short date; the track; the 34 sp mono lap time with the `Fastest lap` label or a `+0.412` delta; the car with `Replay` or `Sync pending`. The whole row opens the lap.
+- Rows are separated by a 1 dp full-bleed `outlineVariant` divider; there is no divider after the last lap.
 - Fastest lap is computed per track across every lap, ignores the active filter, and only appears when the track has two or more laps. The other laps on that track show the delta.
 - Every card shows the lap's driver in the hero row: flag and nickname, the PSN when the profile is unknown, or `Driver not set` in muted text.
 - Swipe right opens Edit. Swipe left opens the delete confirmation, and the card springs back. Long press and the TalkBack custom actions offer the same two.

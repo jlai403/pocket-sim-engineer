@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.Icons
@@ -20,6 +20,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileLinks
@@ -168,12 +170,13 @@ fun LibraryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ScreenHeader(
             title = "Library",
             subtitle = summaryLine(all, tracks, previewEmpty),
+            modifier = Modifier.padding(horizontal = 20.dp),
             actions = {
                 DriverChip(
                     profile = owner,
@@ -198,7 +201,11 @@ fun LibraryScreen(
         )
 
         if (!previewEmpty && !all.isNullOrEmpty()) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Box {
                     GhostPill(
                         text = filter.trackLabel ?: "All tracks",
@@ -254,6 +261,7 @@ fun LibraryScreen(
                     true -> 1
                     false -> 2
                 },
+                modifier = Modifier.padding(horizontal = 20.dp),
                 onSelect = { index ->
                     filter = filter.copy(
                         hasReplay = when (index) {
@@ -267,7 +275,12 @@ fun LibraryScreen(
         }
 
         message?.let {
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(
+                it,
+                modifier = Modifier.padding(horizontal = 20.dp),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
 
         PullToRefreshBox(
@@ -279,17 +292,18 @@ fun LibraryScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxSize().testTag("lap-list"),
             ) {
                 if (previewEmpty) {
                     item {
-                        PreviewBanner(
-                            onTurnOff = {
-                                previewEmpty = false
-                                settings.previewEmptyLibrary = false
-                            },
-                        )
+                        Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                            PreviewBanner(
+                                onTurnOff = {
+                                    previewEmpty = false
+                                    settings.previewEmptyLibrary = false
+                                },
+                            )
+                        }
                     }
                 }
                 when {
@@ -303,11 +317,13 @@ fun LibraryScreen(
                     }
 
                     previewEmpty || all.isEmpty() -> item {
-                        EmptyLibrary(onOpenRecord)
+                        Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                            EmptyLibrary(onOpenRecord)
+                        }
                     }
 
                     visible.isNullOrEmpty() -> item {
-                        SectionCard {
+                        SectionCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                             Text("No laps match this filter", style = MaterialTheme.typography.titleLarge)
                             Text(
                                 "Clear the filter or capture another lap.",
@@ -318,7 +334,10 @@ fun LibraryScreen(
                         }
                     }
 
-                    else -> items(visible, key = { "${it.sessionId}:${it.lapIndex}" }) { lap ->
+                    else -> itemsIndexed(
+                        items = visible,
+                        key = { _, lap -> "${lap.sessionId}:${lap.lapIndex}" },
+                    ) { index, lap ->
                         val fastestLap = fastest[lap.trackKey]
                         val ranked = (trackCounts[lap.trackKey] ?: 0) >= 2
                         val isFastest = ranked && fastestLap?.sameLap(lap) == true
@@ -331,16 +350,24 @@ fun LibraryScreen(
                         val driver = driverPsn?.let { psn ->
                             profiles[psn.lowercase()] ?: owner?.takeIf { it.psnId.equals(psn, true) }
                         }
-                        LapCard(
-                            lap = lap,
-                            driver = driver,
-                            fastest = isFastest,
-                            deltaMs = deltaMs,
-                            onOpen = { onOpenLap(lap.sessionId, lap.lapIndex) },
-                            onEdit = { edit(lap) },
-                            onDelete = { deleting = lap },
-                            modifier = Modifier.animateItem(),
-                        )
+                        Column(modifier = Modifier.animateItem()) {
+                            LapCard(
+                                lap = lap,
+                                driver = driver,
+                                fastest = isFastest,
+                                deltaMs = deltaMs,
+                                onOpen = { onOpenLap(lap.sessionId, lap.lapIndex) },
+                                onEdit = { edit(lap) },
+                                onDelete = { deleting = lap },
+                            )
+                            if (index != visible.lastIndex) {
+                                HorizontalDivider(
+                                    modifier = Modifier.testTag("lap-divider"),
+                                    thickness = Dp.Hairline,
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }
