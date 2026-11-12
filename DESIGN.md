@@ -11,7 +11,7 @@ This document is the source of truth for visual tokens and recurring UI patterns
 3. **Dark only for v0.1.** No light theme until the data-viz palette is validated on track.
 4. **Big targets, short labels.** Primary actions are 50 dp pills; secondary actions are 44 dp.
 5. **Cards, not dividers.** Group related content into 20–22 dp rounded surfaces rather than dense tables.
-6. **Calm motion.** No custom animations in v0.1; Material defaults only.
+6. **Calm motion.** Material defaults only; the one exception is `animateItem()` on library rows after an edit or filter.
 
 ## Color tokens
 
@@ -121,6 +121,12 @@ Defined in `ui/Components.kt` unless noted.
 | `SectionLabel` | uppercase muted label for groups inside a card |
 | `StatusDot` | 10 dp circle: green when live, outline when idle |
 | `FrameRuler` | 64 dp surface strip with a fixed green needle; frame ticks, half-second labels, and horizontal drag at 6 dp per frame with one haptic tick per frame |
+| `LapCard` | three-row lap card; tap opens, swipe edits or deletes, long press and custom actions repeat both; 22 dp radius, 14 dp padding |
+| Swipe actions | horizontal drag with a 35% threshold and spring-back; Edit on the start side, Delete on the end side; never dismisses the card |
+| `PullToRefreshBox` | library list gesture; the spinner follows the refresh state |
+| `DriverPickerRow` | flag, nickname, PSN, Change menu; pass `onOpenLink` to add GT GridStats and GTSH-Rank |
+| `EditLapSheet` | modal bottom sheet for track, driver, and replay |
+| `ReplaySourcePill` | one pill that opens Files or the PlayStation App |
 | `Replay source menu` | pill with a trailing chevron; dropdown rows for Files and PlayStation App, each with a one-line subtitle |
 | `AppBottomBar` (App.kt) | Library / Record / Settings tabs, green indicator, no elevation |
 
@@ -130,15 +136,20 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 
 ### Library
 
-- Header: “Sessions”, subtitle “Your laps, ready to review”, `Refresh` ghost pill.
-- Empty state: card with “No sessions yet” and one explanatory paragraph.
-- Group card: track label + car name + session-count pill; then one row per session.
-- Session row: date, `N laps · best M:SS.mmm` in one text node, delete action, chevron.
-- The whole row opens the session.
+- Header: “Library”, subtitle `N laps · M tracks · Best M:SS.mmm` (hidden when the library is empty or previewing), owner chip (`🇬🇧 Nickname ▾`) opening GT GridStats, GTSH-Rank, and Edit profile. A profile is optional; without one the chip reads `Add GT profile`.
+- Toolbar: `All tracks ▾`, the sort pill, `Clear` while a filter is active, then an All / Replay / No replay segmented control. The toolbar hides when the library is empty or previewing.
+- Pull to refresh replaces the refresh button. The spinner follows the gesture and the manual reload only, not the automatic reload after an edit.
+- Card: 34 sp mono lap time on the left with the driver on the right; track name with the `Fastest lap` badge or a `+0.412` delta; car and short date with `Replay` or `Sync pending`. The whole card opens the lap.
+- Fastest lap is computed per track across every lap, ignores the active filter, and only appears when the track has two or more laps. The other laps on that track show the delta.
+- Driver appears only when the lap driver differs from the owner.
+- Swipe right opens Edit. Swipe left opens the delete confirmation, and the card springs back. Long press and the TalkBack custom actions offer the same two.
+- Edit sheet: track field with candidate rows for `Unknown` laps, the shared driver picker without profile links, a replay row (`Add a replay`, `Replace replay`, `Resume sync`), and Save.
+- Empty state: `No laps yet`, the Record instruction, and `Go to Record`. A filtered empty list adds `Clear filters`.
+- Developer preview: Settings → Developer → `Preview empty library` renders the empty state over a banner with `Turn off`; the laps stay on disk. Preview channel only.
 
 ### Record
 
-- Header: “Record”, subtitle “Telemetry and screen capture”.
+- Header: “Record”, subtitle “Telemetry only · replay comes later”.
 - Status card: live dot, status text, UDP hint, then three stat chips (packets/s, lap, speed m/s).
 - “GT7 stream” card: a health line (Streaming / Waiting / stale / low rate) with pps, errors, and packet age. While not connected it adds one hint: `Tap Connect to listen for GT7 telemetry.` or, when running, `GT7 sends telemetry only while a race or time trial is on screen.` `Show details` reveals packet ID, car code, flags, inputs, accepted packets, lap-event count, the last five events, and `Copy diagnostics`; copy includes version, build number, commit, and the current metrics.
 - Warnings render in an `errorContainer` banner.
@@ -224,7 +235,7 @@ While Chiaki-Up is fullscreen the Record tab is not visible, and v0.1 has no ove
 - Tokens: add colors, type, and shapes in `Theme.kt`; screens consume `MaterialTheme`.
 - Reuse `Components.kt` before creating a one-off card or button.
 - New top-level destination: add a tab in `App.kt` and a `Screen` case; new detail screen: no tab, include a back action.
-- Keep UI copy that tests assert on: “Sessions”, “Open”, “Share MP4”, “Export CSV”, “Speed”, “Track map”, “Lap N · time”, “Video not cut yet”, “Keep raw recording”, “720p60”.
+- Keep UI copy that tests assert on: “Library”, “No laps yet”, “Go to Record”, “Fastest lap”, “Edit lap”, “Open”, “Share MP4”, “Export CSV”, “Speed”, “Track map”, “Lap N · time”, “Video not cut yet”, “Keep raw recording”, “720p60”.
 - Compose UI tests run on the JVM via Robolectric (`:app:testDebugUnitTest`), so visual changes should keep semantics stable.
 
 ## File map

@@ -39,7 +39,9 @@ The phone records no video and no audio. Telemetry uses UDP 33739/33740; the onl
 - Decode-failure diagnostics with packet size and reason.
 - Single-lap capture: line-to-line, one session per lap, no video required.
 - Track identification from lap coordinates and bundled racing lines, including reverse layouts; ambiguous laps offer a candidate picker, and old `Unknown` laps are backfilled.
-- Flat lap library with filters (all / with replay / without replay, track) and sort; the owner profile and links sit above it, and every card shows its lap's driver.
+- Flat lap library: lap time as the hero number, per-track `Fastest lap` badge or delta, swipe to edit or delete, pull to refresh, and filters for replay state and track.
+- Edit sheet per lap: track name (with candidates for `Unknown` laps), driver, and replay (`Add`, `Replace`, or `Resume sync`).
+- Developer preview toggle renders the empty library without deleting laps; it only appears on preview builds.
 - Driver book: new captures default to the owner; the lap screen's Driver card selects a cached driver, adds one by PSN (with manual name/country fallback), or clears it.
 - Replay import through the Android share sheet and SAF file picker; one source button opens Files or the PlayStation App, and a clip can be replaced on an existing lap.
 - Sync screen: end-of-clip start with a suggested anchor, timeline scrubber, frame ruler (6 dp per frame), play/±10 s, ±1 frame, track %, preview, hard block for short clips.
