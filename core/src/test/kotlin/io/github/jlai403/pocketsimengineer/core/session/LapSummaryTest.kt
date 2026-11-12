@@ -192,4 +192,87 @@ class LapSummaryTest {
         assertEquals(listOf("fast", "old"), laps.applySort(LapSort.Fastest).map { it.sessionId })
         assertEquals(listOf("fast", "old"), laps.applySort(LapSort.Track).map { it.sessionId })
     }
+
+    @Test
+    fun `fastest per track picks the quickest lap on each track`() {
+        val laps = listOf(
+            summary("a", 1, 91_500, "Suzuka", "2026-11-11T10:00:00Z"),
+            summary("a", 2, 90_000, "Suzuka", "2026-11-11T10:05:00Z"),
+            summary("b", 1, 80_000, "Monza", "2026-11-10T10:00:00Z"),
+        )
+
+        val fastest = laps.fastestPerTrack()
+
+        assertEquals(2, fastest.getValue("suzuka").lapIndex)
+        assertEquals(1, fastest.getValue("monza").lapIndex)
+    }
+
+    @Test
+    fun `fastest per track returns a lone lap for its track`() {
+        val fastest = listOf(summary("a", 1, 90_000, "Suzuka", "2026-11-11T10:00:00Z")).fastestPerTrack()
+
+        assertEquals(90_000, fastest.getValue("suzuka").lapTimeMs)
+    }
+
+    @Test
+    fun `fastest per track breaks ties by earlier capture`() {
+        val laps = listOf(
+            summary("later", 1, 90_000, "Suzuka", "2026-11-11T10:00:00Z"),
+            summary("earlier", 1, 90_000, "Suzuka", "2026-11-10T10:00:00Z"),
+        )
+
+        assertEquals("earlier", laps.fastestPerTrack().getValue("suzuka").sessionId)
+    }
+
+    @Test
+    fun `fastest per track ignores label case and padding`() {
+        val laps = listOf(
+            summary("a", 1, 91_500, " Suzuka ", "2026-11-11T10:00:00Z"),
+            summary("b", 1, 90_000, "suzuka", "2026-11-11T10:00:00Z"),
+        )
+
+        val fastest = laps.fastestPerTrack()
+
+        assertEquals(1, fastest.size)
+        assertEquals("b", fastest.getValue("suzuka").sessionId)
+    }
+
+    @Test
+    fun `track filter ignores label case and padding`() {
+        val laps = listOf(
+            summary("a", 1, 90_000, "Suzuka", "2026-11-11T10:00:00Z"),
+            summary("b", 1, 91_000, "suzuka", "2026-11-11T10:00:00Z"),
+            summary("c", 1, 92_000, "Monza", "2026-11-11T10:00:00Z"),
+        )
+
+        val filtered = laps.applyFilter(LapFilter(trackLabel = " Suzuka "))
+
+        assertEquals(listOf("a", "b"), filtered.map { it.sessionId })
+    }
+
+    @Test
+    fun `same lap compares session and lap index`() {
+        val lap = summary("a", 1, 90_000, "Suzuka", "2026-11-11T10:00:00Z")
+
+        assertTrue(lap.sameLap(summary("a", 1, 80_000, "Suzuka", "2026-11-11T10:00:00Z")))
+        assertFalse(lap.sameLap(summary("a", 2, 90_000, "Suzuka", "2026-11-11T10:00:00Z")))
+        assertFalse(lap.sameLap(summary("b", 1, 90_000, "Suzuka", "2026-11-11T10:00:00Z")))
+    }
+
+    private fun summary(
+        sessionId: String,
+        lapIndex: Int,
+        lapTimeMs: Int,
+        trackLabel: String,
+        createdAt: String,
+    ) = LapSummary(
+        sessionId = sessionId,
+        lapIndex = lapIndex,
+        lapTimeMs = lapTimeMs,
+        createdAt = createdAt,
+        trackLabel = trackLabel,
+        carName = "BRZ GT300 '21",
+        hasReplay = false,
+        replayPending = false,
+    )
 }

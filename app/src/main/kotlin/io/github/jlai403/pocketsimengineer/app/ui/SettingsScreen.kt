@@ -57,6 +57,7 @@ fun SettingsScreen(
         }
     }
     var imperial by remember { mutableStateOf(settings.imperialUnits) }
+    var previewEmpty by remember { mutableStateOf(settings.previewEmptyLibrary) }
 
     Column(
         modifier = Modifier
@@ -116,6 +117,24 @@ fun SettingsScreen(
             ) {
                 imperial = it
                 settings.imperialUnits = it
+            }
+        }
+
+        if (BuildConfig.UPDATE_CHANNEL != "stable") {
+            SectionCard(title = "Developer") {
+                SettingToggle(
+                    label = "Preview empty library",
+                    checked = previewEmpty,
+                    modifier = Modifier.testTag("dev-preview-empty"),
+                ) {
+                    previewEmpty = it
+                    settings.previewEmptyLibrary = it
+                }
+                Text(
+                    "Shows the empty state while your laps stay saved.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 

@@ -24,7 +24,7 @@ import org.robolectric.annotation.GraphicsMode
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-class LiveScreenTest {
+class RecordScreenTest {
     @get:Rule
     val compose = createComposeRule()
 
@@ -38,7 +38,7 @@ class LiveScreenTest {
     ) {
         compose.setContent {
             PocketSimEngineerTheme {
-                LiveScreen(
+                RecordScreen(
                     state = state,
                     onSaveIp = onSaveIp,
                     onConnect = onConnect,

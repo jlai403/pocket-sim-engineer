@@ -41,7 +41,7 @@ import io.github.jlai403.pocketsimengineer.core.network.Ipv4
 import io.github.jlai403.pocketsimengineer.core.telemetry.TelemetryHealth
 
 @Composable
-fun LiveScreen(
+fun RecordScreen(
     state: CaptureUiState,
     onSaveIp: (String) -> Unit,
     onConnect: (String) -> Unit,
@@ -82,7 +82,7 @@ fun LiveScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         ScreenHeader(
-            title = "Live",
+            title = "Record",
             subtitle = "Telemetry only · replay comes later",
         )
 

@@ -51,7 +51,7 @@ fun App(
     var screen by remember { mutableStateOf<Screen>(Screen.Library) }
     val activeTab = when (screen) {
         Screen.Library -> 0
-        Screen.Live -> 1
+        Screen.Record -> 1
         Screen.Settings -> 2
         else -> null
     }
@@ -80,6 +80,10 @@ fun App(
                     when (val current = screen) {
                         Screen.Library -> LibraryScreen(
                             onOpenLap = { id, index -> screen = Screen.Player(id, index) },
+                            onOpenRecord = { screen = Screen.Record },
+                            onOpenSync = { id, index, uri ->
+                                screen = Screen.ImportSync(id, index, uri, returnToLibrary = true)
+                            },
                             onOpenSettings = { screen = Screen.Settings },
                         )
 
@@ -95,7 +99,13 @@ fun App(
                             sessionId = current.sessionId,
                             lapIndex = current.lapIndex,
                             sourceUri = current.sourceUri,
-                            onDone = { screen = Screen.Player(current.sessionId, current.lapIndex) },
+                            onDone = {
+                                screen = if (current.returnToLibrary) {
+                                    Screen.Library
+                                } else {
+                                    Screen.Player(current.sessionId, current.lapIndex)
+                                }
+                            },
                             onCancel = { screen = Screen.Library },
                         )
 
@@ -108,7 +118,7 @@ fun App(
                             },
                         )
 
-                        Screen.Live -> LiveScreen(
+                        Screen.Record -> RecordScreen(
                             state = capture,
                             onSaveIp = onSaveIp,
                             onConnect = onConnect,
@@ -135,7 +145,7 @@ fun App(
                     AppBottomBar(selected = activeTab) { tab ->
                         screen = when (tab) {
                             0 -> Screen.Library
-                            1 -> Screen.Live
+                            1 -> Screen.Record
                             else -> Screen.Settings
                         }
                     }
@@ -207,7 +217,7 @@ private fun AppBottomBar(selected: Int, onSelect: (Int) -> Unit) {
             selected = selected == 1,
             onClick = { onSelect(1) },
             icon = { Icon(Icons.Filled.PlayArrow, contentDescription = null) },
-            label = { Text("Live") },
+            label = { Text("Record") },
             colors = colors,
         )
         NavigationBarItem(

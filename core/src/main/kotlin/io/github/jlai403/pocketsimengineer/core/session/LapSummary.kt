@@ -24,7 +24,7 @@ data class LapFilter(
 
 fun List<LapSummary>.applyFilter(filter: LapFilter): List<LapSummary> = filter { lap ->
     (filter.hasReplay == null || lap.hasReplay == filter.hasReplay) &&
-        (filter.trackLabel == null || lap.trackLabel == filter.trackLabel)
+        (filter.trackLabel == null || lap.trackKey == filter.trackLabel.trim().lowercase())
 }
 
 fun List<LapSummary>.applySort(sort: LapSort): List<LapSummary> = when (sort) {
@@ -32,6 +32,19 @@ fun List<LapSummary>.applySort(sort: LapSort): List<LapSummary> = when (sort) {
     LapSort.Fastest -> sortedBy { it.lapTimeMs }
     LapSort.Track -> sortedWith(compareBy({ it.trackLabel }, { it.lapTimeMs }))
 }
+
+/** Quickest lap for each track label. A track with one lap keeps it; callers decide if that counts. */
+fun List<LapSummary>.fastestPerTrack(): Map<String, LapSummary> =
+    groupBy { it.trackKey }.mapValues { (_, laps) ->
+        laps.minWith(compareBy({ it.lapTimeMs }, { parseInstant(it.createdAt) }))
+    }
+
+/** Track labels are user-editable, so compare them trimmed and case-insensitively. */
+val LapSummary.trackKey: String
+    get() = trackLabel.trim().lowercase()
+
+fun LapSummary.sameLap(other: LapSummary): Boolean =
+    sessionId == other.sessionId && lapIndex == other.lapIndex
 
 private fun parseInstant(value: String): Instant =
     runCatching { Instant.parse(value) }.getOrDefault(Instant.EPOCH)
