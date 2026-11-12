@@ -102,6 +102,9 @@ fun App(
                             sessionId = current.sessionId,
                             lapIndex = current.lapIndex,
                             onBack = { screen = Screen.Library },
+                            onImportSync = {
+                                screen = Screen.ImportSync(current.sessionId, current.lapIndex, it)
+                            },
                         )
 
                         Screen.Live -> LiveScreen(

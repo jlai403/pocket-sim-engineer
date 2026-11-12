@@ -23,7 +23,7 @@ class LapPlayerScreenTest {
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
     @Test
-    fun `renders charts and refuses an uncut lap video`() {
+    fun `lap without a clip still shows charts and add replay`() {
         SessionFixtures.install(
             context,
             SessionFixtures.session(lapTimesMs = listOf(90_000), needsCut = true),
@@ -31,18 +31,43 @@ class LapPlayerScreenTest {
 
         compose.setContent {
             PocketSimEngineerTheme {
-                LapPlayerScreen(sessionId = "session-1", lapIndex = 1, onBack = {})
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
             }
         }
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Lap video is not available yet", substring = true)
-                .fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("No replay attached").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Lap video is not available yet", substring = true).assertExists()
+        compose.onNodeWithText("Add replay").assertExists()
         compose.onNodeWithText("Speed").assertExists()
         compose.onNodeWithText("Track map").assertExists()
         compose.onNodeWithText("Lap 1 · 1:30.000").assertExists()
+    }
+
+    @Test
+    fun `lap with a clip does not ask for a replay`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Add replay").assertDoesNotExist()
     }
 
     private companion object {

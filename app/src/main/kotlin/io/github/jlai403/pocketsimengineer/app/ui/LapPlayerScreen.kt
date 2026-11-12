@@ -1,6 +1,8 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -21,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -58,11 +59,17 @@ fun LapPlayerScreen(
     sessionId: String,
     lapIndex: Int,
     onBack: () -> Unit,
+    onImportSync: (String?) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val store = remember { SessionStore(context.filesDir) }
     val settings = remember { SettingsStore(context) }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) onImportSync(uri.toString())
+    }
 
     val session by produceState<SessionMetadata?>(null, sessionId) {
         value = withContext(Dispatchers.IO) { store.load(sessionId) }
@@ -81,7 +88,6 @@ fun LapPlayerScreen(
     val player = remember(sessionId, lapIndex) { ExoPlayer.Builder(context).build() }
 
     var positionMs by remember { mutableLongStateOf(0L) }
-    var syncOffset by remember { mutableIntStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
 
@@ -110,8 +116,6 @@ fun LapPlayerScreen(
         }
     }
 
-    LaunchedEffect(session) { session?.let { syncOffset = it.syncOffsetMs } }
-
     LaunchedEffect(videoFile?.absolutePath) {
         val file = videoFile ?: return@LaunchedEffect
         player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
@@ -127,7 +131,7 @@ fun LapPlayerScreen(
     }
 
     val cursorMs = lap?.let {
-        PlaybackCursor.telemetryMs(positionMs, it.videoStartOffsetMs, syncOffset, it.lapTimeMs)
+        PlaybackCursor.telemetryMs(positionMs, it.videoStartOffsetMs, it.syncOffsetMs, it.lapTimeMs)
     } ?: 0
 
     Column(
@@ -198,71 +202,36 @@ fun LapPlayerScreen(
                     )
                 }
             } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(MaterialTheme.colorScheme.surface)
-                        .padding(16.dp),
-                ) {
-                    Text(
-                        "Lap video is not available yet. The raw recording is kept until remux " +
-                            "succeeds.",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                SectionCard(title = "Replay") {
+                    if (lap.sourceFile != null) {
+                        Text(
+                            "Replay imported — sync not finished",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        GhostPill("Resume sync", onClick = { onImportSync(null) })
+                    } else {
+                        Text("No replay attached", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "Record the single-lap replay on the PS5, upload it to the PS App, " +
+                                "then add it here.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        PrimaryPill(
+                            text = "Add replay",
+                            onClick = { importLauncher.launch(arrayOf("video/*")) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
 
             NumericText(
-                "%s / %s  ·  sync %+d ms".format(
-                    lapTimeLabel(cursorMs),
-                    lapTimeLabel(lap.lapTimeMs),
-                    syncOffset,
-                ),
+                "%s / %s".format(lapTimeLabel(cursorMs), lapTimeLabel(lap.lapTimeMs)),
                 style = MaterialTheme.typography.titleMedium,
             )
             message?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-            }
-
-            SectionCard(title = "Sync nudge") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GhostPill(
-                        "-500",
-                        { syncOffset = (syncOffset - 500).coerceIn(-500, 500) },
-                        Modifier.weight(1f),
-                    )
-                    GhostPill(
-                        "-50",
-                        { syncOffset = (syncOffset - 50).coerceIn(-500, 500) },
-                        Modifier.weight(1f),
-                    )
-                    GhostPill(
-                        "+50",
-                        { syncOffset = (syncOffset + 50).coerceIn(-500, 500) },
-                        Modifier.weight(1f),
-                    )
-                    GhostPill(
-                        "+500",
-                        { syncOffset = (syncOffset + 500).coerceIn(-500, 500) },
-                        Modifier.weight(1f),
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GhostPill("Reset", { syncOffset = 0 }, Modifier.weight(1f))
-                    GhostPill(
-                        "Save sync offset",
-                        {
-                            val updated = syncOffset.coerceIn(-500, 500)
-                            syncOffset = updated
-                            scope.launch {
-                                withContext(Dispatchers.IO) { store.setSyncOffset(sessionId, updated) }
-                            }
-                        },
-                        Modifier.weight(1f),
-                    )
-                }
             }
 
             SectionCard(title = "Telemetry") {
