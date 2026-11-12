@@ -28,6 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -188,6 +190,8 @@ internal fun FrameRuler(
     onScrubStart: () -> Unit,
     onScrub: (framesFromStart: Int) -> Unit,
     onScrubEnd: () -> Unit = {},
+    events: List<LapEvent> = emptyList(),
+    showProgress: Boolean = false,
     hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -205,6 +209,12 @@ internal fun FrameRuler(
     val tickColor = MaterialTheme.colorScheme.onSurfaceVariant
     val needleColor = MaterialTheme.colorScheme.primary
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val eventColors = mapOf(
+        LapEventType.Brake to MaterialTheme.colorScheme.error,
+        LapEventType.Coast to MaterialTheme.colorScheme.onSurfaceVariant,
+        LapEventType.Throttle to MaterialTheme.colorScheme.primary,
+        LapEventType.Turn to MaterialTheme.colorScheme.tertiary,
+    )
     val labelStyle = MaterialTheme.typography.labelSmall.copy(
         fontFamily = GeistMonoFamily,
         color = labelColor,
@@ -215,7 +225,7 @@ internal fun FrameRuler(
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .height(52.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(trackColor)
             .alpha(if (enabled) 1f else 0.5f)
@@ -252,7 +262,7 @@ internal fun FrameRuler(
     ) {
         if (size.width <= 0f || size.height <= 0f) return@Canvas
         val centerX = size.width / 2f
-        val baseline = size.height - 20.dp.toPx()
+        val baseline = size.height - 24.dp.toPx()
         val pxPerMs = pxPerFrame / step.toFloat()
         val halfSpan = centerX / pxPerMs
         val firstFrame = floor((valueMs - halfSpan) / step).toLong()
@@ -283,7 +293,7 @@ internal fun FrameRuler(
                     textLayoutResult = layout,
                     topLeft = Offset(
                         (x - layout.size.width / 2f).coerceIn(pad, maxX),
-                        baseline + 6.dp.toPx(),
+                        baseline + 4.dp.toPx(),
                     ),
                 )
             }
@@ -310,6 +320,35 @@ internal fun FrameRuler(
             },
             color = needleColor,
         )
+        events.forEach { event ->
+            if (event.timeMs < startMs || event.timeMs > endMs) return@forEach
+            val x = centerX + (event.timeMs.toLong() - valueMs).toFloat() * pxPerMs
+            if (x < 0f || x > size.width) return@forEach
+            drawCircle(
+                color = eventColors.getValue(event.type),
+                radius = 2.dp.toPx(),
+                center = Offset(x, 4.dp.toPx()),
+            )
+        }
+        if (showProgress) {
+            val span = (endMs - startMs).coerceAtLeast(1L)
+            val fraction = ((valueMs - startMs).toFloat() / span).coerceIn(0f, 1f)
+            val trackTop = size.height - 4.dp.toPx()
+            val trackSize = Size(size.width, 4.dp.toPx())
+            val corner = CornerRadius(2.dp.toPx())
+            drawRoundRect(
+                color = tickColor.copy(alpha = 0.25f),
+                topLeft = Offset(0f, trackTop),
+                size = trackSize,
+                cornerRadius = corner,
+            )
+            drawRoundRect(
+                color = needleColor.copy(alpha = 0.75f),
+                topLeft = Offset(0f, trackTop),
+                size = Size(size.width * fraction, 4.dp.toPx()),
+                cornerRadius = corner,
+            )
+        }
     }
 }
 

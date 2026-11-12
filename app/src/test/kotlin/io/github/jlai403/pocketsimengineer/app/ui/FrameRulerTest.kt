@@ -183,4 +183,27 @@ class FrameRulerTest {
 
         assertEquals(1, ends)
     }
+
+    @Test
+    fun `ruler renders progress and event markers`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                FrameRuler(
+                    valueMs = 5_000,
+                    startMs = 0,
+                    endMs = 10_000,
+                    frameStepMs = 33,
+                    enabled = true,
+                    onScrubStart = {},
+                    onScrub = {},
+                    events = listOf(LapEvent(LapEventType.Brake, 2_000)),
+                    showProgress = true,
+                    hapticsEnabled = false,
+                    modifier = Modifier.testTag("ruler"),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("ruler").assertExists()
+    }
 }
