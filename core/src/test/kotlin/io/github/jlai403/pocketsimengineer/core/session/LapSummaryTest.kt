@@ -2,6 +2,7 @@ package io.github.jlai403.pocketsimengineer.core.session
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -74,6 +75,25 @@ class LapSummaryTest {
         val store = install()
         assertTrue(store.deleteLap("s1", 1))
         assertTrue(store.list().isEmpty())
+    }
+
+    @Test
+    fun `attachClip clears the source and sets the playback offset`() {
+        val store = install()
+        val source = "laps/lap-001-source.mp4"
+        File(store.sessionDir("s1"), source).apply {
+            parentFile?.mkdirs()
+            writeText("x")
+        }
+        store.setSource("s1", 1, source)
+
+        store.attachClip("s1", 1, "laps/lap-001.mp4", 1_234)
+
+        val lap = store.lap("s1", 1)!!
+        assertEquals("laps/lap-001.mp4", lap.videoFile)
+        assertEquals(1_234, lap.videoStartOffsetMs)
+        assertNull(lap.sourceFile)
+        assertFalse(File(store.sessionDir("s1"), source).exists())
     }
 
     @Test

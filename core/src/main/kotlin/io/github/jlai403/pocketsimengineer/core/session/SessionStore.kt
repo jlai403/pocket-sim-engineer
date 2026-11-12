@@ -93,6 +93,32 @@ class SessionStore(private val rootDir: File) {
     fun lap(sessionId: String, lapIndex: Int): LapMetadata? =
         load(sessionId)?.laps?.firstOrNull { it.index == lapIndex }
 
+    fun setSource(sessionId: String, lapIndex: Int, sourceFile: String?): SessionMetadata? {
+        val lap = lap(sessionId, lapIndex) ?: return null
+        return updateLap(sessionId, lap.copy(sourceFile = sourceFile))
+    }
+
+    fun attachClip(
+        sessionId: String,
+        lapIndex: Int,
+        videoFile: String,
+        videoStartOffsetMs: Int,
+    ): SessionMetadata? {
+        val lap = lap(sessionId, lapIndex) ?: return null
+        val source = lap.sourceFile?.let { File(sessionDir(sessionId), it) }
+        val updated = updateLap(
+            sessionId,
+            lap.copy(
+                videoFile = videoFile,
+                videoStartOffsetMs = videoStartOffsetMs,
+                sourceFile = null,
+                needsCut = false,
+            ),
+        )
+        if (updated != null) source?.delete()
+        return updated
+    }
+
     fun deleteLap(sessionId: String, lapIndex: Int): Boolean {
         val metadata = load(sessionId) ?: return false
         val lap = metadata.laps.firstOrNull { it.index == lapIndex } ?: return false
