@@ -14,7 +14,10 @@ object ReplayStore {
         return try {
             destination.parentFile?.mkdirs()
             val input = context.contentResolver.openInputStream(uri)
-                ?: return false
+                ?: run {
+                    temp.delete()
+                    return false
+                }
             input.use { source ->
                 temp.outputStream().use { output -> source.copyTo(output) }
             }

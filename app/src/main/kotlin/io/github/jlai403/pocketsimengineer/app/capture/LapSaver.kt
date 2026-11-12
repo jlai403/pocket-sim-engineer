@@ -19,10 +19,11 @@ class LapSaver(
     override fun save(boundary: LapBoundary, samples: List<Sample>): SessionMetadata {
         val id = idFactory()
         val carCode = samples.lastOrNull()?.carCode ?: 0
+        val lapSamples = samples.filter { it.timeNanos in boundary.startNanos..boundary.endNanos }
         val metadata = SessionMetadata(
             sessionId = id,
             createdAt = clock().toString(),
-            trackLabel = trackName(samples) ?: "Unknown",
+            trackLabel = trackName(lapSamples) ?: "Unknown",
             carCode = carCode,
             carName = "Car #$carCode",
             rawFile = "",

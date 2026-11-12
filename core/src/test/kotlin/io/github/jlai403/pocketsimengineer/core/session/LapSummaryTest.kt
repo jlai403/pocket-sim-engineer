@@ -78,6 +78,46 @@ class LapSummaryTest {
     }
 
     @Test
+    fun `shared legacy raw is not a replay and survives deleting one lap`() {
+        val store = SessionStore(temp)
+        val raw = "raw.mp4"
+        val laps = (1..2).map { index ->
+            LapMetadata(
+                index = index,
+                lapTimeMs = 90_000 + index,
+                startNanos = (index - 1) * 100_000_000_000L,
+                endNanos = index * 100_000_000_000L,
+                sampleCount = 1,
+                videoFile = raw,
+                videoStartOffsetMs = 0,
+                needsCut = true,
+            )
+        }
+        store.save(
+            SessionMetadata(
+                sessionId = "legacy",
+                createdAt = "2026-11-10T10:00:00Z",
+                trackLabel = "Suzuka",
+                carCode = 3474,
+                carName = "Car #3474",
+                rawFile = raw,
+                laps = laps,
+            ),
+        )
+        File(store.sessionDir("legacy"), raw).writeText("raw")
+
+        assertEquals(2, store.summaries().size)
+        assertTrue(store.summaries().none { it.hasReplay })
+
+        assertTrue(store.deleteLap("legacy", 1))
+        assertTrue(File(store.sessionDir("legacy"), raw).isFile)
+        assertEquals(1, store.summaries().size)
+
+        assertTrue(store.deleteLap("legacy", 2))
+        assertTrue(store.list().isEmpty())
+    }
+
+    @Test
     fun `attachClip clears the source and sets the playback offset`() {
         val store = install()
         val source = "laps/lap-001-source.mp4"

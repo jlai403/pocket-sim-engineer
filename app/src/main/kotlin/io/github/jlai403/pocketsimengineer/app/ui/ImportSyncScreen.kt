@@ -2,6 +2,7 @@ package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -83,13 +84,15 @@ fun ImportSyncScreen(
     var durationMs by remember { mutableLongStateOf(0L) }
     var frameStepMs by remember { mutableLongStateOf(33L) }
     var positionMs by remember { mutableLongStateOf(0L) }
-    var renderedMs by remember { mutableLongStateOf(0L) }
+    var renderedMs by remember { mutableLongStateOf(-1L) }
     var anchorMs by remember { mutableStateOf<Long?>(null) }
     var playing by remember { mutableStateOf(false) }
     var previewing by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var confirmCancel by remember { mutableStateOf(false) }
+
+    BackHandler { confirmCancel = true }
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
@@ -178,17 +181,18 @@ fun ImportSyncScreen(
         val clamped = targetMs.coerceIn(0, durationMs)
         player.seekTo(clamped)
         positionMs = clamped
-        renderedMs = clamped
+        renderedMs = -1
         player.pause()
         previewing = false
     }
 
     val currentLap = lap
     val anchor = anchorMs
+    val displayedMs = if (renderedMs >= 0) renderedMs else positionMs
     val sync = if (currentLap != null && anchor != null) ClipSync(anchor, currentLap.lapTimeMs) else null
     val range = sync?.let { TrimPlan.forSync(it, durationMs) }
     val check = sync?.let { SyncValidator.check(it, durationMs, startTrackPercent = 0f) }
-    val telemetryMs = sync?.telemetryMsAt(renderedMs)
+    val telemetryMs = sync?.telemetryMsAt(displayedMs)
     val trackPercent = if (currentLap != null && telemetryMs != null) {
         TrackProgress.percentAt(samples, currentLap.startNanos, telemetryMs)
     } else {
@@ -231,7 +235,7 @@ fun ImportSyncScreen(
 
         Text(
             buildString {
-                append(formatMillis(renderedMs))
+                append(formatMillis(displayedMs))
                 if (trackPercent != null) append(" · %.1f%% lap".format(trackPercent))
                 if (nearestSpeed != null) append(" · %.0f km/h".format(nearestSpeed * 3.6f))
             },
@@ -265,7 +269,7 @@ fun ImportSyncScreen(
 
         PrimaryPill(
             text = "Set anchor at this frame",
-            onClick = { anchorMs = if (renderedMs > 0) renderedMs else positionMs },
+            onClick = { anchorMs = displayedMs },
             modifier = Modifier.fillMaxWidth(),
             enabled = durationMs > 0,
         )

@@ -84,7 +84,10 @@ class SessionStore(private val rootDir: File) {
                 createdAt = session.createdAt,
                 trackLabel = session.trackLabel,
                 carName = session.carName,
-                hasReplay = lap.videoFile.isNotBlank() && File(dir, lap.videoFile).isFile,
+                hasReplay = lap.videoFile.isNotBlank() &&
+                    !lap.needsCut &&
+                    lap.videoFile != session.rawFile &&
+                    File(dir, lap.videoFile).isFile,
                 replayPending = !lap.sourceFile.isNullOrBlank(),
             )
         }
@@ -126,8 +129,13 @@ class SessionStore(private val rootDir: File) {
         File(dir, "laps/lap-%03d.gt7lap".format(lapIndex)).delete()
         File(dir, "laps/lap-%03d.json".format(lapIndex)).delete()
         if (lap.videoFile.isNotBlank()) {
-            File(dir, lap.videoFile).delete()
-            File(dir, lap.videoFile + ".tmp").delete()
+            val shared = metadata.laps.any {
+                it.index != lapIndex && it.videoFile == lap.videoFile
+            }
+            if (!shared && lap.videoFile != metadata.rawFile) {
+                File(dir, lap.videoFile).delete()
+                File(dir, lap.videoFile + ".tmp").delete()
+            }
         }
         lap.sourceFile?.let { File(dir, it).delete() }
         val remaining = metadata.laps.filterNot { it.index == lapIndex }

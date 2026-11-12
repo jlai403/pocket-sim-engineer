@@ -57,4 +57,24 @@ class LapSaverTest {
         assertTrue(File(root, "lap-test/laps/lap-001.gt7lap").isFile)
         assertTrue(metadata.laps.single().videoFile.isEmpty())
     }
+
+    @Test
+    fun `track identification sees only the lap samples`() {
+        val root = Files.createTempDirectory("laps").toFile()
+        var seen: List<Sample>? = null
+        val saver = LapSaver(
+            root,
+            idFactory = { "lap-test" },
+            trackName = {
+                seen = it
+                "Suzuka"
+            },
+        )
+        val samples = (-20..120).map { sample(atMs = it * 1_000L) }
+        val metadata = saver.save(boundary(startMs = 0, endMs = 120_000), samples)
+
+        assertEquals("Suzuka", metadata.trackLabel)
+        assertTrue(seen!!.isNotEmpty())
+        assertTrue(seen!!.none { it.timeNanos < 0 })
+    }
 }

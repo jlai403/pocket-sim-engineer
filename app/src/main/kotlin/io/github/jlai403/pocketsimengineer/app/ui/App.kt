@@ -62,7 +62,7 @@ fun App(
         onSharedVideoHandled()
     }
 
-    BackHandler(enabled = screen != Screen.Library) {
+    BackHandler(enabled = screen != Screen.Library && screen !is Screen.ImportSync) {
         screen = when (val current = screen) {
             is Screen.ImportSync -> Screen.Player(current.sessionId, current.lapIndex)
             else -> Screen.Library
