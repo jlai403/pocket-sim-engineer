@@ -4,7 +4,7 @@ import io.github.jlai403.pocketsimengineer.app.service.TelemetryEvent
 import io.github.jlai403.pocketsimengineer.core.capture.CaptureState
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
-import kotlin.math.abs
+import kotlin.math.roundToInt
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -65,8 +65,36 @@ fun Sample.lapTimeMs(lap: LapMetadata): Int =
 fun List<Sample>.lapWindow(lap: LapMetadata): List<Sample> =
     filter { it.timeNanos >= lap.startNanos && it.timeNanos <= lap.endNanos }
 
-fun List<Sample>.nearest(lap: LapMetadata, timeMs: Int): Sample? =
-    minByOrNull { abs(it.lapTimeMs(lap) - timeMs) }
+/**
+ * The sample at [timeMs], interpolated between the two samples that bracket it.
+ * Values that only step (gear) come from the nearest sample. Times outside the
+ * window clamp to its ends.
+ */
+fun List<Sample>.sampleAt(lap: LapMetadata, timeMs: Int): Sample? {
+    if (isEmpty()) return null
+    val index = binarySearchBy(timeMs) { it.lapTimeMs(lap) }
+    if (index >= 0) return this[index]
+    val insert = -index - 1
+    if (insert <= 0) return first()
+    if (insert >= size) return last()
+    val a = this[insert - 1]
+    val b = this[insert]
+    val aMs = a.lapTimeMs(lap)
+    val bMs = b.lapTimeMs(lap)
+    if (bMs <= aMs) return a
+    val t = (timeMs - aMs).toFloat() / (bMs - aMs).toFloat()
+    return a.copy(
+        timeNanos = a.timeNanos + ((b.timeNanos - a.timeNanos).toDouble() * t).toLong(),
+        speedMps = a.speedMps + (b.speedMps - a.speedMps) * t,
+        throttle = (a.throttle + (b.throttle - a.throttle) * t).roundToInt(),
+        brake = (a.brake + (b.brake - a.brake) * t).roundToInt(),
+        rpm = a.rpm + (b.rpm - a.rpm) * t,
+        gear = if (t < 0.5f) a.gear else b.gear,
+        positionX = a.positionX + (b.positionX - a.positionX) * t,
+        positionY = a.positionY + (b.positionY - a.positionY) * t,
+        positionZ = a.positionZ + (b.positionZ - a.positionZ) * t,
+    )
+}
 
 fun formatDate(iso: String): String = runCatching {
     DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")

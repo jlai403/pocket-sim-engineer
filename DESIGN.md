@@ -204,6 +204,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Map: 3 px `onSurfaceVariant` polyline, 7 px green dot at the cursor, 240 dp tall.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.
 - Current values above the charts: speed with unit, gear, throttle %, brake %, RPM.
+- Values and the map dot interpolate between the two samples that bracket the cursor time; gear snaps to the nearest sample. The cursor line stays on the video frame.
 
 ## Recording feedback outside the app
 
