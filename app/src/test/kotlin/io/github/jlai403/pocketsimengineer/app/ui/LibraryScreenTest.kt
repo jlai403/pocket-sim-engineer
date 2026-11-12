@@ -2,11 +2,11 @@ package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.app.Application
 import android.content.Context
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -26,72 +26,87 @@ class LibraryScreenTest {
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
     @Test
-    fun `shows a session with its lap count and best lap`() {
+    fun `shows lap time and replay badge`() {
         SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
 
         compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Suzuka · BRZ GT300 '21").assertExists()
+        compose.onNodeWithText("Replay").assertExists()
+    }
+
+    @Test
+    fun `tapping open reports the lap`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+        var opened: Pair<String, Int>? = null
+
+        compose.setContent {
             PocketSimEngineerTheme {
-                LibraryScreen(onOpenSession = {})
+                LibraryScreen(onOpenLap = { id, index -> opened = id to index })
             }
         }
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Suzuka").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("BRZ GT300 '21").assertExists()
-        compose.onNodeWithText("1 laps · best 1:30.000").assertExists()
+        compose.onNodeWithText("Open").performClick()
+        assertEquals("session-1" to 1, opened)
     }
 
     @Test
-    fun `tapping a session reports its id`() {
-        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
-        var opened: String? = null
-
-        compose.setContent {
-            PocketSimEngineerTheme {
-                LibraryScreen(onOpenSession = { opened = it })
-            }
-        }
-
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("1 laps · best 1:30.000").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithText("1 laps · best 1:30.000").performClick()
-        assertEquals("session-1", opened)
-    }
-
-    @Test
-    fun `groups sessions with the same car and track`() {
-        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+    fun `filters to laps without a replay`() {
         SessionFixtures.install(
             context,
-            SessionFixtures.session(
-                id = "session-2",
-                createdAt = "2026-11-10T10:05:00Z",
-                lapTimesMs = listOf(91_000),
-            ),
+            SessionFixtures.session(id = "with-replay", lapTimesMs = listOf(90_000)),
         )
         SessionFixtures.install(
             context,
             SessionFixtures.session(
-                id = "session-3",
+                id = "without-replay",
                 trackLabel = "Nurburgring",
-                createdAt = "2026-11-10T11:00:00Z",
+                createdAt = "2026-11-11T10:00:00Z",
                 lapTimesMs = listOf(120_000),
+                needsCut = true,
             ),
         )
 
         compose.setContent {
-            PocketSimEngineerTheme {
-                LibraryScreen(onOpenSession = {})
-            }
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
         }
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Suzuka").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("2:00.000").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onAllNodesWithText("Suzuka").assertCountEquals(1)
-        compose.onAllNodesWithText("Nurburgring").assertCountEquals(1)
+        compose.onNodeWithText("Without replay").performClick()
+
+        compose.onAllNodesWithText("Nurburgring · BRZ GT300 '21")
+            .fetchSemanticsNodes().isNotEmpty()
+        assertEquals(
+            0,
+            compose.onAllNodesWithText("Suzuka · BRZ GT300 '21").fetchSemanticsNodes().size,
+        )
+    }
+
+    @Test
+    fun `sort menu switches to fastest`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Newest").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Newest").performClick()
+        compose.onNodeWithText("Fastest").performClick()
+
+        compose.onNodeWithText("Fastest").assertExists()
     }
 
     private companion object {

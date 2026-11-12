@@ -54,10 +54,7 @@ fun App(
     }
 
     BackHandler(enabled = screen != Screen.Library) {
-        screen = when (val current = screen) {
-            is Screen.Player -> Screen.Session(current.sessionId)
-            else -> Screen.Library
-        }
+        screen = Screen.Library
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -70,20 +67,13 @@ fun App(
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when (val current = screen) {
                         Screen.Library -> LibraryScreen(
-                            onOpenSession = { screen = Screen.Session(it) },
-                        )
-
-                        is Screen.Session -> SessionScreen(
-                            sessionId = current.sessionId,
-                            onBack = { screen = Screen.Library },
-                            onOpenLap = { screen = Screen.Player(current.sessionId, it) },
-                            onDeleted = { screen = Screen.Library },
+                            onOpenLap = { id, index -> screen = Screen.Player(id, index) },
                         )
 
                         is Screen.Player -> LapPlayerScreen(
                             sessionId = current.sessionId,
                             lapIndex = current.lapIndex,
-                            onBack = { screen = Screen.Session(current.sessionId) },
+                            onBack = { screen = Screen.Library },
                         )
 
                         Screen.Live -> LiveScreen(

@@ -14,4 +14,6 @@ data class LapMetadata(
     val videoStartOffsetMs: Int,
     val syncOffsetMs: Int = 0,
     val needsCut: Boolean = false,
+    /** Imported replay before trimming; null once the lap clip is attached or the import is discarded. */
+    val sourceFile: String? = null,
 )

@@ -136,25 +136,4 @@ class SessionStoreTest {
         File(dir, "laps/lap-001.gt7lap").writeBytes(LapTelemetryCodec.encode(listOf(sample)))
         assertEquals(listOf(sample), SessionStore(temp).readSamples("s1", 1))
     }
-
-    @Test
-    fun `groups consecutive sessions with the same car and track`() {
-        writeSession("s1", "2026-11-10T10:00:00Z")
-        writeSession("s2", "2026-11-10T10:05:00Z")
-        writeSession("s3", "2026-11-10T10:30:00Z")
-        writeSession("s4", "2026-11-10T10:31:00Z", carCode = 9999)
-
-        val groups = SessionStore(temp).groups()
-        assertEquals(3, groups.size)
-        assertEquals(listOf("s2", "s1"), groups[2].sessions.map { it.sessionId })
-        assertEquals(listOf("s3"), groups[1].sessions.map { it.sessionId })
-        assertEquals(listOf("s4"), groups[0].sessions.map { it.sessionId })
-    }
-
-    @Test
-    fun `a car change breaks a group even within ten minutes`() {
-        writeSession("s1", "2026-11-10T10:00:00Z")
-        writeSession("s2", "2026-11-10T10:01:00Z", carCode = 9999)
-        assertEquals(2, SessionStore(temp).groups().size)
-    }
 }

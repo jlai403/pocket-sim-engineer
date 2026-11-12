@@ -52,6 +52,12 @@ object SessionFixtures {
         for (lap in metadata.laps) {
             File(lapsDir, "lap-%03d.gt7lap".format(lap.index))
                 .writeBytes(LapTelemetryCodec.encode(samplesFor(lap)))
+            if (lap.videoFile.startsWith("laps/")) {
+                File(store.sessionDir(metadata.sessionId), lap.videoFile).apply {
+                    parentFile?.mkdirs()
+                    writeText("video")
+                }
+            }
         }
     }
 

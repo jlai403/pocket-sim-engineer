@@ -47,7 +47,6 @@ fun formatEventTime(epochMs: Long): String =
 
 sealed interface Screen {
     data object Library : Screen
-    data class Session(val sessionId: String) : Screen
     data class Player(val sessionId: String, val lapIndex: Int) : Screen
     data object Live : Screen
     data object Settings : Screen

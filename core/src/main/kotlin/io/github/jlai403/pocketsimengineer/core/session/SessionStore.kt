@@ -3,15 +3,7 @@ package io.github.jlai403.pocketsimengineer.core.session
 import io.github.jlai403.pocketsimengineer.core.io.AtomicFiles
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import java.io.File
-import java.time.Duration
 import java.time.Instant
-
-data class SessionGroup(
-    val carCode: Int,
-    val carName: String,
-    val trackLabel: String,
-    val sessions: List<SessionMetadata>,
-)
 
 class SessionStore(private val rootDir: File) {
     private val sessionsDir: File get() = File(rootDir, "sessions")
@@ -81,37 +73,44 @@ class SessionStore(private val rootDir: File) {
         return LapTelemetryCodec.decode(file.readBytes())
     }
 
-    /**
-     * Consecutive sessions with the same car and track, no more than ten minutes apart,
-     * form one visual group. Groups and their sessions are newest first.
-     */
-    fun groups(): List<SessionGroup> {
-        val ascending = list().sortedBy { parseInstant(it.createdAt) }
-        val groups = ArrayList<MutableList<SessionMetadata>>()
-        var previous: SessionMetadata? = null
-        for (session in ascending) {
-            val last = previous
-            val joins = last != null &&
-                last.carCode == session.carCode &&
-                last.trackLabel == session.trackLabel &&
-                Duration.between(parseInstant(last.createdAt), parseInstant(session.createdAt))
-                    .abs() <= Duration.ofMinutes(10)
-            if (joins) {
-                groups.last().add(session)
-            } else {
-                groups.add(mutableListOf(session))
-            }
-            previous = session
-        }
-        return groups.asReversed().map { members ->
-            val newest = members.last()
-            SessionGroup(
-                carCode = newest.carCode,
-                carName = newest.carName,
-                trackLabel = newest.trackLabel,
-                sessions = members.asReversed(),
+    /** Flat lap rows for the library. New captures have one lap; legacy sessions may have more. */
+    fun summaries(): List<LapSummary> = list().flatMap { session ->
+        val dir = sessionDir(session.sessionId)
+        session.laps.map { lap ->
+            LapSummary(
+                sessionId = session.sessionId,
+                lapIndex = lap.index,
+                lapTimeMs = lap.lapTimeMs,
+                createdAt = session.createdAt,
+                trackLabel = session.trackLabel,
+                carName = session.carName,
+                hasReplay = lap.videoFile.isNotBlank() && File(dir, lap.videoFile).isFile,
+                replayPending = !lap.sourceFile.isNullOrBlank(),
             )
         }
+    }.sortedByDescending { parseInstant(it.createdAt) }
+
+    fun lap(sessionId: String, lapIndex: Int): LapMetadata? =
+        load(sessionId)?.laps?.firstOrNull { it.index == lapIndex }
+
+    fun deleteLap(sessionId: String, lapIndex: Int): Boolean {
+        val metadata = load(sessionId) ?: return false
+        val lap = metadata.laps.firstOrNull { it.index == lapIndex } ?: return false
+        val dir = sessionDir(sessionId)
+        File(dir, "laps/lap-%03d.gt7lap".format(lapIndex)).delete()
+        File(dir, "laps/lap-%03d.json".format(lapIndex)).delete()
+        if (lap.videoFile.isNotBlank()) {
+            File(dir, lap.videoFile).delete()
+            File(dir, lap.videoFile + ".tmp").delete()
+        }
+        lap.sourceFile?.let { File(dir, it).delete() }
+        val remaining = metadata.laps.filterNot { it.index == lapIndex }
+        if (remaining.isEmpty()) {
+            delete(sessionId)
+        } else {
+            save(metadata.copy(laps = remaining))
+        }
+        return true
     }
 
     private fun parseInstant(value: String): Instant =

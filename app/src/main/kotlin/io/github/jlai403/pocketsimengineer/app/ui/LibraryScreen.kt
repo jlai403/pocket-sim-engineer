@@ -1,12 +1,10 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,13 +14,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -32,56 +34,141 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import io.github.jlai403.pocketsimengineer.core.session.SessionGroup
-import io.github.jlai403.pocketsimengineer.core.session.SessionMetadata
+import io.github.jlai403.pocketsimengineer.core.session.LapFilter
+import io.github.jlai403.pocketsimengineer.core.session.LapSort
+import io.github.jlai403.pocketsimengineer.core.session.LapSummary
 import io.github.jlai403.pocketsimengineer.core.session.SessionStore
+import io.github.jlai403.pocketsimengineer.core.session.applyFilter
+import io.github.jlai403.pocketsimengineer.core.session.applySort
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
 fun LibraryScreen(
-    onOpenSession: (String) -> Unit,
+    onOpenLap: (String, Int) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val store = remember { SessionStore(context.filesDir) }
-    var groups by remember { mutableStateOf<List<SessionGroup>?>(null) }
-    var pendingDelete by remember { mutableStateOf<SessionMetadata?>(null) }
-    var reload by remember { mutableStateOf(0) }
+    var laps by remember { mutableStateOf<List<LapSummary>?>(null) }
+    var reload by remember { mutableIntStateOf(0) }
+    var filter by remember { mutableStateOf(LapFilter()) }
+    var sort by remember { mutableStateOf(LapSort.Newest) }
+    var trackMenu by remember { mutableStateOf(false) }
+    var sortMenu by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf<LapSummary?>(null) }
+    var deleting by remember { mutableStateOf<LapSummary?>(null) }
+    var renameText by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(reload) {
-        groups = withContext(Dispatchers.IO) { store.groups() }
+        laps = withContext(Dispatchers.IO) { store.summaries() }
     }
+
+    val all = laps
+    val visible = all?.applyFilter(filter)?.applySort(sort)
+    val tracks = all?.map { it.trackLabel }?.distinct()?.sorted().orEmpty()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ScreenHeader(
-            title = "Sessions",
-            subtitle = "Your laps, ready to review",
+            title = "Laps",
+            subtitle = "One lap per card · replay optional",
             actions = {
                 GhostPill("Refresh", onClick = { reload++ })
             },
         )
 
-        val data = groups
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = filter.hasReplay == null,
+                onClick = { filter = filter.copy(hasReplay = null) },
+                label = { Text("All") },
+            )
+            FilterChip(
+                selected = filter.hasReplay == true,
+                onClick = { filter = filter.copy(hasReplay = true) },
+                label = { Text("With replay") },
+            )
+            FilterChip(
+                selected = filter.hasReplay == false,
+                onClick = { filter = filter.copy(hasReplay = false) },
+                label = { Text("Without replay") },
+            )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box {
+                GhostPill(
+                    text = filter.trackLabel ?: "All tracks",
+                    onClick = { trackMenu = true },
+                )
+                DropdownMenu(expanded = trackMenu, onDismissRequest = { trackMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("All tracks") },
+                        onClick = {
+                            filter = filter.copy(trackLabel = null)
+                            trackMenu = false
+                        },
+                    )
+                    tracks.forEach { track ->
+                        DropdownMenuItem(
+                            text = { Text(track) },
+                            onClick = {
+                                filter = filter.copy(trackLabel = track)
+                                trackMenu = false
+                            },
+                        )
+                    }
+                }
+            }
+            Box {
+                GhostPill(text = sort.label, onClick = { sortMenu = true })
+                DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
+                    LapSort.entries.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.label) },
+                            onClick = {
+                                sort = option
+                                sortMenu = false
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        message?.let {
+            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+
         when {
-            data == null -> Box(
+            visible == null -> Box(
                 modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
 
-            data.isEmpty() -> SectionCard {
-                Text("No sessions yet", style = MaterialTheme.typography.titleLarge)
+            visible.isEmpty() && all.isNullOrEmpty() -> SectionCard {
+                Text("No laps yet", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "Open Record, arm capture, then drive a lap. Finished laps appear here with " +
-                        "their video and charts.",
+                    "Open Live, connect to GT7, then tap Capture this lap. Replays are optional " +
+                        "and can be added from the lap.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            visible.isEmpty() -> SectionCard {
+                Text("No laps match this filter", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Clear the filter or capture another lap.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -89,52 +176,81 @@ fun LibraryScreen(
 
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(data) { group ->
-                    GroupCard(
-                        group = group,
-                        onOpenSession = onOpenSession,
-                        onDelete = { pendingDelete = it },
+                items(visible) { lap ->
+                    LapCard(
+                        lap = lap,
+                        onOpen = { onOpenLap(lap.sessionId, lap.lapIndex) },
+                        onRename = {
+                            renaming = lap
+                            renameText = lap.trackLabel
+                        },
+                        onDelete = { deleting = lap },
                     )
                 }
             }
         }
     }
 
-    pendingDelete?.let { session ->
+    renaming?.let { lap ->
         AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text("Delete session?") },
+            onDismissRequest = { renaming = null },
+            title = { Text("Track name") },
             text = {
-                Text(
-                    "${session.trackLabel} on ${formatDate(session.createdAt)} and all its laps " +
-                        "will be removed.",
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    singleLine = true,
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
-                    pendingDelete = null
+                    val target = renaming ?: return@TextButton
+                    renaming = null
                     scope.launch {
-                        withContext(Dispatchers.IO) { store.delete(session.sessionId) }
+                        withContext(Dispatchers.IO) {
+                            store.rename(target.sessionId, renameText.trim().ifBlank { "Unknown" })
+                        }
+                        reload++
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { renaming = null }) { Text("Cancel") } },
+        )
+    }
+
+    deleting?.let { lap ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("Delete lap?") },
+            text = { Text("${lap.trackLabel} · ${lapTimeLabel(lap.lapTimeMs)} and its replay will be removed.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val target = deleting ?: return@TextButton
+                    deleting = null
+                    scope.launch {
+                        val deleted = withContext(Dispatchers.IO) {
+                            store.deleteLap(target.sessionId, target.lapIndex)
+                        }
+                        if (!deleted) message = "Lap could not be deleted."
                         reload++
                     }
                 }) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
-            },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
         )
     }
 }
 
 @Composable
-private fun GroupCard(
-    group: SessionGroup,
-    onOpenSession: (String) -> Unit,
-    onDelete: (SessionMetadata) -> Unit,
+private fun LapCard(
+    lap: LapSummary,
+    onOpen: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -142,12 +258,18 @@ private fun GroupCard(
             .clip(RoundedCornerShape(22.dp))
             .background(MaterialTheme.colorScheme.surface)
             .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(group.trackLabel, style = MaterialTheme.typography.titleLarge)
+                NumericText(lapTimeLabel(lap.lapTimeMs), style = MaterialTheme.typography.titleLarge)
                 Text(
-                    group.carName,
+                    "${lap.trackLabel} · ${lap.carName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    formatDate(lap.createdAt),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -155,49 +277,41 @@ private fun GroupCard(
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(
+                        if (lap.hasReplay) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
+                    )
                     .padding(horizontal = 10.dp, vertical = 5.dp),
             ) {
                 Text(
-                    "${group.sessions.size} sessions",
+                    if (lap.hasReplay) "Replay" else "No replay",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (lap.hasReplay) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 )
             }
         }
-
-        Spacer(Modifier.padding(vertical = 4.dp))
-
-        for (session in group.sessions) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onOpenSession(session.sessionId) }
-                    .padding(vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        formatDate(session.createdAt),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    val best = session.laps.minOfOrNull { it.lapTimeMs }
-                    Text(
-                        "${session.laps.size} laps" + (best?.let { " · best ${lapTimeLabel(it)}" } ?: ""),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                TextButton(onClick = { onDelete(session) }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text(
-                    "›",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PrimaryPill("Open", onOpen, Modifier.weight(1f))
+            GhostPill("Rename", onRename)
+            GhostPill(
+                "Delete",
+                onDelete,
+                contentColor = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }
+
+private val LapSort.label: String
+    get() = when (this) {
+        LapSort.Newest -> "Newest"
+        LapSort.Fastest -> "Fastest"
+        LapSort.Track -> "Track"
+    }
