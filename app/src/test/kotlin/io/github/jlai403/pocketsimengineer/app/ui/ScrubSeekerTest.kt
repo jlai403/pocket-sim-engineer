@@ -32,4 +32,14 @@ class ScrubSeekerTest {
 
         assertEquals(listOf(10L), seeks)
     }
+
+    @Test
+    fun `repeating the same target seeks once`() {
+        seeker.submit(10)
+        seeker.onFrameRendered()
+        seeker.submit(10)
+        seeker.onFrameRendered()
+
+        assertEquals(listOf(10L), seeks)
+    }
 }

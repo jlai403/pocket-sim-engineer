@@ -5,8 +5,12 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** How long a seek waits for its frame before the next one is issued. */
-internal const val SCRUB_FRAME_WAIT_MS = 80L
+/**
+ * How long a seek waits for its frame before the next one is issued. Exact seeks
+ * re-decode from the previous keyframe, so this is deliberately longer than a
+ * typical decode: cancelling earlier would mean no frame ever lands mid-drag.
+ */
+internal const val SCRUB_FRAME_WAIT_MS = 400L
 
 /**
  * Keeps at most one exact seek in flight and always seeks to the newest target.
@@ -19,12 +23,15 @@ internal class ScrubSeeker(
 ) {
     private val targets = Channel<Long>(Channel.CONFLATED)
     private val rendered = Channel<Unit>(Channel.CONFLATED)
+    private var lastSeeked: Long? = null
 
     init {
         scope.launch {
             for (target in targets) {
+                if (target == lastSeeked) continue
                 // A frame queued before this seek would release the wait early.
                 while (rendered.tryReceive().isSuccess) Unit
+                lastSeeked = target
                 seek(target)
                 withTimeoutOrNull(SCRUB_FRAME_WAIT_MS) { rendered.receive() }
             }
@@ -43,5 +50,6 @@ internal class ScrubSeeker(
     /** Drops queued targets, for when another control takes over the playhead. */
     fun clearPending() {
         while (targets.tryReceive().isSuccess) Unit
+        lastSeeked = null
     }
 }

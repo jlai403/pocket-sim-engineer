@@ -249,7 +249,7 @@ fun ImportSyncScreen(
     LaunchedEffect(scrubbing) {
         if (scrubbing) return@LaunchedEffect
         val target = scrubTargetMs ?: return@LaunchedEffect
-        delay(600)
+        delay(1500)
         if (scrubTargetMs == target) scrubTargetMs = null
     }
 
