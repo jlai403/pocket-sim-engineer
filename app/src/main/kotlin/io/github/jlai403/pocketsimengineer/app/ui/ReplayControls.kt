@@ -20,7 +20,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -44,19 +46,24 @@ internal const val TRANSPORT_MS = 10_000L
 
 private val FrameStepWidth = 6.dp
 
-/** Turns horizontal drag pixels into whole frames, carrying the remainder. */
+/** Turns horizontal drag pixels into whole frames, carrying the remainder and the drag total. */
 internal class FrameSteps(private val pxPerFrame: Float) {
     private var pendingPx = 0f
+
+    var totalFrames = 0
+        private set
 
     fun framesFor(dxPx: Float): Int {
         pendingPx += dxPx
         val frames = (pendingPx / pxPerFrame).toInt()
         pendingPx -= frames * pxPerFrame
+        totalFrames += frames
         return frames
     }
 
     fun reset() {
         pendingPx = 0f
+        totalFrames = 0
     }
 }
 
@@ -159,7 +166,9 @@ internal fun FrameStepRow(
 
 /**
  * A fixed needle over a horizontally scrolling ruler. Each 6 dp of travel is one
- * video frame; the slider above handles distance.
+ * video frame; the slider above handles distance. The ruler reports how far the
+ * drag has travelled in total, so callers can seek from the playhead they held
+ * when the drag started.
  */
 @Composable
 internal fun FrameRuler(
@@ -168,13 +177,19 @@ internal fun FrameRuler(
     endMs: Long,
     frameStepMs: Long,
     enabled: Boolean,
-    onFrames: (Int) -> Unit,
+    onScrubStart: () -> Unit,
+    onScrub: (framesFromStart: Int) -> Unit,
+    hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
     val pxPerFrame = with(density) { FrameStepWidth.toPx() }
     val accumulator = remember(pxPerFrame) { FrameSteps(pxPerFrame) }
     val haptics = LocalHapticFeedback.current
+    // The pointer coroutine outlives recomposition, so never capture the callbacks directly.
+    val currentOnScrubStart by rememberUpdatedState(onScrubStart)
+    val currentOnScrub by rememberUpdatedState(onScrub)
+    val currentHapticsEnabled by rememberUpdatedState(hapticsEnabled)
     val textMeasurer = rememberTextMeasurer()
     val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     val tickColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -198,13 +213,18 @@ internal fun FrameRuler(
             .pointerInput(enabled, pxPerFrame, step) {
                 if (!enabled) return@pointerInput
                 detectHorizontalDragGestures(
-                    onDragStart = { accumulator.reset() },
+                    onDragStart = {
+                        accumulator.reset()
+                        currentOnScrubStart()
+                    },
                     onHorizontalDrag = { change, dragAmount ->
                         change.consume()
                         val frames = accumulator.framesFor(dragAmount)
                         if (frames != 0) {
-                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onFrames(frames)
+                            if (currentHapticsEnabled) {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                            currentOnScrub(accumulator.totalFrames)
                         }
                     },
                     onDragCancel = { accumulator.reset() },
