@@ -3,6 +3,7 @@ package io.github.jlai403.pocketsimengineer.app.ui
 import android.app.Application
 import android.content.Context
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -11,6 +12,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -246,6 +248,39 @@ class LapPlayerScreenTest {
             compose.onAllNodesWithText("Sync pending").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Resume sync").assertExists()
+    }
+
+    @Test
+    fun `the telemetry hud shows over the replay by default`() {
+        SettingsStore(context).telemetryHud = true
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen("session-1", 1, onBack = {}, onImportSync = {})
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun `the hud stays hidden when disabled in settings`() {
+        SettingsStore(context).telemetryHud = false
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen("session-1", 1, onBack = {}, onImportSync = {})
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(0, compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().size)
     }
 
     private companion object {

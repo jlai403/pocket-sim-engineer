@@ -383,6 +383,15 @@ fun LapPlayerScreen(
                         },
                         modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                     )
+                    if (settings.telemetryHud) {
+                        TelemetryHud(
+                            window = samples,
+                            lap = currentLap,
+                            cursorMs = cursorMs,
+                            imperial = settings.imperialUnits,
+                            modifier = Modifier.align(Alignment.TopCenter).padding(8.dp),
+                        )
+                    }
                 }
             } else {
                 SectionCard(title = "Replay") {
