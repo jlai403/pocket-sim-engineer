@@ -16,16 +16,19 @@ class TrackSignatureCodecTest {
                   "min_x": 0.0,
                   "max_x": 100.0,
                   "min_z": 0.0,
-                  "max_z": 100.0
+                  "max_z": 100.0,
+                  "path": [[0.0, 0.0], [100.0, 0.0]],
+                  "reverse": {"official_id": "b", "official_name": "A Circuit Reverse"}
                 }
               ]
             }
         """.trimIndent()
 
-        val signatures = TrackSignatureCodec.decode(json)
-        assertEquals(1, signatures.size)
-        assertEquals("a", signatures.single().officialId)
-        assertEquals("A Circuit", signatures.single().name)
-        assertEquals(400.0, signatures.single().lengthM, 0.01)
+        val signature = TrackSignatureCodec.decode(json).single()
+        assertEquals("a", signature.officialId)
+        assertEquals("A Circuit", signature.name)
+        assertEquals(400.0, signature.lengthM, 0.01)
+        assertEquals(listOf(TrackPoint(0.0, 0.0), TrackPoint(100.0, 0.0)), signature.path)
+        assertEquals("A Circuit Reverse", signature.reverseName)
     }
 }

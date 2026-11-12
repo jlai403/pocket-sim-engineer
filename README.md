@@ -36,7 +36,7 @@ The phone records no video and no audio. Only UDP 33739/33740 crosses the networ
 - GT7 packet formats A, B, `~`, and C: Salsa20 decrypt, correct XOR constant per size, ~60 Hz parse.
 - Decode-failure diagnostics with packet size and reason.
 - Single-lap capture: line-to-line, one session per lap, no video required.
-- Track identification from lap coordinates using a bundled CC0 signature table.
+- Track identification from lap coordinates and bundled racing lines, including reverse layouts; ambiguous laps offer a candidate picker, and old `Unknown` laps are backfilled.
 - Flat lap library with filters (all / with replay / without replay, track) and sort.
 - Replay import through the Android share sheet and SAF file picker.
 - Frame-step sync screen: exact seeks, ±1/±10/±100 ms, track %, preview, hard block for short clips.

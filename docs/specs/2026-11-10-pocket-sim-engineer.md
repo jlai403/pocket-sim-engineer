@@ -77,7 +77,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 ### Identity and library
 
-- Track name is inferred from lap coordinates using a bundled signature table; manual rename overrides it. Ambiguous matches stay `Unknown`.
+- Track name is inferred from lap coordinates and the bundled racing lines; manual rename overrides it. Ambiguous matches stay `Unknown` until the user picks from the ranked candidates.
 - Car name is `Car #<code>` until a bundled lookup exists.
 - Library: flat lap cards, filters (all / with replay / without replay, track), sort (newest / fastest / track), lap time prominent.
 - Track map and charts are generated from telemetry positions.
@@ -154,8 +154,12 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 ### 8.4 Track identification
 
 - Compute lap length and X/Z bounding box from positions; skip steps over 200 m.
-- Match against bundled signatures: length within 4%, box centre within 120 m, extents within 20%.
-- Apply only a unique match; leave ambiguous laps `Unknown`.
+- Gate candidates by length (4%) and box (centre 120 m, extents 20%).
+- Rank survivors by the share of lap positions within 25 m of the bundled racing line.
+- A lap running a line backwards is named after the reverse configuration when one exists.
+- Apply a name only when the best line covers at least 90% of the lap and leads the runner-up by 0.5 points; collisions that share a line stay `Unknown`.
+- Offer the ranked candidates in the library, with free-text naming as the fallback.
+- Backfill `Unknown` laps from stored telemetry once per signature version.
 - Manual rename always wins.
 
 ### 8.5 Replay import
@@ -271,6 +275,8 @@ The core is plain Kotlin and the session files are portable. A Rust core or desk
 
 - Decode failures are counted and the first distinct size/reason is logged and shown in notification details.
 - Connected mid-lap: capture is disabled until the next line.
+- Ambiguous track: the lap stays `Unknown` and the library offers the ranked candidates.
+- Laps captured before track identification existed are named once from stored telemetry.
 - Clip shorter than the lap: Save is blocked with the missing duration.
 - Unreadable share URI: clear message; use the file picker.
 - Process death during sync: `sourceFile` remains; the lap offers **Resume sync**.

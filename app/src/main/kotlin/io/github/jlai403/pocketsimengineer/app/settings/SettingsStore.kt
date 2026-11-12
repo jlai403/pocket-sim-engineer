@@ -21,10 +21,16 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_IMPERIAL, false)
         set(value) = prefs.edit().putBoolean(KEY_IMPERIAL, value).apply()
 
+    /** Last track-identification backfill this install completed. */
+    var trackIdentificationVersion: Int
+        get() = prefs.getInt(KEY_TRACK_ID_VERSION, 0)
+        set(value) = prefs.edit().putInt(KEY_TRACK_ID_VERSION, value).apply()
+
     private companion object {
         // The pre-existing preferences file; changing it would drop the saved PS5 address.
         const val PREFS = "settings"
         const val KEY_IP = "ps5_ip"
         const val KEY_IMPERIAL = "imperial_units"
+        const val KEY_TRACK_ID_VERSION = "track_id_version"
     }
 }

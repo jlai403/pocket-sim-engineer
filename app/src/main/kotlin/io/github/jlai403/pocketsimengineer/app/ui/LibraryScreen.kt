@@ -34,12 +34,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import io.github.jlai403.pocketsimengineer.app.track.TrackCatalog
+import io.github.jlai403.pocketsimengineer.app.track.TrackNamer
 import io.github.jlai403.pocketsimengineer.core.session.LapFilter
 import io.github.jlai403.pocketsimengineer.core.session.LapSort
 import io.github.jlai403.pocketsimengineer.core.session.LapSummary
 import io.github.jlai403.pocketsimengineer.core.session.SessionStore
 import io.github.jlai403.pocketsimengineer.core.session.applyFilter
 import io.github.jlai403.pocketsimengineer.core.session.applySort
+import io.github.jlai403.pocketsimengineer.core.track.TrackCandidate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,6 +55,8 @@ fun LibraryScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val store = remember { SessionStore(context.filesDir) }
+    val settings = remember { SettingsStore(context) }
+    val namer = remember { TrackNamer(store, TrackCatalog(context)) }
     var laps by remember { mutableStateOf<List<LapSummary>?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     var filter by remember { mutableStateOf(LapFilter()) }
@@ -59,11 +65,39 @@ fun LibraryScreen(
     var sortMenu by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<LapSummary?>(null) }
     var deleting by remember { mutableStateOf<LapSummary?>(null) }
+    var choosing by remember { mutableStateOf<LapSummary?>(null) }
+    var choices by remember { mutableStateOf<List<TrackCandidate>?>(null) }
     var renameText by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(reload) {
+        if (settings.trackIdentificationVersion < TrackNamer.VERSION) {
+            namer.identifyUnknownLaps()
+            settings.trackIdentificationVersion = TrackNamer.VERSION
+        }
         laps = withContext(Dispatchers.IO) { store.summaries() }
+    }
+
+    fun rename(lap: LapSummary, name: String) {
+        scope.launch {
+            withContext(Dispatchers.IO) { store.rename(lap.sessionId, name) }
+            reload++
+        }
+    }
+
+    fun chooseTrack(lap: LapSummary) {
+        if (lap.trackLabel != TrackNamer.UNKNOWN) {
+            renaming = lap
+            renameText = lap.trackLabel
+            return
+        }
+        choosing = lap
+        choices = null
+        scope.launch {
+            choices = withContext(Dispatchers.IO) {
+                namer.candidates(lap.sessionId, lap.lapIndex)
+            }
+        }
     }
 
     val all = laps
@@ -181,11 +215,20 @@ fun LibraryScreen(
                 items(visible) { lap ->
                     LapCard(
                         lap = lap,
+                        menuOpen = choosing == lap,
+                        candidates = if (choosing == lap) choices else null,
                         onOpen = { onOpenLap(lap.sessionId, lap.lapIndex) },
-                        onRename = {
-                            renaming = lap
-                            renameText = lap.trackLabel
+                        onChooseTrack = { chooseTrack(lap) },
+                        onPickTrack = { name ->
+                            choosing = null
+                            rename(lap, name)
                         },
+                        onCustomName = {
+                            renaming = lap
+                            renameText = ""
+                            choosing = null
+                        },
+                        onDismissMenu = { choosing = null },
                         onDelete = { deleting = lap },
                     )
                 }
@@ -208,12 +251,7 @@ fun LibraryScreen(
                 TextButton(onClick = {
                     val target = renaming ?: return@TextButton
                     renaming = null
-                    scope.launch {
-                        withContext(Dispatchers.IO) {
-                            store.rename(target.sessionId, renameText.trim().ifBlank { "Unknown" })
-                        }
-                        reload++
-                    }
+                    rename(target, renameText.trim().ifBlank { TrackNamer.UNKNOWN })
                 }) { Text("Save") }
             },
             dismissButton = { TextButton(onClick = { renaming = null }) { Text("Cancel") } },
@@ -248,8 +286,13 @@ fun LibraryScreen(
 @Composable
 private fun LapCard(
     lap: LapSummary,
+    menuOpen: Boolean,
+    candidates: List<TrackCandidate>?,
     onOpen: () -> Unit,
-    onRename: () -> Unit,
+    onChooseTrack: () -> Unit,
+    onPickTrack: (String) -> Unit,
+    onCustomName: () -> Unit,
+    onDismissMenu: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Column(
@@ -299,12 +342,58 @@ private fun LapCard(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PrimaryPill("Open", onOpen, Modifier.weight(1f))
-            GhostPill("Rename", onRename)
+            TrackChoiceButton(
+                unknown = lap.trackLabel == TrackNamer.UNKNOWN,
+                expanded = menuOpen,
+                candidates = candidates,
+                onOpen = onChooseTrack,
+                onDismiss = onDismissMenu,
+                onPick = onPickTrack,
+                onCustom = onCustomName,
+            )
             GhostPill(
                 "Delete",
                 onDelete,
                 contentColor = MaterialTheme.colorScheme.error,
             )
+        }
+    }
+}
+
+/** Rename for a named lap, or a candidate list for one identification could not settle. */
+@Composable
+internal fun TrackChoiceButton(
+    unknown: Boolean,
+    expanded: Boolean,
+    candidates: List<TrackCandidate>?,
+    onOpen: () -> Unit,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit,
+    onCustom: () -> Unit,
+) {
+    Box {
+        GhostPill(if (unknown) "Choose track" else "Rename", onOpen)
+        if (!unknown) return@Box
+        DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+            val offered = candidates
+            if (offered == null) {
+                DropdownMenuItem(
+                    text = { Text("Finding tracks…") },
+                    onClick = {},
+                    enabled = false,
+                )
+            } else {
+                offered.forEach { candidate ->
+                    DropdownMenuItem(
+                        text = { Text(candidate.name) },
+                        onClick = { onPick(candidate.name) },
+                    )
+                }
+                DropdownMenuItem(
+                    text = { Text("Enter a name…") },
+                    onClick = onCustom,
+                )
+            }
         }
     }
 }

@@ -17,6 +17,10 @@ object TrackSignatureCodec {
                 maxX = dto.maxX,
                 minZ = dto.minZ,
                 maxZ = dto.maxZ,
+                path = dto.path.orEmpty().mapNotNull { point ->
+                    if (point.size == 2) TrackPoint(point[0], point[1]) else null
+                },
+                reverseName = dto.reverse?.officialName.orEmpty(),
             )
         }
 
@@ -32,5 +36,13 @@ object TrackSignatureCodec {
         @SerialName("max_x") val maxX: Double,
         @SerialName("min_z") val minZ: Double,
         @SerialName("max_z") val maxZ: Double,
+        @SerialName("path") val path: List<List<Double>>? = null,
+        @SerialName("reverse") val reverse: ReverseDto? = null,
+    )
+
+    @Serializable
+    private data class ReverseDto(
+        @SerialName("official_id") val officialId: String = "",
+        @SerialName("official_name") val officialName: String = "",
     )
 }

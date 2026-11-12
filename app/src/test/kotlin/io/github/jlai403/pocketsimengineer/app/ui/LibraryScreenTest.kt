@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
+import io.github.jlai403.pocketsimengineer.core.track.TrackCandidate
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -107,6 +108,56 @@ class LibraryScreenTest {
         compose.onNodeWithText("Fastest").performClick()
 
         compose.onNodeWithText("Fastest").assertExists()
+    }
+
+    @Test
+    fun `unknown lap offers a track chooser`() {
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(trackLabel = "Unknown", lapTimesMs = listOf(90_000)),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Choose track").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Choose track").performClick()
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Enter a name…").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Enter a name…").assertExists()
+    }
+
+    @Test
+    fun `track chooser lists candidates and reports the pick`() {
+        var picked: String? = null
+        var custom = 0
+        compose.setContent {
+            PocketSimEngineerTheme {
+                TrackChoiceButton(
+                    unknown = true,
+                    expanded = true,
+                    candidates = listOf(
+                        TrackCandidate("Road Atlanta", "a", 1f),
+                        TrackCandidate("Watkins Glen Short", "b", 0.4f),
+                    ),
+                    onOpen = {},
+                    onDismiss = {},
+                    onPick = { picked = it },
+                    onCustom = { custom++ },
+                )
+            }
+        }
+
+        compose.onNodeWithText("Road Atlanta").assertExists()
+        compose.onNodeWithText("Watkins Glen Short").performClick()
+        assertEquals("Watkins Glen Short", picked)
+
+        compose.onNodeWithText("Enter a name…").performClick()
+        assertEquals(1, custom)
     }
 
     private companion object {
