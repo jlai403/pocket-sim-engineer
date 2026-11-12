@@ -16,6 +16,7 @@ import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.updater.UpdateManager
 import io.github.jlai403.pocketsimengineer.core.update.UpdateManifest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -39,6 +40,7 @@ class SettingsScreenTest {
     @Before
     fun clearProfile() {
         DriverProfileStore(context).clear()
+        SettingsStore(context).previewEmptyLibrary = false
     }
 
     @Test
@@ -163,6 +165,19 @@ class SettingsScreenTest {
         compose.onNodeWithTag("imperial").performScrollTo().performClick()
 
         assertTrue(SettingsStore(context).imperialUnits)
+    }
+
+    @Test
+    fun `developer toggle previews the empty library`() {
+        compose.setContent {
+            PocketSimEngineerTheme { SettingsScreen() }
+        }
+
+        compose.onNodeWithTag("dev-preview-empty").performScrollTo().performClick()
+        assertTrue(SettingsStore(context).previewEmptyLibrary)
+
+        compose.onNodeWithTag("dev-preview-empty").performClick()
+        assertFalse(SettingsStore(context).previewEmptyLibrary)
     }
 
     private companion object {

@@ -21,6 +21,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_IMPERIAL, false)
         set(value) = prefs.edit().putBoolean(KEY_IMPERIAL, value).apply()
 
+    /** Developer preview: show the empty library while laps stay on disk. */
+    var previewEmptyLibrary: Boolean
+        get() = prefs.getBoolean(KEY_PREVIEW_EMPTY, false)
+        set(value) = prefs.edit().putBoolean(KEY_PREVIEW_EMPTY, value).apply()
+
     /** Last track-identification backfill this install completed. */
     var trackIdentificationVersion: Int
         get() = prefs.getInt(KEY_TRACK_ID_VERSION, 0)
@@ -31,6 +36,7 @@ class SettingsStore(context: Context) {
         const val PREFS = "settings"
         const val KEY_IP = "ps5_ip"
         const val KEY_IMPERIAL = "imperial_units"
+        const val KEY_PREVIEW_EMPTY = "preview_empty_library"
         const val KEY_TRACK_ID_VERSION = "track_id_version"
     }
 }
