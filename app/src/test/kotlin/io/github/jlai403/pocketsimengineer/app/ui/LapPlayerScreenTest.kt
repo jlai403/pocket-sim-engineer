@@ -8,6 +8,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
+import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,6 +25,12 @@ class LapPlayerScreenTest {
     val compose = createComposeRule()
 
     private val context: Context get() = ApplicationProvider.getApplicationContext()
+
+    @Before
+    fun resetPlaybackPreferences() {
+        SettingsStore(context).defaultPlaybackSpeed = 1f
+        SettingsStore(context).telemetryHud = true
+    }
 
     @Test
     fun `lap without a clip still shows charts and add replay`() {
@@ -97,10 +105,32 @@ class LapPlayerScreenTest {
             compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Add replay").assertDoesNotExist()
-        compose.onNodeWithText("Replace replay").assertExists()
         compose.onNodeWithContentDescription("Frame ruler").assertExists()
-        compose.onNodeWithText("−1 frame").assertExists()
-        compose.onNodeWithText("+1 frame").assertExists()
+        compose.onNodeWithText("−1 frame").assertDoesNotExist()
+        compose.onNodeWithText("+1 frame").assertDoesNotExist()
+        compose.onNodeWithText("1×").assertExists()
+    }
+
+    @Test
+    fun `the speed menu offers playback rates`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("1×").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("1×").performClick()
+        compose.onNodeWithText("2×").assertExists()
     }
 
     @Test

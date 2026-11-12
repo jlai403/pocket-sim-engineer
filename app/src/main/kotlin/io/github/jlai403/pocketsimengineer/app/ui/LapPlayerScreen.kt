@@ -22,12 +22,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -63,7 +63,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.abs
-import kotlin.math.roundToLong
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -117,11 +116,16 @@ fun LapPlayerScreen(
     var scrubBaseUs by remember { mutableLongStateOf(0L) }
     var message by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
+    var playbackSpeed by remember { mutableFloatStateOf(settings.defaultPlaybackSpeed) }
     // The frame the finger asked for; the decoder may land a few frames behind it.
     var scrubTargetMs by remember { mutableStateOf<Long?>(null) }
     var scrubbing by remember { mutableStateOf(false) }
 
     lateinit var scrubSeeker: ScrubSeeker
+    LaunchedEffect(playbackSpeed) {
+        player.setPlaybackSpeed(playbackSpeed)
+    }
+
     fun seekClip(targetMs: Long, fromScrub: Boolean = false) {
         val clamped = targetMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
         player.seekTo(clamped)
@@ -234,18 +238,9 @@ fun LapPlayerScreen(
             .coerceIn(startMs, endMs.coerceAtLeast(startMs))
     }
 
-    fun seekFramesFrom(baseUs: Long, frames: Int) {
-        scrubTarget(baseUs, frames)?.let { seekClip(it) }
-    }
-
-    fun stepFrames(frames: Int) = seekFramesFrom(displayedUs, frames)
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             title = lap?.let { "Lap ${it.index} · ${lapTimeLabel(it.lapTimeMs)}" } ?: "Lap",
             subtitle = session?.trackLabel,
             onBack = onBack,
@@ -284,11 +279,15 @@ fun LapPlayerScreen(
         }
         val currentLap = lap
 
+        val events = remember(samples, currentLap) {
+            lapEvents(samples.lapWindow(currentLap), currentLap)
+        }
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(top = 14.dp),
+                .padding(horizontal = 20.dp)
+                .padding(top = 14.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (videoFile != null) {
@@ -367,76 +366,6 @@ fun LapPlayerScreen(
                 }
             }
 
-            if (videoFile != null) {
-                NumericText(
-                    "%s / %s".format(
-                        formatMillis(cursorMs.toLong()),
-                        lapTimeLabel(currentLap.lapTimeMs),
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Slider(
-                    value = cursorMs.toFloat().coerceIn(0f, currentLap.lapTimeMs.toFloat()),
-                    onValueChange = { seekLap(it.roundToLong()) },
-                    valueRange = 0f..currentLap.lapTimeMs.coerceAtLeast(1).toFloat(),
-                    enabled = durationMs > 0 && currentLap.lapTimeMs > 0,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "0:00.000",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        lapTimeLabel(currentLap.lapTimeMs),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                FrameRuler(
-                    valueMs = cursorMs.toLong(),
-                    startMs = 0,
-                    endMs = currentLap.lapTimeMs.toLong(),
-                    frameStepMs = frameStepMs,
-                    enabled = durationMs > 0,
-                    onScrubStart = {
-                        scrubBaseUs = displayedUs
-                        scrubTargetMs = null
-                        scrubbing = true
-                    },
-                    onScrub = { frames ->
-                        scrubTarget(scrubBaseUs, frames)?.let { target ->
-                            scrubTargetMs = target
-                            scrubSeeker.submit(target)
-                        }
-                    },
-                    onScrubEnd = { scrubbing = false },
-                    hapticsEnabled = settings.hapticsEnabled,
-                )
-                Text(
-                    "Frame ruler · drag to step one frame",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                TransportRow(
-                    playing = playing,
-                    enabled = durationMs > 0,
-                    onRewind = { seekLap(cursorMs - TRANSPORT_MS) },
-                    onPlayPause = {
-                        if (player.isPlaying) {
-                            player.pause()
-                        } else {
-                            if (cursorMs >= currentLap.lapTimeMs) seekLap(0)
-                            player.play()
-                        }
-                    },
-                    onForward = { seekLap(cursorMs + TRANSPORT_MS) },
-                )
-                FrameStepRow(enabled = durationMs > 0, onStep = ::stepFrames)
-            }
-
             DriverSection(
                 sessionId = sessionId,
                 lapIndex = lapIndex,
@@ -464,6 +393,42 @@ fun LapPlayerScreen(
             }
 
             Spacer(Modifier.padding(bottom = 8.dp))
+        }
+
+        if (videoFile != null) {
+            PlaybackFooter(
+                cursorMs = cursorMs,
+                lapTimeMs = currentLap.lapTimeMs,
+                frameStepMs = frameStepMs,
+                enabled = durationMs > 0,
+                playing = playing,
+                speed = playbackSpeed,
+                events = events,
+                hapticsEnabled = settings.hapticsEnabled,
+                onScrubStart = {
+                    scrubBaseUs = displayedUs
+                    scrubTargetMs = null
+                    scrubbing = true
+                },
+                onScrub = { frames ->
+                    scrubTarget(scrubBaseUs, frames)?.let { target ->
+                        scrubTargetMs = target
+                        scrubSeeker.submit(target)
+                    }
+                },
+                onScrubEnd = { scrubbing = false },
+                onRewind = { seekLap(cursorMs - TRANSPORT_MS) },
+                onPlayPause = {
+                    if (player.isPlaying) {
+                        player.pause()
+                    } else {
+                        if (cursorMs >= currentLap.lapTimeMs) seekLap(0)
+                        player.play()
+                    }
+                },
+                onForward = { seekLap(cursorMs + TRANSPORT_MS) },
+                onSpeedChange = { playbackSpeed = it },
+            )
         }
     }
 }

@@ -4,16 +4,24 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -21,8 +29,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -36,10 +46,12 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -107,12 +119,14 @@ private fun TransportButton(
     enabled: Boolean,
     onClick: () -> Unit,
     primary: Boolean = false,
+    size: Dp = if (primary) 64.dp else 52.dp,
+    iconSize: Dp = if (primary) 34.dp else 26.dp,
 ) {
     IconButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
-            .size(if (primary) 64.dp else 52.dp)
+            .size(size)
             .clip(CircleShape)
             .background(
                 if (primary) {
@@ -130,8 +144,115 @@ private fun TransportButton(
             } else {
                 MaterialTheme.colorScheme.onSurface
             },
-            modifier = Modifier.size(if (primary) 34.dp else 26.dp),
+            modifier = Modifier.size(iconSize),
         )
+    }
+}
+
+/** Sticky playback controls for the lap screen. */
+@Composable
+internal fun PlaybackFooter(
+    cursorMs: Int,
+    lapTimeMs: Int,
+    frameStepMs: Long,
+    enabled: Boolean,
+    playing: Boolean,
+    speed: Float,
+    events: List<LapEvent>,
+    hapticsEnabled: Boolean,
+    onScrubStart: () -> Unit,
+    onScrub: (Int) -> Unit,
+    onScrubEnd: () -> Unit,
+    onRewind: () -> Unit,
+    onPlayPause: () -> Unit,
+    onForward: () -> Unit,
+    onSpeedChange: (Float) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        HorizontalDivider(thickness = 1.dp, color = Hairline)
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            NumericText(
+                "%s / %s".format(formatMillis(cursorMs.toLong()), lapTimeLabel(lapTimeMs)),
+                style = MaterialTheme.typography.labelMedium,
+            )
+            FrameRuler(
+                valueMs = cursorMs.toLong(),
+                startMs = 0,
+                endMs = lapTimeMs.toLong(),
+                frameStepMs = frameStepMs,
+                enabled = enabled,
+                onScrubStart = onScrubStart,
+                onScrub = onScrub,
+                onScrubEnd = onScrubEnd,
+                events = events,
+                showProgress = true,
+                hapticsEnabled = hapticsEnabled,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                TransportButton(
+                    icon = TransportIcons.Rewind,
+                    description = "Rewind 10 seconds",
+                    enabled = enabled,
+                    onClick = onRewind,
+                    size = 36.dp,
+                    iconSize = 20.dp,
+                )
+                TransportButton(
+                    icon = if (playing) TransportIcons.Pause else Icons.Filled.PlayArrow,
+                    description = if (playing) "Pause" else "Play",
+                    enabled = enabled,
+                    onClick = onPlayPause,
+                    primary = true,
+                    size = 44.dp,
+                    iconSize = 24.dp,
+                )
+                TransportButton(
+                    icon = TransportIcons.Forward,
+                    description = "Forward 10 seconds",
+                    enabled = enabled,
+                    onClick = onForward,
+                    size = 36.dp,
+                    iconSize = 20.dp,
+                )
+                Spacer(Modifier.weight(1f))
+                SpeedPill(speed = speed, onSpeedChange = onSpeedChange)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpeedPill(speed: Float, onSpeedChange: (Float) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        GhostPill(
+            text = playbackSpeedLabel(speed),
+            onClick = { open = true },
+            modifier = Modifier.testTag("speed-menu"),
+            trailingIcon = Icons.Filled.KeyboardArrowDown,
+        )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            PLAYBACK_SPEEDS.forEach { rate ->
+                DropdownMenuItem(
+                    text = { Text(playbackSpeedLabel(rate)) },
+                    onClick = {
+                        onSpeedChange(rate)
+                        open = false
+                    },
+                )
+            }
+        }
     }
 }
 
