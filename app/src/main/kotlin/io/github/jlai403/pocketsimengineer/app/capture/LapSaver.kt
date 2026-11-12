@@ -35,7 +35,7 @@ class LapSaver(
         writer.writeLap(
             boundary,
             videoFile = "",
-            videoStartOffsetMs = 0,
+            leadInMs = 0,
             driverPsnId = driverPsnId(),
         )
         writer.finalize(rawDeleted = true)

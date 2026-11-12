@@ -76,3 +76,12 @@ fun lapTimeLabel(ms: Int): String {
     val millis = ms % 1_000
     return "%d:%02d.%03d".format(minutes, seconds, millis)
 }
+
+/** Clip and lap timeline label with millisecond precision; zero prints as `0:00.000`. */
+fun formatMillis(ms: Long): String {
+    if (ms < 0) return "-"
+    val minutes = ms / 60_000
+    val seconds = (ms % 60_000) / 1_000
+    val millis = ms % 1_000
+    return "%d:%02d.%03d".format(minutes, seconds, millis)
+}

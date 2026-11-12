@@ -114,7 +114,7 @@ class SessionStore(private val rootDir: File) {
         sessionId: String,
         lapIndex: Int,
         videoFile: String,
-        videoStartOffsetMs: Int,
+        leadInMs: Int,
     ): SessionMetadata? {
         val metadata = load(sessionId) ?: return null
         val lap = metadata.laps.firstOrNull { it.index == lapIndex } ?: return null
@@ -125,7 +125,7 @@ class SessionStore(private val rootDir: File) {
             sessionId,
             lap.copy(
                 videoFile = videoFile,
-                videoStartOffsetMs = videoStartOffsetMs,
+                leadInMs = leadInMs,
                 syncOffsetMs = 0,
                 sourceFile = null,
                 needsCut = false,

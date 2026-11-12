@@ -2,6 +2,7 @@ package io.github.jlai403.pocketsimengineer.core.session
 
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class SessionCodecTest {
@@ -58,10 +59,25 @@ class SessionCodecTest {
             endNanos = 90_000_000_000L,
             sampleCount = 5400,
             videoFile = "lap-001.mp4",
-            videoStartOffsetMs = 2000,
+            leadInMs = 2000,
             syncOffsetMs = 0,
         )
         assertEquals(lap, SessionJsonCodec.decodeLap(SessionJsonCodec.encodeLap(lap)))
+    }
+
+    @Test
+    fun `lap json keeps the legacy lead-in key`() {
+        val lap = LapMetadata(
+            index = 1,
+            lapTimeMs = 90_000,
+            startNanos = 0L,
+            endNanos = 90_000_000_000L,
+            sampleCount = 5400,
+            videoFile = "lap-001.mp4",
+            leadInMs = 2000,
+        )
+
+        assertTrue("videoStartOffsetMs" in SessionJsonCodec.encodeLap(lap))
     }
 
     @Test

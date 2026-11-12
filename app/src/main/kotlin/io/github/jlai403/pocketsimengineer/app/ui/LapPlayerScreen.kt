@@ -18,7 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -31,6 +36,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -42,8 +48,10 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.ui.PlayerView
 import io.github.jlai403.pocketsimengineer.app.replay.PlayStationApp
+import io.github.jlai403.pocketsimengineer.app.replay.probeClip
 import io.github.jlai403.pocketsimengineer.app.share.Sharing
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.core.model.Sample
@@ -55,6 +63,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.roundToLong
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -94,9 +103,16 @@ fun LapPlayerScreen(
         ?.takeIf { !it.needsCut && it.videoFile != session?.rawFile }
         ?.let { File(store.sessionDir(sessionId), it.videoFile) }
         ?.takeIf { it.isFile }
-    val player = remember(sessionId, lapIndex) { ExoPlayer.Builder(context).build() }
+    val player = remember(sessionId, lapIndex) {
+        ExoPlayer.Builder(context).build().apply {
+            setSeekParameters(SeekParameters.EXACT)
+        }
+    }
 
     var positionMs by remember { mutableLongStateOf(0L) }
+    var renderedMs by remember { mutableLongStateOf(-1L) }
+    var durationMs by remember { mutableLongStateOf(0L) }
+    var frameStepMs by remember { mutableLongStateOf(33L) }
     var message by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
 
@@ -119,6 +135,9 @@ fun LapPlayerScreen(
             }
         }
         player.addListener(listener)
+        player.setVideoFrameMetadataListener { presentationTimeUs, _, _, _ ->
+            renderedMs = presentationTimeUs / 1_000
+        }
         onDispose {
             player.removeListener(listener)
             player.release()
@@ -127,21 +146,52 @@ fun LapPlayerScreen(
 
     LaunchedEffect(videoFile?.absolutePath) {
         val file = videoFile ?: return@LaunchedEffect
-        player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
-        player.prepare()
-        player.playWhenReady = true
+        val probe = withContext(Dispatchers.IO) { probeClip(file) }
+        durationMs = probe.durationMs
+        frameStepMs = probe.frameMs
+        val start = lap?.let {
+            PlaybackCursor.clipMs(0, it.leadInMs, it.syncOffsetMs)
+        } ?: 0L
+        val ready = start.coerceIn(0L, probe.durationMs.coerceAtLeast(0L))
+        withContext(Dispatchers.Main) {
+            player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
+            player.seekTo(ready)
+            player.prepare()
+            player.playWhenReady = true
+            positionMs = ready
+        }
     }
 
-    LaunchedEffect(player, playing) {
-        while (playing) {
-            positionMs = player.currentPosition
+    LaunchedEffect(player) {
+        while (true) {
+            if (player.duration > 0) durationMs = maxOf(durationMs, player.duration)
+            if (player.isPlaying) positionMs = player.currentPosition
             delay(50)
         }
     }
 
+    fun seekClip(targetMs: Long) {
+        val clamped = targetMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
+        player.seekTo(clamped)
+        positionMs = clamped
+        renderedMs = -1L
+        player.pause()
+    }
+
+    fun seekLap(targetMs: Long) {
+        val active = lap ?: return
+        val clamped = targetMs.coerceIn(0L, active.lapTimeMs.toLong())
+        seekClip(PlaybackCursor.clipMs(clamped.toInt(), active.leadInMs, active.syncOffsetMs))
+    }
+
+    val displayedMs = if (renderedMs >= 0) renderedMs else positionMs
     val cursorMs = lap?.let {
-        PlaybackCursor.telemetryMs(positionMs, it.videoStartOffsetMs, it.syncOffsetMs, it.lapTimeMs)
+        PlaybackCursor.telemetryMs(displayedMs, it.leadInMs, it.syncOffsetMs, it.lapTimeMs)
     } ?: 0
+
+    fun stepFrames(frames: Int) {
+        seekLap(cursorMs + frames * frameStepMs)
+    }
 
     Column(
         modifier = Modifier
@@ -185,6 +235,7 @@ fun LapPlayerScreen(
             )
             return@Column
         }
+        val currentLap = lap
 
         Column(
             modifier = Modifier
@@ -204,28 +255,26 @@ fun LapPlayerScreen(
                         factory = { viewContext ->
                             PlayerView(viewContext).apply {
                                 this.player = player
-                                useController = true
+                                useController = false
                             }
                         },
                         modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GhostPill(
-                        "Replace replay",
-                        onClick = { importLauncher.launch(arrayOf("video/*")) },
-                        modifier = Modifier.weight(1f),
+                if (currentLap.sourceFile != null) {
+                    PrimaryPill(
+                        text = "Resume sync",
+                        onClick = { onImportSync(null) },
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                    GhostPill("PS App", onClick = { openPlayStationApp() })
-                    if (lap.sourceFile != null) {
-                        GhostPill(
-                            "Resume import",
-                            onClick = { onImportSync(null) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
                 }
-                if (lap.sourceFile != null) {
+                ReplaySourceButton(
+                    text = "Replace replay",
+                    primary = false,
+                    onFiles = { importLauncher.launch(arrayOf("video/*")) },
+                    onPlayStation = { openPlayStationApp() },
+                )
+                if (currentLap.sourceFile != null) {
                     Text(
                         "A newer clip is waiting to be synced. The current replay still plays.",
                         style = MaterialTheme.typography.bodySmall,
@@ -234,23 +283,22 @@ fun LapPlayerScreen(
                 }
             } else {
                 SectionCard(title = "Replay") {
-                    if (lap.sourceFile != null) {
+                    if (currentLap.sourceFile != null) {
                         Text(
-                            "Replay imported — sync not finished",
+                            "Clip imported — sync not finished",
                             style = MaterialTheme.typography.titleMedium,
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            GhostPill(
-                                "Resume sync",
-                                onClick = { onImportSync(null) },
-                                modifier = Modifier.weight(1f),
-                            )
-                            GhostPill(
-                                "Choose another clip",
-                                onClick = { importLauncher.launch(arrayOf("video/*")) },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
+                        PrimaryPill(
+                            text = "Resume sync",
+                            onClick = { onImportSync(null) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        ReplaySourceButton(
+                            text = "Choose another clip",
+                            primary = false,
+                            onFiles = { importLauncher.launch(arrayOf("video/*")) },
+                            onPlayStation = { openPlayStationApp() },
+                        )
                     } else {
                         Text("No replay attached", style = MaterialTheme.typography.titleLarge)
                         Text(
@@ -259,29 +307,81 @@ fun LapPlayerScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            PrimaryPill(
-                                text = "Add replay",
-                                onClick = { importLauncher.launch(arrayOf("video/*")) },
-                                modifier = Modifier.weight(1f),
-                            )
-                            GhostPill("PS App", onClick = { openPlayStationApp() })
-                        }
+                        ReplaySourceButton(
+                            text = "Add replay",
+                            primary = true,
+                            onFiles = { importLauncher.launch(arrayOf("video/*")) },
+                            onPlayStation = { openPlayStationApp() },
+                        )
                     }
                 }
+            }
+
+            if (videoFile != null) {
+                NumericText(
+                    "%s / %s".format(
+                        formatMillis(cursorMs.toLong()),
+                        lapTimeLabel(currentLap.lapTimeMs),
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Slider(
+                    value = cursorMs.toFloat().coerceIn(0f, currentLap.lapTimeMs.toFloat()),
+                    onValueChange = { seekLap(it.roundToLong()) },
+                    valueRange = 0f..currentLap.lapTimeMs.coerceAtLeast(1).toFloat(),
+                    enabled = durationMs > 0 && currentLap.lapTimeMs > 0,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "0:00.000",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        lapTimeLabel(currentLap.lapTimeMs),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                FrameRuler(
+                    valueMs = cursorMs.toLong(),
+                    startMs = 0,
+                    endMs = currentLap.lapTimeMs.toLong(),
+                    frameStepMs = frameStepMs,
+                    enabled = durationMs > 0,
+                    onFrames = { frames -> stepFrames(frames) },
+                )
+                Text(
+                    "Frame ruler · drag to step one frame",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TransportRow(
+                    playing = playing,
+                    enabled = durationMs > 0,
+                    onRewind = { seekLap(cursorMs - TRANSPORT_MS) },
+                    onPlayPause = {
+                        if (player.isPlaying) {
+                            player.pause()
+                        } else {
+                            if (cursorMs >= currentLap.lapTimeMs) seekLap(0)
+                            player.play()
+                        }
+                    },
+                    onForward = { seekLap(cursorMs + TRANSPORT_MS) },
+                )
+                FrameStepRow(enabled = durationMs > 0, onStep = ::stepFrames)
             }
 
             DriverSection(
                 sessionId = sessionId,
                 lapIndex = lapIndex,
-                driverPsnId = lap.driverPsnId,
+                driverPsnId = currentLap.driverPsnId,
                 onChanged = { sessionReload++ },
             )
 
-            NumericText(
-                "%s / %s".format(lapTimeLabel(cursorMs), lapTimeLabel(lap.lapTimeMs)),
-                style = MaterialTheme.typography.titleMedium,
-            )
             message?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
@@ -289,7 +389,7 @@ fun LapPlayerScreen(
             SectionCard(title = "Telemetry") {
                 ChartColumn(
                     samples = samples,
-                    lap = lap,
+                    lap = currentLap,
                     cursorMs = cursorMs,
                     imperial = settings.imperialUnits,
                     modifier = Modifier.fillMaxWidth(),
@@ -298,10 +398,72 @@ fun LapPlayerScreen(
 
             SectionCard {
                 Text("Track map", style = MaterialTheme.typography.titleMedium)
-                TrackMap(samples = samples, lap = lap, cursorMs = cursorMs)
+                TrackMap(samples = samples, lap = currentLap, cursorMs = cursorMs)
             }
 
             Spacer(Modifier.padding(bottom = 8.dp))
+        }
+    }
+}
+
+@Composable
+private fun ReplaySourceButton(
+    text: String,
+    primary: Boolean,
+    onFiles: () -> Unit,
+    onPlayStation: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box(modifier.fillMaxWidth()) {
+        if (primary) {
+            PrimaryPill(
+                text = text,
+                onClick = { open = true },
+                modifier = Modifier.fillMaxWidth(),
+                trailingIcon = Icons.Filled.KeyboardArrowDown,
+            )
+        } else {
+            GhostPill(
+                text = text,
+                onClick = { open = true },
+                modifier = Modifier.fillMaxWidth(),
+                trailingIcon = Icons.Filled.KeyboardArrowDown,
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = {
+                    Column {
+                        Text("Files", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Pick a video from this phone",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                onClick = {
+                    open = false
+                    onFiles()
+                },
+            )
+            DropdownMenuItem(
+                text = {
+                    Column {
+                        Text("PlayStation App", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Download the replay, then pick it here",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                onClick = {
+                    open = false
+                    onPlayStation()
+                },
+            )
         }
     }
 }

@@ -29,7 +29,7 @@ class LapSummaryTest {
             endNanos = lapTimeMs * 1_000_000L,
             sampleCount = 1,
             videoFile = videoFile,
-            videoStartOffsetMs = 0,
+            leadInMs = 0,
             driverPsnId = driverPsnId,
         )
         store.save(
@@ -97,7 +97,7 @@ class LapSummaryTest {
                 endNanos = index * 100_000_000_000L,
                 sampleCount = 1,
                 videoFile = raw,
-                videoStartOffsetMs = 0,
+                leadInMs = 0,
                 needsCut = true,
             )
         }
@@ -139,7 +139,7 @@ class LapSummaryTest {
 
         val lap = store.lap("s1", 1)!!
         assertEquals("laps/lap-001.mp4", lap.videoFile)
-        assertEquals(1_234, lap.videoStartOffsetMs)
+        assertEquals(1_234, lap.leadInMs)
         assertNull(lap.sourceFile)
         assertFalse(File(store.sessionDir("s1"), source).exists())
     }

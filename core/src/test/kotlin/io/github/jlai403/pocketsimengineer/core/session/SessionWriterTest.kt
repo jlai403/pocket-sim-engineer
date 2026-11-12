@@ -60,7 +60,7 @@ class SessionWriterTest {
                 lapTimeMs = 2_000,
             ),
             videoFile = "raw.mp4",
-            videoStartOffsetMs = 0,
+            leadInMs = 0,
             driverPsnId = "skino2024",
         )
 
@@ -100,17 +100,17 @@ class SessionWriterTest {
         val lap = writer.writeLap(
             boundary = LapBoundary(1, 0L, 1_000_000_000L, 1_000),
             videoFile = "raw.mp4",
-            videoStartOffsetMs = 0,
+            leadInMs = 0,
         )
 
         writer.updateLap(
-            lap.copy(videoFile = "laps/lap-001.mp4", videoStartOffsetMs = 2_000),
+            lap.copy(videoFile = "laps/lap-001.mp4", leadInMs = 2_000),
         )
 
         val fromSession = SessionJsonCodec.decodeSession(File(temp, "session.json").readText())
         val fromLap = SessionJsonCodec.decodeLap(File(temp, "laps/lap-001.json").readText())
         assertEquals("laps/lap-001.mp4", fromSession.laps.single().videoFile)
-        assertEquals(2_000, fromLap.videoStartOffsetMs)
+        assertEquals(2_000, fromLap.leadInMs)
         assertEquals(listOf(lap.index), writer.laps().map { it.index })
     }
 

@@ -22,4 +22,19 @@ class PlaybackCursorTest {
         assertEquals(90_000, PlaybackCursor.telemetryMs(200_000, 2_000, 0, 90_000))
         assertEquals(0, PlaybackCursor.telemetryMs(-5_000, 2_000, 0, 90_000))
     }
+
+    @Test
+    fun `clip time inverts the telemetry cursor`() {
+        assertEquals(2_000L, PlaybackCursor.clipMs(0, 2_000, 0))
+        assertEquals(32_000L, PlaybackCursor.clipMs(30_000, 2_000, 0))
+        assertEquals(
+            30_000,
+            PlaybackCursor.telemetryMs(
+                PlaybackCursor.clipMs(30_000, 2_000, 400),
+                2_000,
+                400,
+                90_000,
+            ),
+        )
+    }
 }

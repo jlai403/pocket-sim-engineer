@@ -1,6 +1,5 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
@@ -9,26 +8,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,7 +37,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -60,6 +49,7 @@ import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.ui.PlayerView
 import io.github.jlai403.pocketsimengineer.app.replay.ClipTrimmer
 import io.github.jlai403.pocketsimengineer.app.replay.ReplayStore
+import io.github.jlai403.pocketsimengineer.app.replay.probeClip
 import io.github.jlai403.pocketsimengineer.core.clip.ClipSync
 import io.github.jlai403.pocketsimengineer.core.clip.SyncCheck
 import io.github.jlai403.pocketsimengineer.core.clip.SyncValidator
@@ -181,9 +171,9 @@ fun ImportSyncScreen(
             return@LaunchedEffect
         }
         sourceFile = file
-        val probe = withContext(Dispatchers.IO) { probe(file) }
-        durationMs = probe.first
-        frameStepMs = probe.second
+        val probe = withContext(Dispatchers.IO) { probeClip(file) }
+        durationMs = probe.durationMs
+        frameStepMs = probe.frameMs
         player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
         player.prepare()
     }
@@ -248,7 +238,7 @@ fun ImportSyncScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ScreenHeader(
-            title = "Sync replay",
+            title = "Sync clip",
             subtitle = currentLap?.let { "Lap ${it.index} · ${lapTimeLabel(it.lapTimeMs)}" } ?: "Replay",
             onBack = { confirmCancel = true },
         )
@@ -313,10 +303,24 @@ fun ImportSyncScreen(
             )
         }
 
+        FrameRuler(
+            valueMs = displayedMs,
+            startMs = 0,
+            endMs = durationMs,
+            frameStepMs = frameStepMs,
+            enabled = durationMs > 0,
+            onFrames = { frames -> seekTo((displayedMs + frames * frameStepMs).coerceIn(0, durationMs)) },
+        )
+        Text(
+            "Frame ruler · drag to step one frame",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
         TransportRow(
             playing = playing,
             enabled = durationMs > 0,
-            onRewind = { seekTo(positionMs - REWIND_MS) },
+            onRewind = { seekTo(positionMs - TRANSPORT_MS) },
             onPlayPause = {
                 if (player.isPlaying) {
                     player.pause()
@@ -326,32 +330,12 @@ fun ImportSyncScreen(
                     player.play()
                 }
             },
-            onForward = { seekTo(positionMs + REWIND_MS) },
+            onForward = { seekTo(positionMs + TRANSPORT_MS) },
         )
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            JogWheel(
-                frameStepMs = frameStepMs,
-                enabled = durationMs > 0,
-                onFrames = { frames -> seekTo(positionMs + frames * frameStepMs) },
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    StepButton("−1 frame", { seekTo(positionMs - frameStepMs) }, Modifier.weight(1f))
-                    StepButton("+1 frame", { seekTo(positionMs + frameStepMs) }, Modifier.weight(1f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    StepButton("−0.01 s", { seekTo(positionMs - 10) }, Modifier.weight(1f))
-                    StepButton("+0.01 s", { seekTo(positionMs + 10) }, Modifier.weight(1f))
-                }
-            }
-        }
+        FrameStepRow(
+            enabled = durationMs > 0,
+            onStep = { frames -> seekTo((displayedMs + frames * frameStepMs).coerceIn(0, durationMs)) },
+        )
 
         currentLap?.let { activeLap ->
             SectionCard(title = "Anchor") {
@@ -398,7 +382,7 @@ fun ImportSyncScreen(
             }
         }
 
-        SectionCard(title = "Trimmed clip") {
+        SectionCard(title = "Trim") {
             if (sync == null) {
                 Text(
                     "Set an anchor to see the clip range.",
@@ -486,7 +470,7 @@ fun ImportSyncScreen(
                                     sessionId = sessionId,
                                     lapIndex = lapIndex,
                                     videoFile = "laps/lap-%03d.mp4".format(lapIndex),
-                                    videoStartOffsetMs = trimmed.startOffsetMs,
+                                    leadInMs = trimmed.startOffsetMs,
                                 )
                                 trimmed
                             }
@@ -512,7 +496,7 @@ fun ImportSyncScreen(
     if (confirmCancel) {
         AlertDialog(
             onDismissRequest = { confirmCancel = false },
-            title = { Text("Discard this replay?") },
+            title = { Text("Discard this clip?") },
             text = {
                 Text(
                     if (hadClip) {
@@ -540,84 +524,6 @@ fun ImportSyncScreen(
                 TextButton(onClick = { confirmCancel = false }) { Text("Keep") }
             },
         )
-    }
-}
-
-private const val REWIND_MS = 10_000L
-
-@Composable
-private fun TransportRow(
-    playing: Boolean,
-    enabled: Boolean,
-    onRewind: () -> Unit,
-    onPlayPause: () -> Unit,
-    onForward: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TransportButton(TransportIcons.Rewind, "Rewind 10 seconds", enabled, onRewind)
-        TransportButton(
-            icon = if (playing) TransportIcons.Pause else Icons.Filled.PlayArrow,
-            description = if (playing) "Pause" else "Play",
-            enabled = enabled,
-            onClick = onPlayPause,
-            primary = true,
-        )
-        TransportButton(TransportIcons.Forward, "Forward 10 seconds", enabled, onForward)
-    }
-}
-
-@Composable
-private fun TransportButton(
-    icon: ImageVector,
-    description: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    primary: Boolean = false,
-) {
-    IconButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
-            .size(if (primary) 64.dp else 52.dp)
-            .clip(CircleShape)
-            .background(
-                if (primary) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-            ),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = description,
-            tint = if (primary) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-            modifier = Modifier.size(if (primary) 34.dp else 26.dp),
-        )
-    }
-}
-
-/** Fine steps need tighter padding than a full-width pill to keep the labels on one line. */
-@Composable
-private fun StepButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier.height(42.dp),
-        shape = CircleShape,
-        contentPadding = PaddingValues(horizontal = 6.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ),
-    ) {
-        Text(text, style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }
 
@@ -688,37 +594,3 @@ private fun trimRange(lap: LapMetadata?, anchorMs: Long?, durationMs: Long) =
     } else {
         null
     }
-
-private fun formatMillis(ms: Long): String {
-    if (ms < 0) return "-"
-    val minutes = ms / 60_000
-    val seconds = (ms % 60_000) / 1_000
-    val millis = ms % 1_000
-    return "%d:%02d.%03d".format(minutes, seconds, millis)
-}
-
-private fun probe(file: File): Pair<Long, Long> {
-    val retriever = MediaMetadataRetriever()
-    return try {
-        retriever.setDataSource(file.absolutePath)
-        val duration = retriever
-            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-            ?.toLongOrNull() ?: 0L
-        val captureFps = retriever
-            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)
-            ?.toFloatOrNull()
-        val frames = retriever
-            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT)
-            ?.toLongOrNull()
-        val frameMs = when {
-            captureFps != null && captureFps > 0f -> (1_000f / captureFps).roundToLong()
-            frames != null && frames > 0 && duration > 0 -> duration / frames
-            else -> 33L
-        }.coerceAtLeast(1L)
-        duration to frameMs
-    } catch (_: Exception) {
-        0L to 33L
-    } finally {
-        runCatching { retriever.release() }
-    }
-}

@@ -1,5 +1,6 @@
 package io.github.jlai403.pocketsimengineer.core.session
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -11,7 +12,9 @@ data class LapMetadata(
     val endNanos: Long,
     val sampleCount: Int,
     val videoFile: String,
-    val videoStartOffsetMs: Int,
+    /** Clip time before the start frame, kept when the keyframe cut lands early. */
+    @SerialName("videoStartOffsetMs")
+    val leadInMs: Int,
     val syncOffsetMs: Int = 0,
     val needsCut: Boolean = false,
     /** Imported replay before trimming; null once the lap clip is attached or the import is discarded. */

@@ -4,7 +4,7 @@ package io.github.jlai403.pocketsimengineer.core.session
 data class ClipRange(val startUs: Long, val endUs: Long)
 
 /** Clip start after keyframe alignment, plus the offset to the start/finish line. */
-data class AlignedClip(val clipStartUs: Long, val videoStartOffsetMs: Int)
+data class AlignedClip(val clipStartUs: Long, val leadInMs: Int)
 
 object RemuxPlanner {
     const val PRE_ROLL_US = 2_000_000L

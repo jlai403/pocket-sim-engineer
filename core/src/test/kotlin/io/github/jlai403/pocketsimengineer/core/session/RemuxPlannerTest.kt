@@ -63,7 +63,7 @@ class RemuxPlannerTest {
             lapStartUs = 10_000_000,
         )
         assertEquals(6_500_000, aligned.clipStartUs)
-        assertEquals(3_500, aligned.videoStartOffsetMs)
+        assertEquals(3_500, aligned.leadInMs)
     }
 
     @Test
@@ -73,7 +73,7 @@ class RemuxPlannerTest {
             keyframeUs = 8_000_000,
             lapStartUs = 10_000_000,
         )
-        assertEquals(2_000, aligned.videoStartOffsetMs)
+        assertEquals(2_000, aligned.leadInMs)
     }
 
     @Test
@@ -84,7 +84,7 @@ class RemuxPlannerTest {
             lapStartUs = 10_000_000,
         )
         assertEquals(8_000_000, aligned.clipStartUs)
-        assertEquals(2_000, aligned.videoStartOffsetMs)
+        assertEquals(2_000, aligned.leadInMs)
     }
 
     @Test
@@ -95,6 +95,6 @@ class RemuxPlannerTest {
             lapStartUs = 5_269_000,
         )
         assertEquals(4_000_000, aligned.clipStartUs)
-        assertEquals(1_269, aligned.videoStartOffsetMs)
+        assertEquals(1_269, aligned.leadInMs)
     }
 }

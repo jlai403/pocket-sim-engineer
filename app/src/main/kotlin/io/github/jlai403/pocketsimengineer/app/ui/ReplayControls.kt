@@ -1,0 +1,283 @@
+package io.github.jlai403.pocketsimengineer.app.ui
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.dp
+import kotlin.math.ceil
+import kotlin.math.floor
+
+internal const val TRANSPORT_MS = 10_000L
+
+private val FrameStepWidth = 6.dp
+
+/** Turns horizontal drag pixels into whole frames, carrying the remainder. */
+internal class FrameSteps(private val pxPerFrame: Float) {
+    private var pendingPx = 0f
+
+    fun framesFor(dxPx: Float): Int {
+        pendingPx += dxPx
+        val frames = (pendingPx / pxPerFrame).toInt()
+        pendingPx -= frames * pxPerFrame
+        return frames
+    }
+
+    fun reset() {
+        pendingPx = 0f
+    }
+}
+
+@Composable
+internal fun TransportRow(
+    playing: Boolean,
+    enabled: Boolean,
+    onRewind: () -> Unit,
+    onPlayPause: () -> Unit,
+    onForward: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TransportButton(TransportIcons.Rewind, "Rewind 10 seconds", enabled, onRewind)
+        TransportButton(
+            icon = if (playing) TransportIcons.Pause else Icons.Filled.PlayArrow,
+            description = if (playing) "Pause" else "Play",
+            enabled = enabled,
+            onClick = onPlayPause,
+            primary = true,
+        )
+        TransportButton(TransportIcons.Forward, "Forward 10 seconds", enabled, onForward)
+    }
+}
+
+@Composable
+private fun TransportButton(
+    icon: ImageVector,
+    description: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    primary: Boolean = false,
+) {
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .size(if (primary) 64.dp else 52.dp)
+            .clip(CircleShape)
+            .background(
+                if (primary) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+            ),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = if (primary) {
+                MaterialTheme.colorScheme.onPrimary
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            modifier = Modifier.size(if (primary) 34.dp else 26.dp),
+        )
+    }
+}
+
+/** Fine steps need tighter padding than a full-width pill to keep the labels on one line. */
+@Composable
+internal fun StepButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(42.dp),
+        shape = CircleShape,
+        contentPadding = PaddingValues(horizontal = 6.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+    ) {
+        Text(text, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+    }
+}
+
+@Composable
+internal fun FrameStepRow(
+    enabled: Boolean,
+    onStep: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        StepButton("−1 frame", { onStep(-1) }, Modifier.weight(1f), enabled)
+        StepButton("+1 frame", { onStep(1) }, Modifier.weight(1f), enabled)
+    }
+}
+
+/**
+ * A fixed needle over a horizontally scrolling ruler. Each 6 dp of travel is one
+ * video frame; the slider above handles distance.
+ */
+@Composable
+internal fun FrameRuler(
+    valueMs: Long,
+    startMs: Long,
+    endMs: Long,
+    frameStepMs: Long,
+    enabled: Boolean,
+    onFrames: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    val pxPerFrame = with(density) { FrameStepWidth.toPx() }
+    val accumulator = remember(pxPerFrame) { FrameSteps(pxPerFrame) }
+    val haptics = LocalHapticFeedback.current
+    val textMeasurer = rememberTextMeasurer()
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    val tickColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val needleColor = MaterialTheme.colorScheme.primary
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(
+        fontFamily = GeistMonoFamily,
+        color = labelColor,
+    )
+    val step = frameStepMs.coerceAtLeast(1L)
+    val labelEvery = (500L / step).coerceAtLeast(1L)
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(trackColor)
+            .alpha(if (enabled) 1f else 0.5f)
+            .semantics { contentDescription = "Frame ruler" }
+            .pointerInput(enabled, pxPerFrame, step) {
+                if (!enabled) return@pointerInput
+                detectHorizontalDragGestures(
+                    onDragStart = { accumulator.reset() },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        val frames = accumulator.framesFor(dragAmount)
+                        if (frames != 0) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onFrames(frames)
+                        }
+                    },
+                    onDragCancel = { accumulator.reset() },
+                    onDragEnd = { accumulator.reset() },
+                )
+            },
+    ) {
+        if (size.width <= 0f || size.height <= 0f) return@Canvas
+        val centerX = size.width / 2f
+        val baseline = size.height - 20.dp.toPx()
+        val pxPerMs = pxPerFrame / step.toFloat()
+        val halfSpan = centerX / pxPerMs
+        val firstFrame = floor((valueMs - halfSpan) / step).toLong()
+        val lastFrame = ceil((valueMs + halfSpan) / step).toLong()
+
+        for (frame in firstFrame..lastFrame) {
+            val time = frame * step
+            if (time < startMs || time > endMs) continue
+            val x = centerX + (time - valueMs) * pxPerMs
+            if (x < 0f || x > size.width) continue
+            val major = frame % labelEvery == 0L
+            val tick = when {
+                major -> 26.dp.toPx()
+                frame % 5 == 0L -> 18.dp.toPx()
+                else -> 12.dp.toPx()
+            }
+            drawLine(
+                color = tickColor,
+                start = Offset(x, baseline - tick),
+                end = Offset(x, baseline),
+                strokeWidth = 1.dp.toPx(),
+            )
+            if (major) {
+                val layout = textMeasurer.measure(formatRulerLabel(time), labelStyle)
+                val pad = 4.dp.toPx()
+                val maxX = (size.width - layout.size.width - pad).coerceAtLeast(pad)
+                drawText(
+                    textLayoutResult = layout,
+                    topLeft = Offset(
+                        (x - layout.size.width / 2f).coerceIn(pad, maxX),
+                        baseline + 6.dp.toPx(),
+                    ),
+                )
+            }
+        }
+
+        drawLine(
+            color = tickColor.copy(alpha = 0.5f),
+            start = Offset(0f, baseline),
+            end = Offset(size.width, baseline),
+            strokeWidth = 1.dp.toPx(),
+        )
+        drawLine(
+            color = needleColor,
+            start = Offset(centerX, 6.dp.toPx()),
+            end = Offset(centerX, baseline),
+            strokeWidth = 2.dp.toPx(),
+        )
+        drawPath(
+            path = Path().apply {
+                moveTo(centerX - 5.dp.toPx(), 6.dp.toPx())
+                lineTo(centerX + 5.dp.toPx(), 6.dp.toPx())
+                lineTo(centerX, 12.dp.toPx())
+                close()
+            },
+            color = needleColor,
+        )
+    }
+}
+
+internal fun formatRulerLabel(ms: Long): String {
+    val tenths = (ms.coerceAtLeast(0) + 50) / 100
+    val minutes = tenths / 600
+    val seconds = (tenths % 600) / 10
+    return "%d:%02d.%d".format(minutes, seconds, tenths % 10)
+}

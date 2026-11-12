@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -87,6 +88,7 @@ fun PrimaryPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    trailingIcon: ImageVector? = null,
 ) {
     Button(
         onClick = onClick,
@@ -102,6 +104,10 @@ fun PrimaryPill(
         ),
     ) {
         Text(text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        trailingIcon?.let {
+            Spacer(Modifier.size(6.dp))
+            Icon(it, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
     }
 }
 
@@ -112,6 +118,7 @@ fun GhostPill(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    trailingIcon: ImageVector? = null,
 ) {
     OutlinedButton(
         onClick = onClick,
@@ -122,6 +129,10 @@ fun GhostPill(
         colors = ButtonDefaults.outlinedButtonColors(contentColor = contentColor),
     ) {
         Text(text, style = MaterialTheme.typography.labelLarge)
+        trailingIcon?.let {
+            Spacer(Modifier.size(6.dp))
+            Icon(it, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
     }
 }
 

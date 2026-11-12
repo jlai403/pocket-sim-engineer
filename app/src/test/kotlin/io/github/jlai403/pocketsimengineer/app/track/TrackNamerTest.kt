@@ -31,7 +31,7 @@ class TrackNamerTest {
             endNanos = samples.last().timeNanos,
             sampleCount = samples.size,
             videoFile = "",
-            videoStartOffsetMs = 0,
+            leadInMs = 0,
         )
         store.save(
             SessionMetadata(

@@ -4,7 +4,9 @@ import android.app.Application
 import android.content.Context
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Rule
 import org.junit.Test
@@ -44,10 +46,36 @@ class LapPlayerScreenTest {
             compose.onAllNodesWithText("No replay attached").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Add replay").assertExists()
-        compose.onNodeWithText("PS App").assertExists()
         compose.onNodeWithText("Speed").assertExists()
         compose.onNodeWithText("Track map").assertExists()
         compose.onNodeWithText("Lap 1 · 1:30.000").assertExists()
+    }
+
+    @Test
+    fun `the replay source button offers files and the PlayStation app`() {
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(lapTimesMs = listOf(90_000), needsCut = true),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Add replay").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Add replay").performClick()
+        compose.onNodeWithText("Files").assertExists()
+        compose.onNodeWithText("PlayStation App").assertExists()
+        compose.onNodeWithText("Pick a video from this phone").assertExists()
     }
 
     @Test
@@ -70,6 +98,9 @@ class LapPlayerScreenTest {
         }
         compose.onNodeWithText("Add replay").assertDoesNotExist()
         compose.onNodeWithText("Replace replay").assertExists()
+        compose.onNodeWithContentDescription("Frame ruler").assertExists()
+        compose.onNodeWithText("−1 frame").assertExists()
+        compose.onNodeWithText("+1 frame").assertExists()
     }
 
     @Test
@@ -121,7 +152,7 @@ class LapPlayerScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("Replace replay").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Resume import").assertExists()
+        compose.onNodeWithText("Resume sync").assertExists()
         compose.onNodeWithText("The current replay still plays.", substring = true).assertExists()
     }
 

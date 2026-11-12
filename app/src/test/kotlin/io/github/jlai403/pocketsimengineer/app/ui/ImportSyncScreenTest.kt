@@ -44,7 +44,7 @@ class ImportSyncScreenTest {
         compose.waitUntil(10_000L) {
             compose.onAllNodesWithText("No replay file attached.").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Sync replay").assertExists()
+        compose.onNodeWithText("Sync clip").assertExists()
     }
 
     @Test
@@ -90,15 +90,13 @@ class ImportSyncScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("How to find the finish frame").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithContentDescription("Frame jog wheel").assertExists()
+        compose.onNodeWithContentDescription("Frame ruler").assertExists()
         compose.onNodeWithContentDescription("Rewind 10 seconds").assertExists()
         compose.onNodeWithContentDescription("Forward 10 seconds").assertExists()
         compose.onNodeWithContentDescription("Play").assertExists()
         compose.onNodeWithText("Anchor: the finish-line frame that ends the lap").assertExists()
         compose.onNodeWithText("−1 frame").assertExists()
         compose.onNodeWithText("+1 frame").assertExists()
-        compose.onNodeWithText("−0.01 s").assertExists()
-        compose.onNodeWithText("+0.01 s").assertExists()
     }
 
     @Test

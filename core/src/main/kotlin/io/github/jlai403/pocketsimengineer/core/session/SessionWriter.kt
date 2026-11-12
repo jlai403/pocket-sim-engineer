@@ -30,7 +30,7 @@ class SessionWriter(
     fun writeLap(
         boundary: LapBoundary,
         videoFile: String,
-        videoStartOffsetMs: Int,
+        leadInMs: Int,
         driverPsnId: String? = null,
     ): LapMetadata {
         val preRollNanos = 2_000_000_000L
@@ -47,7 +47,7 @@ class SessionWriter(
             endNanos = boundary.endNanos,
             sampleCount = selected.size,
             videoFile = videoFile,
-            videoStartOffsetMs = videoStartOffsetMs,
+            leadInMs = leadInMs,
             syncOffsetMs = metadata.syncOffsetMs,
             driverPsnId = driverPsnId?.trim()?.takeIf { it.isNotEmpty() },
         )

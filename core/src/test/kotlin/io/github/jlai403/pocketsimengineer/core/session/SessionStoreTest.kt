@@ -37,7 +37,7 @@ class SessionStoreTest {
                     endNanos = 90_000_000_000L,
                     sampleCount = 1,
                     videoFile = "laps/lap-001.mp4",
-                    videoStartOffsetMs = 2_000,
+                    leadInMs = 2_000,
                 ),
             ),
         )

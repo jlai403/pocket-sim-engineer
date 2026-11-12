@@ -35,7 +35,7 @@ object SessionFixtures {
                     withReplay -> "laps/lap-%03d.mp4".format(index + 1)
                     else -> ""
                 },
-                videoStartOffsetMs = 2_000,
+                leadInMs = 2_000,
                 needsCut = needsCut,
                 sourceFile = if (pendingSource) "laps/lap-%03d-source.mp4".format(index + 1) else null,
                 driverPsnId = driverPsnId,
