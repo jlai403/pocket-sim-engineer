@@ -151,4 +151,36 @@ class FrameRulerTest {
 
         assertEquals(0, events)
     }
+
+    @Test
+    fun `scrub end fires once per drag`() {
+        var ends = 0
+        var pxPerFrame = 0f
+
+        compose.setContent {
+            pxPerFrame = with(LocalDensity.current) { 6.dp.toPx() }
+            PocketSimEngineerTheme {
+                FrameRuler(
+                    valueMs = 0,
+                    startMs = 0,
+                    endMs = 10_000,
+                    frameStepMs = 33,
+                    enabled = true,
+                    onScrubStart = {},
+                    onScrub = {},
+                    onScrubEnd = { ends++ },
+                    hapticsEnabled = false,
+                    modifier = Modifier.testTag("ruler"),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("ruler").performTouchInput {
+            down(center)
+            moveBy(Offset(pxPerFrame * 10f, 0f))
+            up()
+        }
+
+        assertEquals(1, ends)
+    }
 }

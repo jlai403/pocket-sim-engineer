@@ -71,7 +71,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - The GT7 lap time (`lastLapTimeMs`) is the ruler: `trimIn = anchor − lapTime`, `trimOut = anchor`.
 - Video is the master clock during playback. The mapping is linear for the whole lap, so anchor error does not accumulate.
 - The playhead opens at the clip's last frame, with the anchor suggested there; the user verifies the line or rewinds and re-anchors.
-- A timeline scrubber covers the whole clip; a frame ruler (about 6 dp per frame, a haptic tick per step unless disabled in Settings) and ±1 frame buttons provide precision. The ruler strip follows the finger: drag right to rewind, left to move forward. A drag steps from the playhead it started on, so the value never snaps back.
+- A timeline scrubber covers the whole clip; a frame ruler (about 6 dp per frame, a haptic tick per step unless disabled in Settings) and ±1 frame buttons provide precision. The ruler strip follows the finger: drag right to rewind, left to move forward. A drag steps from the playhead it started on, so the value never snaps back. The ruler and time readout follow the requested frame immediately, even on a fast drag, while seeks are coalesced to one in flight so the decoder keeps rendering frames through the gesture.
 - Fine steps use exact seeks; transport is play/pause and ±10 s. Paused seeks keep the requested position rather than polling the player.
 - A clip shorter than the lap is blocked with the missing duration.
 - The computed start frame is shown with a **Check start frame** action; the user confirms it shows the line. With a single anchor the app cannot prove which lap the clip contains, so wrong-lap detection is visual.
@@ -187,7 +187,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 ### 8.7 Playback
 
-- Media3 ExoPlayer; exact seeks for frame stepping, and the rendered frame drives the cursor.
+- Media3 ExoPlayer; exact seeks for frame stepping, and the rendered frame drives the cursor. Ruler drags keep at most one seek in flight, always to the newest target, and the readout shows that target until the frame lands.
 - `PlaybackCursor.telemetryMs(positionMs, leadInMs, syncOffsetMs, lapTimeMs)` maps video to lap time; `clipMs(lapMs, leadInMs, syncOffsetMs)` is its inverse.
 - The sync screen's slider and frame ruler span the whole clip.
 - The lap screen's slider and frame ruler span only the lap; play/pause, ±10 s, the ruler, and ±1 frame control the replay, and the charts and track map follow the rendered frame while paused.

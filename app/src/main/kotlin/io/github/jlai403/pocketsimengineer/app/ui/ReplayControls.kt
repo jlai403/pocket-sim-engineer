@@ -169,7 +169,8 @@ internal fun FrameStepRow(
  * video frame; the slider above handles distance. The strip follows the finger,
  * so dragging right rewinds and dragging left moves forward. The ruler reports
  * how far the drag has travelled in total, so callers can seek from the playhead
- * they held when the drag started.
+ * they held when the drag started, and reports the end of the drag so callers
+ * can settle the playhead.
  */
 @Composable
 internal fun FrameRuler(
@@ -180,6 +181,7 @@ internal fun FrameRuler(
     enabled: Boolean,
     onScrubStart: () -> Unit,
     onScrub: (framesFromStart: Int) -> Unit,
+    onScrubEnd: () -> Unit = {},
     hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -190,6 +192,7 @@ internal fun FrameRuler(
     // The pointer coroutine outlives recomposition, so never capture the callbacks directly.
     val currentOnScrubStart by rememberUpdatedState(onScrubStart)
     val currentOnScrub by rememberUpdatedState(onScrub)
+    val currentOnScrubEnd by rememberUpdatedState(onScrubEnd)
     val currentHapticsEnabled by rememberUpdatedState(hapticsEnabled)
     val textMeasurer = rememberTextMeasurer()
     val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
@@ -230,8 +233,14 @@ internal fun FrameRuler(
                             currentOnScrub(accumulator.totalFrames)
                         }
                     },
-                    onDragCancel = { accumulator.reset() },
-                    onDragEnd = { accumulator.reset() },
+                    onDragCancel = {
+                        accumulator.reset()
+                        currentOnScrubEnd()
+                    },
+                    onDragEnd = {
+                        accumulator.reset()
+                        currentOnScrubEnd()
+                    },
                 )
             },
     ) {

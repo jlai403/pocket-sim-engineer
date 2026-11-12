@@ -107,14 +107,25 @@ fun ImportSyncScreen(
     var anchorSuggested by remember { mutableStateOf(false) }
     var started by remember { mutableStateOf(false) }
     var tipsOpen by remember { mutableStateOf(false) }
+    // The frame the finger asked for; the decoder may land a few frames behind it.
+    var scrubTargetMs by remember { mutableStateOf<Long?>(null) }
+    var scrubbing by remember { mutableStateOf(false) }
 
-    fun seekTo(targetMs: Long) {
+    lateinit var scrubSeeker: ScrubSeeker
+    fun seekTo(targetMs: Long, fromScrub: Boolean = false) {
         val clamped = targetMs.coerceIn(0, durationMs.coerceAtLeast(0))
         player.seekTo(clamped)
         positionMs = clamped
         renderedUs = -1
         player.pause()
         previewing = false
+        if (!fromScrub) {
+            scrubTargetMs = null
+            scrubSeeker.clearPending()
+        }
+    }
+    scrubSeeker = remember(player) {
+        ScrubSeeker(scope) { target -> seekTo(target, fromScrub = true) }
     }
 
     BackHandler { confirmCancel = true }
@@ -132,6 +143,7 @@ fun ImportSyncScreen(
         player.addListener(listener)
         player.setVideoFrameMetadataListener { presentationTimeUs, _, _, _ ->
             renderedUs = presentationTimeUs
+            scrubSeeker.onFrameRendered()
         }
         onDispose {
             player.removeListener(listener)
@@ -219,8 +231,27 @@ fun ImportSyncScreen(
 
     val currentLap = lap
     val anchor = anchorMs
-    val displayedUs = if (renderedUs >= 0) renderedUs else positionMs * 1_000
-    val displayedMs = if (renderedUs >= 0) renderedUs / 1_000 else positionMs
+    // While the ruler is under a finger, show the requested frame rather than the
+    // last one the decoder managed to render.
+    val displayedUs = scrubTargetMs?.times(1_000)
+        ?: if (renderedUs >= 0) renderedUs else positionMs * 1_000
+    val displayedMs = scrubTargetMs
+        ?: if (renderedUs >= 0) renderedUs / 1_000 else positionMs
+
+    LaunchedEffect(scrubbing, renderedUs) {
+        val target = scrubTargetMs ?: return@LaunchedEffect
+        if (scrubbing) return@LaunchedEffect
+        if (renderedUs >= 0 && abs(renderedUs / 1_000 - target) <= frameStepMs * 2) {
+            scrubTargetMs = null
+        }
+    }
+
+    LaunchedEffect(scrubbing) {
+        if (scrubbing) return@LaunchedEffect
+        val target = scrubTargetMs ?: return@LaunchedEffect
+        delay(600)
+        if (scrubTargetMs == target) scrubTargetMs = null
+    }
 
     fun stepFrames(frames: Int) {
         seekTo(frameStepTargetMs(displayedUs, frames, frameDurationUs).coerceIn(0, durationMs))
@@ -320,10 +351,18 @@ fun ImportSyncScreen(
             endMs = durationMs,
             frameStepMs = frameStepMs,
             enabled = durationMs > 0,
-            onScrubStart = { scrubBaseUs = displayedUs },
-            onScrub = { frames ->
-                seekTo(frameStepTargetMs(scrubBaseUs, frames, frameDurationUs).coerceIn(0, durationMs))
+            onScrubStart = {
+                scrubBaseUs = displayedUs
+                scrubTargetMs = null
+                scrubbing = true
             },
+            onScrub = { frames ->
+                val target = frameStepTargetMs(scrubBaseUs, frames, frameDurationUs)
+                    .coerceIn(0, durationMs)
+                scrubTargetMs = target
+                scrubSeeker.submit(target)
+            },
+            onScrubEnd = { scrubbing = false },
             hapticsEnabled = hapticsEnabled,
         )
         Text(
