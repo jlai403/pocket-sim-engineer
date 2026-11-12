@@ -15,21 +15,32 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
+import io.github.jlai403.pocketsimengineer.app.capture.LapSaver
 import io.github.jlai403.pocketsimengineer.app.recording.RecordingService
 import io.github.jlai403.pocketsimengineer.app.recording.StreamNotificationText
 import io.github.jlai403.pocketsimengineer.app.Diagnostics
+import io.github.jlai403.pocketsimengineer.core.capture.CaptureState
+import io.github.jlai403.pocketsimengineer.core.capture.LapCaptureCoordinator
 import io.github.jlai403.pocketsimengineer.core.lap.LapBoundary
 import io.github.jlai403.pocketsimengineer.core.lap.LapDetector
 import io.github.jlai403.pocketsimengineer.core.network.Ipv4
 import io.github.jlai403.pocketsimengineer.core.protocol.Gt7Decoder
 import io.github.jlai403.pocketsimengineer.core.protocol.Gt7Protocol
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.io.File
 
 class TelemetryService : Service() {
     companion object {
         const val ACTION_START = "io.github.jlai403.pocketsimengineer.action.START_TELEMETRY"
         const val ACTION_STOP = "io.github.jlai403.pocketsimengineer.action.STOP_TELEMETRY"
+        const val ACTION_CAPTURE = "io.github.jlai403.pocketsimengineer.action.CAPTURE_LAP"
+        const val ACTION_CANCEL_CAPTURE = "io.github.jlai403.pocketsimengineer.action.CANCEL_CAPTURE"
         const val EXTRA_IP = "ps5_ip"
         private const val CHANNEL_ID = "telemetry"
         private const val NOTIFICATION_ID = 1001
@@ -37,6 +48,7 @@ class TelemetryService : Service() {
         val state = MutableStateFlow(TelemetryUiState())
         val events = MutableStateFlow<List<TelemetryEvent>>(emptyList())
         val completedLaps = MutableStateFlow(0)
+        val capture = MutableStateFlow<CaptureState>(CaptureState.Idle)
         val running = MutableStateFlow(false)
         val lastError = MutableStateFlow<String?>(null)
 
@@ -49,6 +61,9 @@ class TelemetryService : Service() {
     private var lastNotificationKey: String? = null
     private var lastNotifyNanos = 0L
     private var lastToastNanos = 0L
+    private lateinit var coordinator: LapCaptureCoordinator
+    private val lapDetector = LapDetector()
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onCreate() {
         super.onCreate()
@@ -72,7 +87,25 @@ class TelemetryService : Service() {
 
     private fun handleCommand(intent: Intent?): Int {
         when (intent?.action) {
+            ACTION_CAPTURE -> {
+                val start = lapDetector.currentLapStartNanos
+                if (::coordinator.isInitialized &&
+                    state.value.connected &&
+                    lapDetector.currentLapStartObserved &&
+                    start != null
+                ) {
+                    coordinator.requestCapture(start)
+                } else {
+                    capture.value = CaptureState.Rejected("Cross the start line first")
+                }
+                return START_NOT_STICKY
+            }
+            ACTION_CANCEL_CAPTURE -> {
+                if (::coordinator.isInitialized) coordinator.cancelCapture()
+                return START_NOT_STICKY
+            }
             ACTION_STOP -> {
+                if (::coordinator.isInitialized) coordinator.onDisconnect()
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -106,13 +139,29 @@ class TelemetryService : Service() {
                 events.value = emptyList()
                 completedLaps.value = 0
                 state.value = TelemetryUiState(status = "Waiting for telemetry")
+                if (!::coordinator.isInitialized) {
+                    coordinator = LapCaptureCoordinator(
+                        sink = LapSaver(File(filesDir, "sessions")),
+                    )
+                    serviceScope.launch {
+                        coordinator.state.collect { capture.value = it }
+                    }
+                } else {
+                    coordinator.onDisconnect()
+                }
                 val newSource = UdpTelemetrySource(
                     host = host,
                     decoder = Gt7Decoder(),
-                    lapDetector = LapDetector(),
+                    lapDetector = lapDetector,
                     stats = TelemetryStats(),
-                    onSample = { RecordingService.instance?.onTelemetry(it) },
-                    onLap = { handleLap(it) },
+                    onSample = {
+                        coordinator.onSample(it)
+                        RecordingService.instance?.onTelemetry(it)
+                    },
+                    onLap = {
+                        coordinator.onBoundary(it)
+                        handleLap(it)
+                    },
                     onState = { publishState(it) },
                     onStatus = { state.value = state.value.copy(status = it) },
                 )
@@ -144,6 +193,9 @@ class TelemetryService : Service() {
         Diagnostics.log("telemetry service destroyed")
         source?.stop()
         source = null
+        if (::coordinator.isInitialized) coordinator.onDisconnect()
+        serviceScope.cancel()
+        capture.value = CaptureState.Idle
         releaseLocks()
         running.value = false
         state.value = TelemetryUiState()

@@ -143,6 +143,7 @@ class UdpTelemetrySource(
                 lastForeignSource = lastForeignSource,
                 lastDecodeFailure = lastDecodeFailure,
                 lastPacketAgeMs = lastPacket?.let { (nowNanos - it) / 1_000_000 } ?: -1,
+                lapStartObserved = lapDetector.currentLapStartObserved,
                 lapCount = sample?.lapCount ?: 0,
                 speedMps = sample?.speedMps ?: 0f,
                 gear = sample?.gear ?: 0,

@@ -10,6 +10,7 @@ data class TelemetryUiState(
     val lastForeignSource: String = "",
     val lastDecodeFailure: String = "",
     val lastPacketAgeMs: Long = -1,
+    val lapStartObserved: Boolean = false,
     val lapCount: Int = 0,
     val speedMps: Float = 0f,
     val gear: Int = 0,
