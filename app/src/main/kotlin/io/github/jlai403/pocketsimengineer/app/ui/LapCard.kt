@@ -4,11 +4,14 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,6 +69,8 @@ internal fun LapCard(
     var menuOpen by remember { mutableStateOf(false) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
     // Snap under the finger, spring back to zero on release. A plain state target
     // cannot race a late drag event the way a queued snapTo could.
     val offset by animateFloatAsState(
@@ -78,7 +83,7 @@ internal fun LapCard(
         modifier = modifier
             .fillMaxWidth()
             .onSizeChanged { width = it.width }
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.background)
             .testTag("lap-card"),
     ) {
         if (offset != 0f) {
@@ -128,7 +133,7 @@ internal fun LapCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(offset.roundToInt(), 0) }
-                .background(MaterialTheme.colorScheme.surface)
+                .background(if (pressed) RowPressed else MaterialTheme.colorScheme.background)
                 .draggable(
                     state = rememberDraggableState { delta ->
                         val limit = width * 0.6f
@@ -161,6 +166,8 @@ internal fun LapCard(
                     )
                 }
                 .combinedClickable(
+                    interactionSource = interaction,
+                    indication = LocalIndication.current,
                     onClickLabel = "Open lap",
                     onLongClickLabel = "Lap actions",
                     onLongClick = { menuOpen = true },

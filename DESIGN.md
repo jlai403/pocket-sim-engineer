@@ -32,6 +32,8 @@ All tokens live in `ui/Theme.kt`. Screens must use `MaterialTheme.colorScheme.*`
 | `onSurface` | `#EAF0F5` | primary text |
 | `onSurfaceVariant` | `#93A4B5` | secondary text, icons, map line |
 | `outline` | `#2B3846` | inactive dots, borders |
+| `Hairline` | `#33414F` | library row dividers |
+| `RowPressed` | `#10171F` | pressed lap row |
 | `outlineVariant` | `#1F2A35` | dividers, chart axis |
 | `error` | `#FF6B6B` | errors, brake trace, destructive actions |
 | `errorContainer` | `#3A1414` | warning banners |
@@ -140,7 +142,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Toolbar: `All tracks ▾`, the sort pill, `Clear` while a filter is active, then an All / Replay / No replay segmented control. The toolbar hides when the library is empty or previewing.
 - Pull to refresh replaces the refresh button. The spinner follows the gesture and the manual reload only, not the automatic reload after an edit.
 - Card: flat feed row with no surface box or radius. Leading flag column, then the driver name and short date; the track; the 34 sp mono lap time with the `Fastest lap` label or a `+0.412` delta; the car with `Replay` or `Sync pending`. The whole row opens the lap.
-- Rows are separated by a 1 dp full-bleed `outlineVariant` divider; there is no divider after the last lap.
+- Rows are separated by a 1 dp full-bleed `Hairline` (#33414F) divider; there is no divider after the last lap. Row backgrounds stay on `background`, so the feed is one flat surface.
 - Fastest lap is computed per track across every lap, ignores the active filter, and only appears when the track has two or more laps. The other laps on that track show the delta.
 - Every card shows the lap's driver in the hero row: flag and nickname, the PSN when the profile is unknown, or `Driver not set` in muted text.
 - Swipe right opens Edit. Swipe left opens the delete confirmation, and the card springs back. Long press and the TalkBack custom actions offer the same two.
