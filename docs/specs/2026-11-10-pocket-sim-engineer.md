@@ -207,13 +207,16 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - PS5 IPv4 address, driver profile, imperial units, update channel, build identity, diagnostics.
 - No video quality, codec, bitrate, or keep-raw settings.
 
-### 8.11 Driver profile
+### 8.11 Driver profiles
 
-- One local profile: PSN ID, GT nickname, and ISO country code. No avatar.
+- One owner profile is the default for new captures: PSN ID, GT nickname, and ISO country code. No avatar.
+- A local profile book keeps the owner and every driver fetched or entered for a lap.
 - Fetch from the public GT GridStats player page only when the user taps **Fetch profile**; one request per tap, no crawling, retries, or background refresh.
-- A failed lookup leaves the stored profile untouched.
-- The library header shows the flag, nickname, and PSN ID; its menu opens GT GridStats, GTSH-Rank, or Settings.
-- Without a profile, the library shows **Add GT profile**.
+- Manual name and 2-letter country entry is available when GT GridStats has no profile or the network fails.
+- Each lap stores `driverPsnId`. New captures use the owner at capture time; existing laps stay unassigned until changed.
+- The lap screen's **Driver** card selects a cached driver, adds one, or clears it. Changing the driver does not touch video or telemetry.
+- Library cards show the lap's driver; the header shows the owner and opens GT GridStats or GTSH-Rank.
+- Without an owner, the library shows **Add GT profile**.
 
 ## 9. Data model
 
@@ -229,9 +232,9 @@ New captures use `rawFile = ""`, `rawDeleted = true`, no audio file, and one lap
 
 ### 9.3 Lap metadata (`lap-001.json`)
 
-`schemaVersion`, `index`, `lapTimeMs`, `startNanos`, `endNanos`, `sampleCount`, `videoFile`, `videoStartOffsetMs`, `syncOffsetMs`, `needsCut`, `sourceFile`.
+`schemaVersion`, `index`, `lapTimeMs`, `startNanos`, `endNanos`, `sampleCount`, `videoFile`, `videoStartOffsetMs`, `syncOffsetMs`, `needsCut`, `sourceFile`, `driverPsnId`.
 
-`videoFile` is blank until a replay is attached. `sourceFile` is set while an imported clip awaits sync.
+`videoFile` is blank until a replay is attached. `sourceFile` is set while an imported clip awaits sync. `driverPsnId` is null for legacy laps and for new laps captured without an owner.
 
 ### 9.4 Binary telemetry (`lap-001.gt7lap`)
 
@@ -317,7 +320,8 @@ The core is plain Kotlin and the session files are portable. A Rust core or desk
 ## 15. Acceptance criteria
 
 - A real GT7 session decodes at ~60 pps with no decode errors, including when another telemetry app is running.
-- A fetched driver profile shows the name and flag in Settings and above the library; both external links open the matching profile page.
+- A fetched owner profile shows the name and flag in Settings and above the library; both external links open the matching profile page.
+- A new capture inherits the owner as its driver; an existing lap stays unassigned until the lap screen's Driver card sets a cached or manual driver, and the library card reflects it.
 - `Capture this lap` saves exactly one complete lap and rejects a mid-lap connect.
 - A lap without a replay opens with charts and map.
 - A PS App clip imports through share and SAF, copies into app storage, and can be trimmed.

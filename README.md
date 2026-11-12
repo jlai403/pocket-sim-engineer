@@ -22,7 +22,7 @@ pocket-sim-engineer/
 
 ## Workflow
 
-0. Optionally add your GT profile in **Settings → Driver profile**; the name and flag appear above the lap list.
+0. Optionally add your GT profile in **Settings → Driver profile**; it becomes the default driver for new laps and the name and flag appear above the lap list.
 1. **PSE → Live**: connect to GT7 and drive.
 2. Tap **Capture this lap** after crossing the start line. The app saves exactly one lap at the next crossing.
 3. In GT7, record the single-lap replay with HUD on and the race camera. Use the PS5 Create menu and keep a few seconds of lead-in.
@@ -38,7 +38,8 @@ The phone records no video and no audio. Telemetry uses UDP 33739/33740; the onl
 - Decode-failure diagnostics with packet size and reason.
 - Single-lap capture: line-to-line, one session per lap, no video required.
 - Track identification from lap coordinates and bundled racing lines, including reverse layouts; ambiguous laps offer a candidate picker, and old `Unknown` laps are backfilled.
-- Flat lap library with filters (all / with replay / without replay, track) and sort; the saved GT name and country flag sit above it, with links to GT GridStats and GTSH-Rank.
+- Flat lap library with filters (all / with replay / without replay, track) and sort; the owner profile and links sit above it, and every card shows its lap's driver.
+- Driver book: new captures default to the owner; the lap screen's Driver card selects a cached driver, adds one by PSN (with manual name/country fallback), or clears it.
 - Replay import through the Android share sheet and SAF file picker; a clip can be replaced on an existing lap.
 - Sync screen: end-of-clip start with a suggested anchor, timeline scrubber, rotary jog wheel (one turn = 1 s), play/±10 s, ±1 frame/±0.01 s, track %, preview, hard block for short clips.
 - Lossless MP4 trim with keyframe alignment and stored playback offset.
@@ -101,7 +102,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - One lap per record; video is optional and attached later.
 - One frame anchor at the lap end; GT7 lap time is the ruler.
 - Track name inferred from coordinates; manual rename overrides.
-- Local-first: no accounts, cloud, ads, or tracking. The optional profile lookup sends only the PSN ID to gt-gridstats.com.
+- Local-first: no accounts, cloud, ads, or tracking. The optional profile lookup sends only the PSN ID to gt-gridstats.com; manual driver entry stays offline.
 - License: GPLv3 + contributor CLA.
 
 ## Target
