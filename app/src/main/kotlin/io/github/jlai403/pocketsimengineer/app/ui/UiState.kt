@@ -50,7 +50,7 @@ sealed interface Screen {
     data class Player(val sessionId: String, val lapIndex: Int) : Screen
     data class ImportPick(val uri: String) : Screen
     data class ImportSync(val sessionId: String, val lapIndex: Int, val sourceUri: String?) : Screen
-    data object Live : Screen
+    data object Record : Screen
     data object Settings : Screen
 }
 

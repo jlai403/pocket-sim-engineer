@@ -24,7 +24,7 @@ pocket-sim-engineer/
 ## Workflow
 
 0. Optionally add your GT profile in **Settings → Driver profile**; it becomes the default driver for new laps and the name and flag appear above the lap list.
-1. **PSE → Live**: connect to GT7 and drive.
+1. **PSE → Record**: connect to GT7 and drive.
 2. Tap **Capture this lap** after crossing the start line. The app saves exactly one lap at the next crossing.
 3. In GT7, record the single-lap replay with HUD on and the race camera. Use the PS5 Create menu and keep a few seconds of lead-in.
 4. Media Gallery → **Upload to PlayStation App**; in the PS App, **Download** or **Share** to PSE. The lap screen's replay source button opens Files or the PlayStation App (or its store listing).
@@ -83,7 +83,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 - `:core` — protocol/decrypt/decode, lap detection, capture coordination, track signatures, clip sync/trim planning, track progress, codecs, lap summaries, CSV, remux planning, playback cursor.
-- `:app` (JVM) — lap saver, replay copy, decode-failure text, telemetry notification text, settings, frame-ruler stepping, Compose UI for Live, Library, lap player, and import sync.
+- `:app` (JVM) — lap saver, replay copy, decode-failure text, telemetry notification text, settings, frame-ruler stepping, Compose UI for Record, Library, lap player, and import sync.
 - Not covered by JVM tests: real `MediaExtractor`/`MediaMuxer` trim output, real GT7 packets, actual video decode. Those stay device checks.
 
 ## Known gaps

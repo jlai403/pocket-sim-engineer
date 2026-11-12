@@ -102,7 +102,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 ### Capture a lap
 
-1. Open **Live**, connect to GT7.
+1. Open **Record**, connect to GT7.
 2. Drive; after crossing the start line, tap **Capture this lap**.
 3. The app saves the lap at the next crossing and shows its time.
 4. Optionally open the lap later and add a replay.
@@ -277,7 +277,7 @@ files/sessions/<id>/
 - `capture/` — `LapSaver`.
 - `track/` — `TrackCatalog` (loads the bundled asset).
 - `replay/` — `ReplayStore`, `ClipTrimmer`.
-- `ui/` — Live, Library, Lap player, Import picker, Import sync, Settings.
+- `ui/` — Record, Library, Lap player, Import picker, Import sync, Settings.
 - `share/` — MP4 and CSV sharing.
 
 ### 10.4 Future Rust/desktop

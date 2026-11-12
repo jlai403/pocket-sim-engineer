@@ -239,7 +239,7 @@ fun LibraryScreen(
             visible.isEmpty() && all.isNullOrEmpty() -> SectionCard {
                 Text("No laps yet", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "Open Live, connect to GT7, then tap Capture this lap. Replays are optional " +
+                    "Open Record, connect to GT7, then tap Capture this lap. Replays are optional " +
                         "and can be added from the lap.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
