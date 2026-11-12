@@ -81,7 +81,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 - Track name is inferred from lap coordinates and the bundled racing lines; manual rename overrides it. Ambiguous matches stay `Unknown` until the user picks from the ranked candidates.
 - Car name is `Car #<code>` until a bundled lookup exists.
-- Library: flat lap cards with the lap time as the hero number, a per-track `Fastest lap` badge or delta, and a driver shown only when it is not the owner. Swipe right edits, swipe left confirms a delete, and pull to refresh reloads. Filters (all / with replay / without replay, track) and sort (newest / fastest / track) sit in one toolbar; the owner chip and links sit in the header. The edit sheet changes the track, the driver, and the replay.
+- Library: flat lap cards with the lap time as the hero number, a per-track `Fastest lap` badge or delta, and the lap's driver in the hero row (flag and nickname, the PSN when unknown, or `Driver not set`). Swipe right edits, swipe left confirms a delete, and the card always springs back to the default state. Pull to refresh reloads. Filters (all / with replay / without replay, track) and sort (newest / fastest / track) sit in one toolbar; the owner chip and links sit in the header. The edit sheet changes the track, the driver, and the replay.
 - Track map and charts are generated from telemetry positions.
 - Export: CSV telemetry and Android share of the trimmed MP4.
 
@@ -200,7 +200,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - Filters and sorts are pure functions in `:core`; `fastestPerTrack()` marks one quickest lap per track label.
 - The fastest badge needs two or more laps on that track and is computed from all laps, never the filtered list.
 - Pull to refresh reloads summaries; the spinner does not appear for automatic reloads after an edit.
-- Swipe right opens the edit sheet; swipe left opens the delete confirmation after the card springs back.
+- Swipe right opens the edit sheet and reveals Edit pinned to the left; swipe left reveals Delete pinned to the right and opens the delete confirmation. The drag is clamped to 60% of the card width and always springs back to zero, including on a cancelled gesture.
 - The edit sheet writes the track label, the per-lap driver, and the replay source. `Add a replay` and `Replace replay` open the same source menu as the lap screen, and `Resume sync` reopens the pending clip.
 - Delete a lap; delete the session when its last lap goes.
 
@@ -222,7 +222,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - Manual name and 2-letter country entry is available when GT GridStats has no profile or the network fails.
 - Each lap stores `driverPsnId`. New captures use the owner at capture time; existing laps stay unassigned until changed.
 - The lap screen's **Driver** card selects a cached driver, adds one, or clears it. Changing the driver does not touch video or telemetry.
-- Library cards show the lap's driver only when it differs from the owner; the header shows the owner and opens GT GridStats or GTSH-Rank. The lap screen's Driver card opens the same links for the assigned driver.
+- Library cards show the lap's driver on every card: flag and nickname, the PSN when the profile is unknown, or `Driver not set`; the header shows the owner and opens GT GridStats or GTSH-Rank. The lap screen's Driver card opens the same links for the assigned driver.
 - Without an owner, the library shows **Add GT profile**.
 
 ## 9. Data model

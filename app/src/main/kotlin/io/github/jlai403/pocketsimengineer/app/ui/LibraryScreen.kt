@@ -328,10 +328,12 @@ fun LibraryScreen(
                             null
                         }
                         val driverPsn = lap.driverPsnId
+                        val driver = driverPsn?.let { psn ->
+                            profiles[psn.lowercase()] ?: owner?.takeIf { it.psnId.equals(psn, true) }
+                        }
                         LapCard(
                             lap = lap,
-                            driver = driverPsn?.let { profiles[it.lowercase()] },
-                            showDriver = driverPsn != null && !driverPsn.equals(owner?.psnId, true),
+                            driver = driver,
                             fastest = isFastest,
                             deltaMs = deltaMs,
                             onOpen = { onOpenLap(lap.sessionId, lap.lapIndex) },

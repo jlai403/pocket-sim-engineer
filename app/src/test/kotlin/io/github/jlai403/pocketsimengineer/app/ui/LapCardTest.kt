@@ -1,6 +1,7 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.app.Application
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -12,6 +13,7 @@ import androidx.compose.ui.test.swipeRight
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
 import io.github.jlai403.pocketsimengineer.core.session.LapSummary
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,7 +43,7 @@ class LapCardTest {
     fun `shows the time track and car`() {
         compose.setContent {
             PocketSimEngineerTheme {
-                LapCard(lap, null, false, false, null, {}, {}, {})
+                LapCard(lap, null, false, null, {}, {}, {})
             }
         }
 
@@ -54,7 +56,7 @@ class LapCardTest {
     fun `shows the fastest badge`() {
         compose.setContent {
             PocketSimEngineerTheme {
-                LapCard(lap, null, false, true, null, {}, {}, {})
+                LapCard(lap, null, true, null, {}, {}, {})
             }
         }
 
@@ -65,7 +67,7 @@ class LapCardTest {
     fun `shows the delta when the lap is not the fastest`() {
         compose.setContent {
             PocketSimEngineerTheme {
-                LapCard(lap, null, false, false, 412, {}, {}, {})
+                LapCard(lap, null, false, 412, {}, {}, {})
             }
         }
 
@@ -73,25 +75,12 @@ class LapCardTest {
     }
 
     @Test
-    fun `hides the driver when asked`() {
+    fun `shows the driver name and flag`() {
         val friend = DriverProfile("friend", "Friend", "US")
 
         compose.setContent {
             PocketSimEngineerTheme {
-                LapCard(lap, friend, false, false, null, {}, {}, {})
-            }
-        }
-
-        assertEquals(0, compose.onAllNodesWithText("Friend").fetchSemanticsNodes().size)
-    }
-
-    @Test
-    fun `shows the driver when asked`() {
-        val friend = DriverProfile("friend", "Friend", "US")
-
-        compose.setContent {
-            PocketSimEngineerTheme {
-                LapCard(lap, friend, true, false, null, {}, {}, {})
+                LapCard(lap.copy(driverPsnId = "friend"), friend, false, null, {}, {}, {})
             }
         }
 
@@ -100,10 +89,32 @@ class LapCardTest {
     }
 
     @Test
+    fun `shows the psn when the profile is unknown`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapCard(lap.copy(driverPsnId = "friend"), null, false, null, {}, {}, {})
+            }
+        }
+
+        compose.onNodeWithText("friend").assertExists()
+    }
+
+    @Test
+    fun `says driver not set when the lap has none`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapCard(lap, null, false, null, {}, {}, {})
+            }
+        }
+
+        compose.onNodeWithText("Driver not set").assertExists()
+    }
+
+    @Test
     fun `shows a saved replay`() {
         compose.setContent {
             PocketSimEngineerTheme {
-                LapCard(lap.copy(hasReplay = true), null, false, false, null, {}, {}, {})
+                LapCard(lap.copy(hasReplay = true), null, false, null, {}, {}, {})
             }
         }
 
@@ -114,7 +125,7 @@ class LapCardTest {
     fun `shows a pending sync`() {
         compose.setContent {
             PocketSimEngineerTheme {
-                LapCard(lap.copy(replayPending = true), null, false, false, null, {}, {}, {})
+                LapCard(lap.copy(replayPending = true), null, false, null, {}, {}, {})
             }
         }
 
@@ -127,7 +138,7 @@ class LapCardTest {
 
         compose.setContent {
             PocketSimEngineerTheme {
-                LapCard(lap, null, false, false, null, { opened++ }, {}, {})
+                LapCard(lap, null, false, null, { opened++ }, {}, {})
             }
         }
 
@@ -136,13 +147,82 @@ class LapCardTest {
     }
 
     @Test
-    fun `swipe right edits without opening the lap`() {
+    fun `right swipe reveals edit on the left`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapCard(lap, null, false, null, {}, {}, {})
+            }
+        }
+
+        compose.onNodeWithTag("lap-card").performTouchInput {
+            down(center)
+            moveBy(Offset(width * 0.2f, 0f))
+        }
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Edit").assertExists()
+        assertEquals(0, compose.onAllNodesWithText("Delete").fetchSemanticsNodes().size)
+        val left = compose.onNodeWithText("Edit").fetchSemanticsNode().boundsInRoot.left
+        assertTrue("edit should sit on the left, was $left", left < 120f)
+
+        compose.onNodeWithTag("lap-card").performTouchInput { up() }
+    }
+
+    @Test
+    fun `left swipe reveals delete on the right`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapCard(lap, null, false, null, {}, {}, {})
+            }
+        }
+
+        compose.onNodeWithTag("lap-card").performTouchInput {
+            down(center)
+            moveBy(Offset(-width * 0.2f, 0f))
+        }
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Delete").assertExists()
+        assertEquals(0, compose.onAllNodesWithText("Edit").fetchSemanticsNodes().size)
+        val right = compose.onNodeWithText("Delete").fetchSemanticsNode().boundsInRoot.right
+        assertTrue("delete should sit on the right, was $right", right > 200f)
+
+        compose.onNodeWithTag("lap-card").performTouchInput { up() }
+    }
+
+    @Test
+    fun `swipe back springs to the default state`() {
+        var edited = 0
+        var deleted = 0
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapCard(lap, null, false, null, {}, { edited++ }, { deleted++ })
+            }
+        }
+
+        compose.onNodeWithTag("lap-card").performTouchInput {
+            down(center)
+            moveBy(Offset(width * 0.2f, 0f))
+            moveBy(Offset(-width * 0.2f, 0f))
+            up()
+        }
+        compose.mainClock.advanceTimeBy(2_000)
+
+        assertEquals(0, compose.onAllNodesWithText("Edit").fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithText("Delete").fetchSemanticsNodes().size)
+        assertEquals(0, edited)
+        assertEquals(0, deleted)
+    }
+
+    @Test
+    fun `swipe right edits once without opening the lap`() {
         var opened = 0
         var edited = 0
 
         compose.setContent {
             PocketSimEngineerTheme {
-                LapCard(lap, null, false, false, null, { opened++ }, { edited++ }, {})
+                LapCard(lap, null, false, null, { opened++ }, { edited++ }, {})
             }
         }
 
@@ -155,13 +235,13 @@ class LapCardTest {
     }
 
     @Test
-    fun `swipe left deletes without opening the lap`() {
+    fun `swipe left deletes once without opening the lap`() {
         var opened = 0
         var deleted = 0
 
         compose.setContent {
             PocketSimEngineerTheme {
-                LapCard(lap, null, false, false, null, { opened++ }, {}, { deleted++ })
+                LapCard(lap, null, false, null, { opened++ }, {}, { deleted++ })
             }
         }
 

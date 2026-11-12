@@ -122,7 +122,7 @@ Defined in `ui/Components.kt` unless noted.
 | `StatusDot` | 10 dp circle: green when live, outline when idle |
 | `FrameRuler` | 64 dp surface strip with a fixed green needle; frame ticks, half-second labels, and horizontal drag at 6 dp per frame. The drag reports total frames from the playhead it started on, so the value follows the finger; one haptic tick per step, unless disabled |
 | `LapCard` | three-row lap card; tap opens, swipe edits or deletes, long press and custom actions repeat both; 22 dp radius, 14 dp padding |
-| Swipe actions | horizontal drag with a 35% threshold and spring-back; Edit on the start side, Delete on the end side; never dismisses the card |
+| Swipe actions | horizontal drag clamped to 60% of the card width; Edit pinned left on a right swipe, Delete pinned right on a left swipe; below the 35% threshold the card springs back to zero, and it always returns to the default state; never dismisses the card |
 | `PullToRefreshBox` | library list gesture; the spinner follows the refresh state |
 | `DriverPickerRow` | flag, nickname, PSN, Change menu; pass `onOpenLink` to add GT GridStats and GTSH-Rank |
 | `EditLapSheet` | modal bottom sheet for track, driver, and replay |
@@ -141,7 +141,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Pull to refresh replaces the refresh button. The spinner follows the gesture and the manual reload only, not the automatic reload after an edit.
 - Card: 34 sp mono lap time on the left with the driver on the right; track name with the `Fastest lap` badge or a `+0.412` delta; car and short date with `Replay` or `Sync pending`. The whole card opens the lap.
 - Fastest lap is computed per track across every lap, ignores the active filter, and only appears when the track has two or more laps. The other laps on that track show the delta.
-- Driver appears only when the lap driver differs from the owner.
+- Every card shows the lap's driver in the hero row: flag and nickname, the PSN when the profile is unknown, or `Driver not set` in muted text.
 - Swipe right opens Edit. Swipe left opens the delete confirmation, and the card springs back. Long press and the TalkBack custom actions offer the same two.
 - Edit sheet: track field with candidate rows for `Unknown` laps, the shared driver picker without profile links, a replay row (`Add a replay`, `Replace replay`, `Resume sync`), and Save.
 - Empty state: `No laps yet`, the Record instruction, and `Go to Record`. A filtered empty list adds `Clear filters`.
@@ -235,7 +235,7 @@ While Chiaki-Up is fullscreen the Record tab is not visible, and v0.1 has no ove
 - Tokens: add colors, type, and shapes in `Theme.kt`; screens consume `MaterialTheme`.
 - Reuse `Components.kt` before creating a one-off card or button.
 - New top-level destination: add a tab in `App.kt` and a `Screen` case; new detail screen: no tab, include a back action.
-- Keep UI copy that tests assert on: “Library”, “No laps yet”, “Go to Record”, “Fastest lap”, “Edit lap”, “Open”, “Share MP4”, “Export CSV”, “Speed”, “Track map”, “Lap N · time”, “Video not cut yet”, “Keep raw recording”, “720p60”.
+- Keep UI copy that tests assert on: “Library”, “No laps yet”, “Go to Record”, “Fastest lap”, “Driver not set”, “Edit lap”, “Open”, “Share MP4”, “Export CSV”, “Speed”, “Track map”, “Lap N · time”, “Video not cut yet”, “Keep raw recording”, “720p60”.
 - Compose UI tests run on the JVM via Robolectric (`:app:testDebugUnitTest`), so visual changes should keep semantics stable.
 
 ## File map
