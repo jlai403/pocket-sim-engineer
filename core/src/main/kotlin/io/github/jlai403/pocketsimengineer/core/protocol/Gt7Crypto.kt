@@ -10,9 +10,25 @@ object Gt7Crypto {
     fun decrypt(datagram: ByteArray): ByteArray? {
         if (datagram.size < 68) return null
 
+        // The XOR constant is selected by the packet format. Try the matching format first,
+        // then the rest: the console may still be answering an earlier heartbeat.
+        val preferred = Gt7PacketFormat.forSize(datagram.size)
+        val candidates = if (preferred == null) {
+            Gt7PacketFormat.entries
+        } else {
+            listOf(preferred) + Gt7PacketFormat.entries.filter { it != preferred }
+        }
+        for (format in candidates) {
+            val decrypted = decryptWith(datagram, format.xor)
+            if (decrypted != null) return decrypted
+        }
+        return null
+    }
+
+    private fun decryptWith(datagram: ByteArray, xor: Int): ByteArray? {
         val buffer = ByteBuffer.wrap(datagram).order(ByteOrder.LITTLE_ENDIAN)
         val iv1 = buffer.getInt(0x40)
-        val iv2 = iv1 xor 0xDEADBEAF.toInt()
+        val iv2 = iv1 xor xor
         val nonce = ByteBuffer.allocate(8)
             .order(ByteOrder.LITTLE_ENDIAN)
             .putInt(iv2)

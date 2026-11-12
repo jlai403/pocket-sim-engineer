@@ -1,6 +1,7 @@
 package io.github.jlai403.pocketsimengineer.core.protocol
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import java.nio.ByteBuffer
@@ -24,5 +25,19 @@ class Gt7CryptoTest {
     fun `rejects a bad magic`() {
         val encrypted = TestPacketFactory.packetA(magic = 0x12345678)
         assertNull(Gt7Crypto.decrypt(encrypted))
+    }
+
+    @Test
+    fun `packet C decrypts with the BEEF constant`() {
+        val packet = TestPacketFactory.packet(format = Gt7PacketFormat.C, lapCount = 3)
+        val decrypted = Gt7Crypto.decrypt(packet)
+        assertNotNull(decrypted)
+        assertEquals(368, decrypted!!.size)
+    }
+
+    @Test
+    fun `packet A still decrypts with the BEAF constant`() {
+        val packet = TestPacketFactory.packet(format = Gt7PacketFormat.A, lapCount = 3)
+        assertNotNull(Gt7Crypto.decrypt(packet))
     }
 }

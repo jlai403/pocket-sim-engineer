@@ -14,16 +14,34 @@ object TestPacketFactory {
         lastLapTimeMs: Int = 90_000,
         packetId: Int = 7,
         iv1: Int = 0x11223344,
+    ): ByteArray = packet(
+        format = Gt7PacketFormat.A,
+        lapCount = lapCount.toInt(),
+        magic = magic,
+        speedMps = speedMps,
+        lastLapTimeMs = lastLapTimeMs,
+        packetId = packetId,
+        iv1 = iv1,
+    )
+
+    fun packet(
+        format: Gt7PacketFormat,
+        lapCount: Int,
+        magic: Int = Gt7Protocol.MAGIC,
+        speedMps: Float = 42.5f,
+        lastLapTimeMs: Int = 90_000,
+        packetId: Int = 7,
+        iv1: Int = 0x11223344,
     ): ByteArray {
-        val plain = ByteArray(Gt7Protocol.PACKET_A_SIZE)
+        val plain = ByteArray(format.size)
         val b = ByteBuffer.wrap(plain).order(ByteOrder.LITTLE_ENDIAN)
         b.putInt(0x00, magic)
         b.putFloat(0x4C, speedMps)
         b.putInt(0x70, packetId)
-        b.putShort(0x74, lapCount)
+        b.putShort(0x74, lapCount.toShort())
         b.putInt(0x7C, lastLapTimeMs)
 
-        val iv2 = iv1 xor 0xDEADBEAF.toInt()
+        val iv2 = iv1 xor format.xor
         val nonce = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putInt(iv2).putInt(iv1).array()
         val engine = Salsa20Engine()

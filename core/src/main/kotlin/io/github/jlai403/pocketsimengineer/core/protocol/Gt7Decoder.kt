@@ -13,11 +13,11 @@ fun interface TelemetryDecoder {
 
 class Gt7Decoder : TelemetryDecoder {
     override fun decode(datagram: ByteArray, receivedAtNanos: Long): DecodeResult {
+        if (datagram.size !in Gt7Protocol.PACKET_SIZES) {
+            return DecodeResult.Invalid("unsupported-size:${datagram.size}")
+        }
         val decrypted = Gt7Crypto.decrypt(datagram)
             ?: return DecodeResult.Invalid("decrypt-or-magic")
-        if (decrypted.size != Gt7Protocol.PACKET_A_SIZE) {
-            return DecodeResult.Invalid("unsupported-size:${decrypted.size}")
-        }
         return DecodeResult.Success(PacketAParser.parse(decrypted, receivedAtNanos))
     }
 }
