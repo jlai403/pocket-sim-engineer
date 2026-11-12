@@ -235,7 +235,7 @@ internal fun LapCard(
 @Composable
 private fun DriverLabel(psnId: String?, driver: DriverProfile?) {
     Row(
-        modifier = Modifier.widthIn(max = 132.dp),
+        modifier = Modifier.widthIn(max = 132.dp).testTag("lap-driver"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {

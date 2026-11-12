@@ -3,16 +3,20 @@ package io.github.jlai403.pocketsimengineer.app.ui
 import android.app.Application
 import android.content.Context
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeRight
 import androidx.test.core.app.ApplicationProvider
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
-import io.github.jlai403.pocketsimengineer.core.track.TrackCandidate
+import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -31,83 +35,14 @@ class LibraryScreenTest {
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
     @Before
-    fun clearProfile() {
+    fun clearState() {
         DriverProfileStore(context).clear()
+        SettingsStore(context).previewEmptyLibrary = false
     }
 
     @Test
-    fun `shows the saved driver name and profile links`() {
-        DriverProfileStore(context).setOwner(DriverProfile("skino2024", "Skino", "GB"))
-        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
-
-        compose.setContent {
-            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
-        }
-
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Skino").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithText("skino2024").assertExists()
-        compose.onNodeWithText("🇬🇧").assertExists()
-        compose.onNodeWithTag("library-profile-menu").performClick()
-        compose.onNodeWithText("GT GridStats").assertExists()
-        compose.onNodeWithText("GTSH-Rank").assertExists()
-        compose.onNodeWithText("Edit profile").assertExists()
-    }
-
-    @Test
-    fun `shows another driver on the lap card`() {
-        val profiles = DriverProfileStore(context)
-        profiles.setOwner(DriverProfile("skino2024", "Skino", "GB"))
-        profiles.save(DriverProfile("friend", "Friend", "US"))
-        SessionFixtures.install(
-            context,
-            SessionFixtures.session(lapTimesMs = listOf(90_000), driverPsnId = "friend"),
-        )
-
-        compose.setContent {
-            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
-        }
-
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Friend").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithText("🇺🇸").assertExists()
-    }
-
-    @Test
-    fun `an unassigned lap says so`() {
-        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
-
-        compose.setContent {
-            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
-        }
-
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Driver not set").fetchSemanticsNodes().isNotEmpty()
-        }
-    }
-
-    @Test
-    fun `add profile opens settings`() {
-        var edits = 0
-        compose.setContent {
-            PocketSimEngineerTheme {
-                LibraryScreen(onOpenLap = { _, _ -> }, onOpenSettings = { edits++ })
-            }
-        }
-
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Add GT profile").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithTag("library-add-profile").performClick()
-
-        assertEquals(1, edits)
-    }
-
-    @Test
-    fun `shows lap time and replay badge`() {
-        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+    fun `shows the library header with counts and the best lap`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000, 91_500)))
 
         compose.setContent {
             PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
@@ -116,38 +51,49 @@ class LibraryScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Suzuka · BRZ GT300 '21").assertExists()
-        compose.onNodeWithText("Replay").assertExists()
+        compose.onNodeWithText("Library").assertExists()
+        compose.onNodeWithText("2 laps · 1 track · Best 1:30.000").assertExists()
     }
 
     @Test
-    fun `tapping open reports the lap`() {
+    fun `tapping a card opens the lap`() {
         SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
         var opened: Pair<String, Int>? = null
 
         compose.setContent {
-            PocketSimEngineerTheme {
-                LibraryScreen(onOpenLap = { id, index -> opened = id to index })
-            }
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { id, index -> opened = id to index }) }
         }
 
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Open").performClick()
+        compose.onNodeWithText("1:30.000").performClick()
+
         assertEquals("session-1" to 1, opened)
     }
 
     @Test
+    fun `marks the fastest lap per track and shows the delta`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000, 91_500)))
+
+        compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(1, compose.onAllNodesWithText("Fastest lap").fetchSemanticsNodes().size)
+        compose.onNodeWithText("+1.500").assertExists()
+    }
+
+    @Test
     fun `filters to laps without a replay`() {
-        SessionFixtures.install(
-            context,
-            SessionFixtures.session(id = "with-replay", lapTimesMs = listOf(90_000)),
-        )
+        SessionFixtures.install(context, SessionFixtures.session(id = "with", lapTimesMs = listOf(90_000)))
         SessionFixtures.install(
             context,
             SessionFixtures.session(
-                id = "without-replay",
+                id = "without",
                 trackLabel = "Nurburgring",
                 createdAt = "2026-11-11T10:00:00Z",
                 lapTimesMs = listOf(120_000),
@@ -162,18 +108,89 @@ class LibraryScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("2:00.000").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Without replay").performClick()
+        compose.onNodeWithText("No replay").performClick()
 
-        compose.onAllNodesWithText("Nurburgring · BRZ GT300 '21")
-            .fetchSemanticsNodes().isNotEmpty()
-        assertEquals(
-            0,
-            compose.onAllNodesWithText("Suzuka · BRZ GT300 '21").fetchSemanticsNodes().size,
-        )
+        assertEquals(0, compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().size)
+        compose.onNodeWithText("2:00.000").assertExists()
     }
 
     @Test
-    fun `sort menu switches to fastest`() {
+    fun `hides the owner on their own lap and shows another driver`() {
+        val profiles = DriverProfileStore(context)
+        profiles.setOwner(DriverProfile("skino2024", "Skino", "GB"))
+        profiles.save(DriverProfile("friend", "Friend", "US"))
+        SessionFixtures.install(context, SessionFixtures.session(id = "mine", lapTimesMs = listOf(90_000), driverPsnId = "skino2024"))
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(
+                id = "theirs",
+                trackLabel = "Monza",
+                createdAt = "2026-11-11T10:00:00Z",
+                lapTimesMs = listOf(100_000),
+                driverPsnId = "friend",
+            ),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("1:40.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(
+            1,
+            compose.onAllNodesWithTag("lap-driver", useUnmergedTree = true).fetchSemanticsNodes().size,
+        )
+        compose.onNodeWithText("Friend").assertExists()
+    }
+
+    @Test
+    fun `empty library explains where to capture`() {
+        var record = 0
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LibraryScreen(onOpenLap = { _, _ -> }, onOpenRecord = { record++ })
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("No laps yet").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText(
+            "Connect to GT7 on the Record tab to start capturing a lap. " +
+                "A replay can be added later to the recorded lap.",
+        ).assertExists()
+        compose.onNodeWithText("Go to Record").performClick()
+        assertEquals(1, record)
+    }
+
+    @Test
+    fun `developer preview shows the empty state and turns off`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+        SettingsStore(context).previewEmptyLibrary = true
+
+        compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Previewing the empty library").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("No laps yet").assertExists()
+        assertEquals(0, compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().size)
+
+        compose.onNodeWithText("Turn off").performClick()
+
+        assertFalse(SettingsStore(context).previewEmptyLibrary)
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun `swipe right opens the edit sheet`() {
         SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
 
         compose.setContent {
@@ -181,62 +198,63 @@ class LibraryScreenTest {
         }
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Newest").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Newest").performClick()
-        compose.onNodeWithText("Fastest").performClick()
+        compose.onNodeWithTag("lap-card").performTouchInput { swipeRight() }
 
-        compose.onNodeWithText("Fastest").assertExists()
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Edit lap").fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test
-    fun `unknown lap offers a track chooser`() {
-        SessionFixtures.install(
-            context,
-            SessionFixtures.session(trackLabel = "Unknown", lapTimesMs = listOf(90_000)),
-        )
+    fun `swipe left asks to delete the lap`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
 
         compose.setContent {
             PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
         }
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Choose track").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Choose track").performClick()
+        compose.onNodeWithTag("lap-card").performTouchInput { swipeLeft() }
+
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Enter a name…").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Delete lap?").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Enter a name…").assertExists()
     }
 
     @Test
-    fun `track chooser lists candidates and reports the pick`() {
-        var picked: String? = null
-        var custom = 0
+    fun `shows the saved driver chip and profile links`() {
+        DriverProfileStore(context).setOwner(DriverProfile("skino2024", "Skino", "GB"))
+
+        compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.onNodeWithTag("library-profile-menu").performClick()
+        compose.onNodeWithText("GT GridStats").assertExists()
+        compose.onNodeWithText("GTSH-Rank").assertExists()
+        compose.onNodeWithText("Edit profile").assertExists()
+    }
+
+    @Test
+    fun `add profile opens settings`() {
+        var edits = 0
+
         compose.setContent {
             PocketSimEngineerTheme {
-                TrackChoiceButton(
-                    unknown = true,
-                    expanded = true,
-                    candidates = listOf(
-                        TrackCandidate("Road Atlanta", "a", 1f),
-                        TrackCandidate("Watkins Glen Short", "b", 0.4f),
-                    ),
-                    onOpen = {},
-                    onDismiss = {},
-                    onPick = { picked = it },
-                    onCustom = { custom++ },
-                )
+                LibraryScreen(onOpenLap = { _, _ -> }, onOpenSettings = { edits++ })
             }
         }
 
-        compose.onNodeWithText("Road Atlanta").assertExists()
-        compose.onNodeWithText("Watkins Glen Short").performClick()
-        assertEquals("Watkins Glen Short", picked)
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Add GT profile").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("library-add-profile").performClick()
 
-        compose.onNodeWithText("Enter a name…").performClick()
-        assertEquals(1, custom)
+        assertEquals(1, edits)
     }
 
     private companion object {

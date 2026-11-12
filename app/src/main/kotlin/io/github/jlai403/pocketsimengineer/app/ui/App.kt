@@ -80,6 +80,10 @@ fun App(
                     when (val current = screen) {
                         Screen.Library -> LibraryScreen(
                             onOpenLap = { id, index -> screen = Screen.Player(id, index) },
+                            onOpenRecord = { screen = Screen.Record },
+                            onOpenSync = { id, index, uri ->
+                                screen = Screen.ImportSync(id, index, uri, returnToLibrary = true)
+                            },
                             onOpenSettings = { screen = Screen.Settings },
                         )
 
@@ -95,7 +99,13 @@ fun App(
                             sessionId = current.sessionId,
                             lapIndex = current.lapIndex,
                             sourceUri = current.sourceUri,
-                            onDone = { screen = Screen.Player(current.sessionId, current.lapIndex) },
+                            onDone = {
+                                screen = if (current.returnToLibrary) {
+                                    Screen.Library
+                                } else {
+                                    Screen.Player(current.sessionId, current.lapIndex)
+                                }
+                            },
                             onCancel = { screen = Screen.Library },
                         )
 
