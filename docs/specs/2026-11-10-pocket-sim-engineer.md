@@ -204,8 +204,16 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 ### 8.10 Settings
 
-- PS5 IPv4 address, imperial units, update channel, build identity, diagnostics.
+- PS5 IPv4 address, driver profile, imperial units, update channel, build identity, diagnostics.
 - No video quality, codec, bitrate, or keep-raw settings.
+
+### 8.11 Driver profile
+
+- One local profile: PSN ID, GT nickname, and ISO country code. No avatar.
+- Fetch from the public GT GridStats player page only when the user taps **Fetch profile**; one request per tap, no crawling, retries, or background refresh.
+- A failed lookup leaves the stored profile untouched.
+- The library header shows the flag, nickname, and PSN ID; its menu opens GT GridStats, GTSH-Rank, or Settings.
+- Without a profile, the library shows **Add GT profile**.
 
 ## 9. Data model
 
@@ -301,13 +309,15 @@ The core is plain Kotlin and the session files are portable. A Rust core or desk
 ## 14. Privacy and security
 
 - Local-only. PS5 IP stays in app preferences.
-- No analytics, accounts, or cloud calls.
+- No analytics, accounts, or background cloud calls.
+- The optional driver-profile lookup sends only the PSN ID to gt-gridstats.com when the user taps Fetch; profile data stays on-device.
 - Imported videos stay in app-private storage until deleted.
 - In-app updates verify SHA-256 and always ask the user before installing.
 
 ## 15. Acceptance criteria
 
 - A real GT7 session decodes at ~60 pps with no decode errors, including when another telemetry app is running.
+- A fetched driver profile shows the name and flag in Settings and above the library; both external links open the matching profile page.
 - `Capture this lap` saves exactly one complete lap and rejects a mid-lap connect.
 - A lap without a replay opens with charts and map.
 - A PS App clip imports through share and SAF, copies into app storage, and can be trimmed.
