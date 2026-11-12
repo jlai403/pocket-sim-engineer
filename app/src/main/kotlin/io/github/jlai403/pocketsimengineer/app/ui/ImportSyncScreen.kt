@@ -90,8 +90,9 @@ fun ImportSyncScreen(
     var sourceFile by remember { mutableStateOf<File?>(null) }
     var durationMs by remember { mutableLongStateOf(0L) }
     var frameStepMs by remember { mutableLongStateOf(33L) }
+    var frameDurationUs by remember { mutableLongStateOf(33_000L) }
     var positionMs by remember { mutableLongStateOf(0L) }
-    var renderedMs by remember { mutableLongStateOf(-1L) }
+    var renderedUs by remember { mutableLongStateOf(-1L) }
     var anchorMs by remember { mutableStateOf<Long?>(null) }
     var playing by remember { mutableStateOf(false) }
     var previewing by remember { mutableStateOf(false) }
@@ -107,7 +108,7 @@ fun ImportSyncScreen(
         val clamped = targetMs.coerceIn(0, durationMs.coerceAtLeast(0))
         player.seekTo(clamped)
         positionMs = clamped
-        renderedMs = -1
+        renderedUs = -1
         player.pause()
         previewing = false
     }
@@ -126,7 +127,7 @@ fun ImportSyncScreen(
         }
         player.addListener(listener)
         player.setVideoFrameMetadataListener { presentationTimeUs, _, _, _ ->
-            renderedMs = presentationTimeUs / 1_000
+            renderedUs = presentationTimeUs
         }
         onDispose {
             player.removeListener(listener)
@@ -174,6 +175,7 @@ fun ImportSyncScreen(
         val probe = withContext(Dispatchers.IO) { probeClip(file) }
         durationMs = probe.durationMs
         frameStepMs = probe.frameMs
+        frameDurationUs = probe.frameDurationUs
         player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
         player.prepare()
     }
@@ -213,7 +215,12 @@ fun ImportSyncScreen(
 
     val currentLap = lap
     val anchor = anchorMs
-    val displayedMs = if (renderedMs >= 0) renderedMs else positionMs
+    val displayedUs = if (renderedUs >= 0) renderedUs else positionMs * 1_000
+    val displayedMs = if (renderedUs >= 0) renderedUs / 1_000 else positionMs
+
+    fun stepFrames(frames: Int) {
+        seekTo(frameStepTargetMs(displayedUs, frames, frameDurationUs).coerceIn(0, durationMs))
+    }
     val sync = if (currentLap != null && anchor != null) ClipSync(anchor, currentLap.lapTimeMs) else null
     val range = sync?.let { TrimPlan.forSync(it, durationMs) }
     val check = sync?.let { SyncValidator.check(it, durationMs, startTrackPercent = 0f) }
@@ -309,7 +316,7 @@ fun ImportSyncScreen(
             endMs = durationMs,
             frameStepMs = frameStepMs,
             enabled = durationMs > 0,
-            onFrames = { frames -> seekTo((displayedMs + frames * frameStepMs).coerceIn(0, durationMs)) },
+            onFrames = { frames -> stepFrames(frames) },
         )
         Text(
             "Frame ruler · drag to step one frame",
@@ -334,7 +341,7 @@ fun ImportSyncScreen(
         )
         FrameStepRow(
             enabled = durationMs > 0,
-            onStep = { frames -> seekTo((displayedMs + frames * frameStepMs).coerceIn(0, durationMs)) },
+            onStep = { frames -> stepFrames(frames) },
         )
 
         currentLap?.let { activeLap ->

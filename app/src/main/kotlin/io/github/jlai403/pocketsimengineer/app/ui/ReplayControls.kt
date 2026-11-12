@@ -281,3 +281,12 @@ internal fun formatRulerLabel(ms: Long): String {
     val seconds = (tenths % 600) / 10
     return "%d:%02d.%d".format(minutes, seconds, tenths % 10)
 }
+
+/**
+ * Seeks into the target frame, not before it: a frame's presentation time in
+ * microseconds is rounded up to the next millisecond.
+ */
+internal fun frameStepTargetMs(positionUs: Long, frames: Int, frameDurationUs: Long): Long {
+    val targetUs = positionUs + frames * frameDurationUs
+    return if (targetUs <= 0) 0 else (targetUs + 999) / 1_000
+}

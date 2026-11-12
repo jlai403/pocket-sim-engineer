@@ -35,4 +35,14 @@ class ReplayControlsTest {
         assertEquals("0:32.5", formatRulerLabel(32_500))
         assertEquals("1:30.0", formatRulerLabel(90_000))
     }
+
+    @Test
+    fun `frame steps use the exact frame duration`() {
+        val frameUs = 16_683L
+
+        assertEquals(17, frameStepTargetMs(0, 1, frameUs))
+        assertEquals(34, frameStepTargetMs(16_683, 1, frameUs))
+        assertEquals(17, frameStepTargetMs(33_366, -1, frameUs))
+        assertEquals(0, frameStepTargetMs(0, -1, frameUs))
+    }
 }

@@ -110,9 +110,10 @@ fun LapPlayerScreen(
     }
 
     var positionMs by remember { mutableLongStateOf(0L) }
-    var renderedMs by remember { mutableLongStateOf(-1L) }
+    var renderedUs by remember { mutableLongStateOf(-1L) }
     var durationMs by remember { mutableLongStateOf(0L) }
     var frameStepMs by remember { mutableLongStateOf(33L) }
+    var frameDurationUs by remember { mutableLongStateOf(33_000L) }
     var message by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
 
@@ -136,7 +137,7 @@ fun LapPlayerScreen(
         }
         player.addListener(listener)
         player.setVideoFrameMetadataListener { presentationTimeUs, _, _, _ ->
-            renderedMs = presentationTimeUs / 1_000
+            renderedUs = presentationTimeUs
         }
         onDispose {
             player.removeListener(listener)
@@ -149,6 +150,7 @@ fun LapPlayerScreen(
         val probe = withContext(Dispatchers.IO) { probeClip(file) }
         durationMs = probe.durationMs
         frameStepMs = probe.frameMs
+        frameDurationUs = probe.frameDurationUs
         val start = lap?.let {
             PlaybackCursor.clipMs(0, it.leadInMs, it.syncOffsetMs)
         } ?: 0L
@@ -174,7 +176,7 @@ fun LapPlayerScreen(
         val clamped = targetMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
         player.seekTo(clamped)
         positionMs = clamped
-        renderedMs = -1L
+        renderedUs = -1L
         player.pause()
     }
 
@@ -184,13 +186,21 @@ fun LapPlayerScreen(
         seekClip(PlaybackCursor.clipMs(clamped.toInt(), active.leadInMs, active.syncOffsetMs))
     }
 
-    val displayedMs = if (renderedMs >= 0) renderedMs else positionMs
+    val displayedUs = if (renderedUs >= 0) renderedUs else positionMs * 1_000
+    val displayedMs = if (renderedUs >= 0) renderedUs / 1_000 else positionMs
     val cursorMs = lap?.let {
         PlaybackCursor.telemetryMs(displayedMs, it.leadInMs, it.syncOffsetMs, it.lapTimeMs)
     } ?: 0
 
     fun stepFrames(frames: Int) {
-        seekLap(cursorMs + frames * frameStepMs)
+        val active = lap ?: return
+        val startMs = PlaybackCursor.clipMs(0, active.leadInMs, active.syncOffsetMs)
+            .coerceAtLeast(0)
+        val endMs = PlaybackCursor.clipMs(active.lapTimeMs, active.leadInMs, active.syncOffsetMs)
+            .coerceAtMost(durationMs.coerceAtLeast(0))
+        val targetMs = frameStepTargetMs(displayedUs, frames, frameDurationUs)
+            .coerceIn(startMs, endMs.coerceAtLeast(startMs))
+        seekClip(targetMs)
     }
 
     Column(
