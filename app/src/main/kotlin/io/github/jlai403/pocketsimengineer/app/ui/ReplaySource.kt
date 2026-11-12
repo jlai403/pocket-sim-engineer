@@ -26,7 +26,7 @@ internal fun ReplaySourcePill(
     modifier: Modifier = Modifier,
 ) {
     var open by remember { mutableStateOf(false) }
-    Box(modifier.fillMaxWidth()) {
+    Box(modifier) {
         if (primary) {
             PrimaryPill(
                 text = text,

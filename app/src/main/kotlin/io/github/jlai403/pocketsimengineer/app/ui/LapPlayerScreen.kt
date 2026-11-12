@@ -282,6 +282,7 @@ fun LapPlayerScreen(
                     primary = false,
                     onFiles = { importLauncher.launch(arrayOf("video/*")) },
                     onPlayStation = { openPlayStationApp() },
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 if (currentLap.sourceFile != null) {
                     Text(
@@ -307,6 +308,7 @@ fun LapPlayerScreen(
                             primary = false,
                             onFiles = { importLauncher.launch(arrayOf("video/*")) },
                             onPlayStation = { openPlayStationApp() },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     } else {
                         Text("No replay attached", style = MaterialTheme.typography.titleLarge)
@@ -321,6 +323,7 @@ fun LapPlayerScreen(
                             primary = true,
                             onFiles = { importLauncher.launch(arrayOf("video/*")) },
                             onPlayStation = { openPlayStationApp() },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
