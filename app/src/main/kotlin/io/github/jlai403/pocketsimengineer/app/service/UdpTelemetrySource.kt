@@ -3,7 +3,9 @@ package io.github.jlai403.pocketsimengineer.app.service
 import io.github.jlai403.pocketsimengineer.core.lap.LapBoundary
 import io.github.jlai403.pocketsimengineer.core.lap.LapDetector
 import io.github.jlai403.pocketsimengineer.core.model.Sample
+import io.github.jlai403.pocketsimengineer.app.Diagnostics
 import io.github.jlai403.pocketsimengineer.core.protocol.DecodeResult
+import io.github.jlai403.pocketsimengineer.core.protocol.DecodeFailureLog
 import io.github.jlai403.pocketsimengineer.core.protocol.Gt7Decoder
 import io.github.jlai403.pocketsimengineer.core.protocol.Gt7Protocol
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +42,8 @@ class UdpTelemetrySource(
     private var rawPackets = 0L
     private var foreignPackets = 0L
     private var lastForeignSource = ""
+    private val decodeFailures = DecodeFailureLog()
+    private var lastDecodeFailure = ""
 
     /** Returns null on success, or a message when the address or socket cannot be used. */
     fun start(): String? {
@@ -60,7 +64,7 @@ class UdpTelemetrySource(
         heartbeatJob = newScope.launch {
             while (isActive) {
                 try {
-                    val payload = "A".toByteArray()
+                    val payload = Gt7Protocol.HEARTBEAT.toByteArray()
                     newSocket.send(DatagramPacket(payload, payload.size, address, Gt7Protocol.PORT_SEND))
                 } catch (error: Exception) {
                     if (isActive) onStatus("Heartbeat failed: ${error.message}")
@@ -93,6 +97,12 @@ class UdpTelemetrySource(
                         }
                         is DecodeResult.Invalid -> {
                             stats.onDecodeError()
+                            if (decodeFailures.record(packet.length, result.reason)) {
+                                lastDecodeFailure = "${packet.length} ${result.reason}"
+                                Diagnostics.log(
+                                    "decode failed size=${packet.length} reason=${result.reason}",
+                                )
+                            }
                             publish(now)
                         }
                     }
@@ -131,6 +141,7 @@ class UdpTelemetrySource(
                 rawPackets = rawPackets,
                 foreignPackets = foreignPackets,
                 lastForeignSource = lastForeignSource,
+                lastDecodeFailure = lastDecodeFailure,
                 lastPacketAgeMs = lastPacket?.let { (nowNanos - it) / 1_000_000 } ?: -1,
                 lapCount = sample?.lapCount ?: 0,
                 speedMps = sample?.speedMps ?: 0f,

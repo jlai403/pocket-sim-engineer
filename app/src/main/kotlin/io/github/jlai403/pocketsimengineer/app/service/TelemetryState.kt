@@ -8,6 +8,7 @@ data class TelemetryUiState(
     val rawPackets: Long = 0,
     val foreignPackets: Long = 0,
     val lastForeignSource: String = "",
+    val lastDecodeFailure: String = "",
     val lastPacketAgeMs: Long = -1,
     val lapCount: Int = 0,
     val speedMps: Float = 0f,

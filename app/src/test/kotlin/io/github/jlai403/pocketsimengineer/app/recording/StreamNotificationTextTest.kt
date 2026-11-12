@@ -11,10 +11,12 @@ class StreamNotificationTextTest {
         packetsPerSecond: Double = 59.8,
         decodeErrors: Long = 0,
         lastPacketAgeMs: Long = 12,
+        lastDecodeFailure: String = "",
     ) = TelemetryUiState(
         connected = connected,
         packetsPerSecond = packetsPerSecond,
         decodeErrors = decodeErrors,
+        lastDecodeFailure = lastDecodeFailure,
         lastPacketAgeMs = lastPacketAgeMs,
         lapCount = 3,
         speedMps = 50f,
@@ -60,8 +62,16 @@ class StreamNotificationTextTest {
     }
 
     @Test
-    fun `missing packets and lap times are explicit`() {
+    fun `details name the last decode failure`() {
         val details = StreamNotificationText.details(
+            state(lastDecodeFailure = "368 decrypt-or-magic"),
+            null,
+        )
+        assertTrue(details.contains("Last decode failure: 368 decrypt-or-magic"))
+    }
+
+    @Test
+    fun `missing packets and lap times are explicit`() {        val details = StreamNotificationText.details(
             state(connected = false, lastPacketAgeMs = -1, packetsPerSecond = 0.0),
             null,
         )
