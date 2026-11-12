@@ -1,7 +1,8 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,8 +10,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -25,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
@@ -51,7 +49,6 @@ internal fun DriverSection(
     val profileStore = remember { DriverProfileStore(context) }
     val owner = remember { profileStore.owner() }
     var profiles by remember { mutableStateOf(profileStore.profiles()) }
-    var menuOpen by remember { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val driver = driverPsnId?.let(profileStore::profile)
@@ -74,91 +71,24 @@ internal fun DriverSection(
         }
     }
 
+    fun openLink(url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (runCatching { context.startActivity(intent) }.isFailure) {
+            error = "No app can open that link."
+        }
+    }
+
     SectionCard(title = "Driver") {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            countryFlagEmoji(driver?.countryCode)?.let {
-                Text(it, style = MaterialTheme.typography.headlineSmall)
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    driver?.nickname ?: driverPsnId ?: "No driver",
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    driver?.psnId ?: driverPsnId ?: "Defaults to your profile when set",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Box {
-                GhostPill(
-                    text = if (driverPsnId == null) "Set driver" else "Change",
-                    onClick = { menuOpen = true },
-                    modifier = Modifier.testTag("driver-menu"),
-                )
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    driverOptions(owner, profiles).forEach { option ->
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text(
-                                        if (option.psnId.equals(owner?.psnId, ignoreCase = true)) {
-                                            "${option.nickname} (you)"
-                                        } else {
-                                            option.nickname
-                                        },
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                    Text(
-                                        option.psnId,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            },
-                            leadingIcon = {
-                                Text(countryFlagEmoji(option.countryCode).orEmpty())
-                            },
-                            trailingIcon = {
-                                if (option.psnId.equals(driverPsnId, ignoreCase = true)) Text("✓")
-                            },
-                            onClick = {
-                                menuOpen = false
-                                assign(option)
-                            },
-                        )
-                    }
-                    DropdownMenuItem(
-                        text = { Text("Add driver…") },
-                        onClick = {
-                            menuOpen = false
-                            adding = true
-                        },
-                    )
-                    if (driverPsnId != null) {
-                        DropdownMenuItem(
-                            text = { Text("Clear driver") },
-                            onClick = {
-                                menuOpen = false
-                                assign(null)
-                            },
-                        )
-                    }
-                }
-            }
-        }
-        if (driverPsnId == null && owner != null) {
-            GhostPill(
-                text = "Use my profile",
-                onClick = { assign(owner) },
-                modifier = Modifier.testTag("driver-use-owner"),
-            )
-        }
+        DriverPickerRow(
+            driverPsnId = driverPsnId,
+            profile = driver,
+            owner = owner,
+            profiles = profiles,
+            onChange = ::assign,
+            onAddDriver = { adding = true },
+            onOpenLink = if (driverPsnId != null) { url -> openLink(url) } else null,
+        )
         error?.let {
             Text(
                 it,
@@ -177,16 +107,6 @@ internal fun DriverSection(
             },
             onDismiss = { adding = false },
         )
-    }
-}
-
-private fun driverOptions(
-    owner: DriverProfile?,
-    profiles: List<DriverProfile>,
-): List<DriverProfile> = buildList {
-    owner?.let(::add)
-    profiles.forEach { profile ->
-        if (none { it.psnId.equals(profile.psnId, ignoreCase = true) }) add(profile)
     }
 }
 

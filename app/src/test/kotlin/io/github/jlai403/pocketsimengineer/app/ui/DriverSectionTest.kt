@@ -3,6 +3,7 @@ package io.github.jlai403.pocketsimengineer.app.ui
 import android.app.Application
 import android.content.Context
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -114,6 +115,52 @@ class DriverSectionTest {
 
         compose.waitUntil(TIMEOUT) { lapDriver() == "friend" }
         assertEquals("Friend", DriverProfileStore(context).profile("friend")?.nickname)
+    }
+
+    @Test
+    fun `driver row opens the public profile for the assigned driver`() {
+        var opened: String? = null
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                DriverPickerRow(
+                    driverPsnId = "friend",
+                    profile = DriverProfile("friend", "Friend", "US"),
+                    owner = null,
+                    profiles = emptyList(),
+                    onChange = {},
+                    onAddDriver = {},
+                    onOpenLink = { opened = it },
+                )
+            }
+        }
+
+        compose.onNodeWithTag("driver-profile").performClick()
+        compose.onNodeWithText("GT GridStats").performClick()
+
+        assertEquals("https://gt-gridstats.com/player/friend", opened)
+    }
+
+    @Test
+    fun `driver row hides profile links when the caller does not want them`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                DriverPickerRow(
+                    driverPsnId = "friend",
+                    profile = DriverProfile("friend", "Friend", "US"),
+                    owner = null,
+                    profiles = emptyList(),
+                    onChange = {},
+                    onAddDriver = {},
+                    onOpenLink = null,
+                )
+            }
+        }
+
+        compose.onNodeWithTag("driver-menu").performClick()
+        assertEquals(0, compose.onAllNodesWithText("GT GridStats").fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithText("GTSH-Rank").fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithTag("driver-profile").fetchSemanticsNodes().size)
     }
 
     private fun lapDriver(): String? =
