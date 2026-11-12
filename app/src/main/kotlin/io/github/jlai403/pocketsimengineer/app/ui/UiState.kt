@@ -74,6 +74,13 @@ fun formatDate(iso: String): String = runCatching {
         .format(Instant.parse(iso))
 }.getOrDefault(iso)
 
+/** Short feed-style date, e.g. `Nov 11`. */
+fun shortDateLabel(iso: String): String = runCatching {
+    DateTimeFormatter.ofPattern("MMM d")
+        .withZone(ZoneId.systemDefault())
+        .format(Instant.parse(iso))
+}.getOrDefault(iso)
+
 fun lapTimeLabel(ms: Int): String {
     if (ms <= 0) return "-"
     val minutes = ms / 60_000

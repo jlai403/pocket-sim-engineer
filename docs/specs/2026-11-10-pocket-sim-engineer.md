@@ -81,7 +81,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 - Track name is inferred from lap coordinates and the bundled racing lines; manual rename overrides it. Ambiguous matches stay `Unknown` until the user picks from the ranked candidates.
 - Car name is `Car #<code>` until a bundled lookup exists.
-- Library: flat lap cards with the lap time as the hero number, a per-track `Fastest lap` badge or delta, and the lap's driver in the hero row (flag and nickname, the PSN when unknown, or `Driver not set`). Swipe right edits, swipe left confirms a delete, and the card always springs back to the default state. Pull to refresh reloads. Filters (all / with replay / without replay, track) and sort (newest / fastest / track) sit in one toolbar; the owner chip and links sit in the header. The edit sheet changes the track, the driver, and the replay.
+- Library: a flat lap feed with no card boxes or rounded corners, the lap time as the hero number, a per-track `Fastest lap` marker or delta, and the lap's driver (flag and nickname, the PSN when unknown, or `Driver not set`) in a leading flag column. Hairline full-bleed dividers separate laps. Swipe right edits, swipe left confirms a delete, and the row always springs back to the default state. Pull to refresh reloads. Filters (all / with replay / without replay, track) and sort (newest / fastest / track) sit in one toolbar; the owner chip and links sit in the header. The edit sheet changes the track, the driver, and the replay.
 - Track map and charts are generated from telemetry positions.
 - Export: CSV telemetry and Android share of the trimmed MP4.
 
@@ -196,9 +196,10 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 ### 8.8 Library
 
-- `SessionStore.summaries()` flattens sessions into lap cards with `hasReplay` and `replayPending`.
+- `SessionStore.summaries()` flattens sessions into lap rows with `hasReplay` and `replayPending`.
+- The library is a flat feed: no card surface or radius, a leading flag column, and 1 dp full-bleed dividers between laps (none after the last).
 - Filters and sorts are pure functions in `:core`; `fastestPerTrack()` marks one quickest lap per track label.
-- The fastest badge needs two or more laps on that track and is computed from all laps, never the filtered list.
+- The fastest marker needs two or more laps on that track and is computed from all laps, never the filtered list.
 - Pull to refresh reloads summaries; the spinner does not appear for automatic reloads after an edit.
 - Swipe right opens the edit sheet and reveals Edit pinned to the left; swipe left reveals Delete pinned to the right and opens the delete confirmation. The drag is clamped to 60% of the card width and always springs back to zero, including on a cancelled gesture.
 - The edit sheet writes the track label, the per-lap driver, and the replay source. `Add a replay` and `Replace replay` open the same source menu as the lap screen, and `Resume sync` reopens the pending clip.

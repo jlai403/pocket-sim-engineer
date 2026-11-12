@@ -17,9 +17,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -63,7 +62,6 @@ internal fun LapCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(22.dp)
     var width by remember { mutableIntStateOf(0) }
     var menuOpen by remember { mutableStateOf(false) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
@@ -80,7 +78,6 @@ internal fun LapCard(
         modifier = modifier
             .fillMaxWidth()
             .onSizeChanged { width = it.width }
-            .clip(shape)
             .background(MaterialTheme.colorScheme.surface)
             .testTag("lap-card"),
     ) {
@@ -131,6 +128,7 @@ internal fun LapCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(offset.roundToInt(), 0) }
+                .background(MaterialTheme.colorScheme.surface)
                 .draggable(
                     state = rememberDraggableState { delta ->
                         val limit = width * 0.6f
@@ -168,48 +166,79 @@ internal fun LapCard(
                     onLongClick = { menuOpen = true },
                     onClick = onOpen,
                 )
-                .padding(14.dp),
+                .padding(horizontal = 20.dp, vertical = 14.dp),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(verticalAlignment = Alignment.Top) {
-                    NumericText(
-                        lapTimeLabel(lap.lapTimeMs),
-                        style = MaterialTheme.typography.displaySmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                    DriverLabel(lap.driverPsnId, driver)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(modifier = Modifier.width(32.dp)) {
+                    countryFlagEmoji(driver?.countryCode)?.let {
+                        Text(it, style = MaterialTheme.typography.titleLarge)
+                    }
                 }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        lap.trackLabel,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    when {
-                        fastest -> FastestBadge()
-                        deltaMs != null -> NumericText(
-                            "+%.3f".format(deltaMs / 1000.0),
-                            style = MaterialTheme.typography.bodyMedium,
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            driver?.nickname ?: lap.driverPsnId ?: "Driver not set",
+                            modifier = Modifier.weight(1f).testTag("lap-driver"),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (driver == null && lap.driverPsnId == null) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            shortDateLabel(lap.createdAt),
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "${lap.carName} · ${formatDate(lap.createdAt).substringBefore(' ')}",
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodySmall,
+                        lap.trackLabel,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    when {
-                        lap.hasReplay -> ReplayState("Replay", MaterialTheme.colorScheme.primary)
-                        lap.replayPending -> ReplayState("Sync pending", MaterialTheme.colorScheme.tertiary)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        NumericText(
+                            lapTimeLabel(lap.lapTimeMs),
+                            style = MaterialTheme.typography.displaySmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                        when {
+                            fastest -> Text(
+                                "Fastest lap",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            deltaMs != null -> NumericText(
+                                "+%.3f".format(deltaMs / 1000.0),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            lap.carName,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        when {
+                            lap.hasReplay -> ReplayState("Replay", MaterialTheme.colorScheme.primary)
+                            lap.replayPending -> ReplayState("Sync pending", MaterialTheme.colorScheme.tertiary)
+                        }
                     }
                 }
             }
@@ -231,47 +260,6 @@ internal fun LapCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun DriverLabel(psnId: String?, driver: DriverProfile?) {
-    val name = driver?.nickname ?: psnId
-    Row(
-        modifier = Modifier.widthIn(max = 132.dp).testTag("lap-driver"),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        countryFlagEmoji(driver?.countryCode)?.let {
-            Text(it, style = MaterialTheme.typography.bodyMedium)
-        }
-        Text(
-            name ?: "Driver not set",
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (name == null) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun FastestBadge() {
-    Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary)
-            .padding(horizontal = 10.dp, vertical = 3.dp),
-    ) {
-        Text(
-            "Fastest lap",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimary,
-        )
     }
 }
 

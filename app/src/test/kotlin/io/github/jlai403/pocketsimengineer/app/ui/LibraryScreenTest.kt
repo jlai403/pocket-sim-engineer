@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
@@ -148,17 +149,16 @@ class LibraryScreenTest {
         }
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("1:50.000").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithTag("lap-card").fetchSemanticsNodes().isNotEmpty()
         }
-        assertEquals(
-            3,
-            compose.onAllNodesWithTag("lap-driver", useUnmergedTree = true).fetchSemanticsNodes().size,
-        )
-        compose.onNodeWithText("Skino").assertExists()
-        compose.onNodeWithText("🇬🇧").assertExists()
+        compose.onNodeWithTag("lap-list").performScrollToIndex(0)
+        compose.onNodeWithText("Driver not set").assertExists()
+        compose.onNodeWithTag("lap-list").performScrollToIndex(1)
         compose.onNodeWithText("Friend").assertExists()
         compose.onNodeWithText("🇺🇸").assertExists()
-        compose.onNodeWithText("Driver not set").assertExists()
+        compose.onNodeWithTag("lap-list").performScrollToIndex(2)
+        compose.onNodeWithText("Skino").assertExists()
+        compose.onNodeWithText("🇬🇧").assertExists()
     }
 
     @Test
@@ -292,6 +292,23 @@ class LibraryScreenTest {
         compose.onNodeWithTag("library-add-profile").performClick()
 
         assertEquals(1, edits)
+    }
+
+    @Test
+    fun `separates laps with a full-width divider`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000, 91_500)))
+
+        compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(
+            1,
+            compose.onAllNodesWithTag("lap-divider", useUnmergedTree = true).fetchSemanticsNodes().size,
+        )
     }
 
     private companion object {
