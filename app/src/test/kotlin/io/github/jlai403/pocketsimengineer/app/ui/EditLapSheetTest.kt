@@ -178,6 +178,30 @@ class EditLapSheetTest {
     }
 
     @Test
+    fun `a pending sync still offers a replacement`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                EditLapSheet(
+                    lap.copy(hasReplay = true, replayPending = true),
+                    null,
+                    null,
+                    emptyList(),
+                    null,
+                    {},
+                    {},
+                    {},
+                    {},
+                    {},
+                    {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Resume sync").assertExists()
+        compose.onNodeWithText("Replace replay").assertExists()
+    }
+
+    @Test
     fun `offers to replace a saved replay`() {
         compose.setContent {
             PocketSimEngineerTheme {

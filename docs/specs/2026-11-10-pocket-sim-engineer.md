@@ -190,8 +190,8 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - Media3 ExoPlayer; exact seeks for frame stepping, and the rendered frame drives the cursor. Ruler drags keep at most one seek in flight, always to the newest target, and the readout shows that target until the frame lands.
 - `PlaybackCursor.telemetryMs(positionMs, leadInMs, syncOffsetMs, lapTimeMs)` maps video to lap time; `clipMs(lapMs, leadInMs, syncOffsetMs)` is its inverse.
 - The sync screen's slider and frame ruler span the whole clip.
-- The lap screen's playback controls sit in a sticky footer: one time readout, the frame ruler as the only scrubber, compact play/pause and ±10 s, and a speed dropdown (0.5×/1×/1.5×/2×). Changes last the session; the default comes from Settings.
-- The ruler shows a progress track and dots for brake, coast, throttle, and turn events; the track map shows the same dots with a legend.
+- The lap screen's playback controls sit in a sticky footer: one time readout, the frame ruler as the only scrubber, compact play/pause and ±10 s, and a speed dropdown (0.5×/1×/1.5×/2×). Changes last until the screen closes; the default comes from Settings.
+- The ruler shows a progress track and dots for brake, coast, throttle, and turn events; the track map shows the same dots with a legend. Turn dots use steering when present and track curvature otherwise.
 - A setting-controlled telemetry HUD overlays the video's top centre with speed, gear, and ±5 s throttle/brake traces.
 - Charts and track map follow the cursor. Readouts and the map dot interpolate between the two samples bracketing the cursor time; gear snaps to the nearest sample and the cursor line stays on the video frame.
 - The chart stack combines throttle and brake into one 0–255 chart, shows speed and gear as text, and adds throttle/brake/RPM value bars, ±5 s sparklines, and a four-wheel tire heatmap (blue cold, green optimal, red hot).

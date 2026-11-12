@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
@@ -241,6 +242,7 @@ class LapPlayerScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
+        compose.onNodeWithText("Newer clip waiting to be synced.").assertExists()
         compose.onNodeWithContentDescription("More").performClick()
         compose.onNodeWithText("Edit lap").performClick()
 
@@ -281,6 +283,45 @@ class LapPlayerScreenTest {
             compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
         assertEquals(0, compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `an unknown driver shows the psn instead of the owner`() {
+        DriverProfileStore(context).setOwner(DriverProfile("owner", "Owner", "GB"))
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(lapTimesMs = listOf(90_000), driverPsnId = "other"),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen("session-1", 1, onBack = {}, onImportSync = {})
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Suzuka · other").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun `share video is disabled without a clip`() {
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(lapTimesMs = listOf(90_000), needsCut = true),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen("session-1", 1, onBack = {}, onImportSync = {})
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithText("Share video").assertIsNotEnabled()
     }
 
     private companion object {

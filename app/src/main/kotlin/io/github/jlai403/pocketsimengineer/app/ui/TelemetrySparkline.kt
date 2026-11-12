@@ -22,6 +22,8 @@ internal fun TelemetrySparkline(
     modifier: Modifier = Modifier,
 ) {
     if (window.isEmpty()) return
+    val startMs = window.minOf { it.lapTimeMs(lap) }
+    val endMs = window.maxOf { it.lapTimeMs(lap) }
     Canvas(modifier = modifier) {
         if (size.width <= 0f || size.height <= 0f) return@Canvas
         val step = ceil(window.size / size.width.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
@@ -29,7 +31,7 @@ internal fun TelemetrySparkline(
         var first = true
         for (index in window.indices step step) {
             val sample = window[index]
-            val x = timeToX(sample.lapTimeMs(lap), lap.lapTimeMs, size.width)
+            val x = windowTimeToX(sample.lapTimeMs(lap), startMs, endMs, size.width)
             val y = size.height -
                 (valueOf(sample) / maxValue.coerceAtLeast(1f)).coerceIn(0f, 1f) * size.height
             if (first) {
@@ -42,3 +44,7 @@ internal fun TelemetrySparkline(
         drawPath(path, color = color, style = Stroke(width = 1.5f))
     }
 }
+
+/** Maps a time inside [startMs]..[endMs] across the widget, not across the whole lap. */
+internal fun windowTimeToX(timeMs: Int, startMs: Int, endMs: Int, width: Float): Float =
+    ((timeMs - startMs).toFloat() / (endMs - startMs).coerceAtLeast(1)).coerceIn(0f, 1f) * width

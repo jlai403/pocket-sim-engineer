@@ -72,6 +72,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.roundToLong
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -297,10 +298,17 @@ fun LapPlayerScreen(
     }
 
     val driverProfile = remember(lap?.driverPsnId, sessionReload) {
-        lap?.driverPsnId?.let { profileStore.profile(it) } ?: profileStore.owner()
+        lap?.driverPsnId?.let { profileStore.profile(it) }
     }
-    val driverLabel = driverProfile?.let {
-        listOfNotNull(countryFlagEmoji(it.countryCode), it.nickname).joinToString(" ")
+    val driverLabel = when {
+        driverProfile != null -> listOfNotNull(
+            countryFlagEmoji(driverProfile.countryCode),
+            driverProfile.nickname,
+        ).joinToString(" ")
+        lap?.driverPsnId != null -> lap.driverPsnId
+        else -> profileStore.owner()?.let {
+            listOfNotNull(countryFlagEmoji(it.countryCode), it.nickname).joinToString(" ")
+        }
     }
     val subtitle = listOfNotNull(session?.trackLabel, driverLabel).joinToString(" · ").ifBlank { null }
 
@@ -393,6 +401,13 @@ fun LapPlayerScreen(
                         )
                     }
                 }
+                if (currentLap.sourceFile != null) {
+                    Text(
+                        "Newer clip waiting to be synced.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else {
                 SectionCard(title = "Replay") {
                     if (currentLap.sourceFile != null) {
@@ -468,6 +483,9 @@ fun LapPlayerScreen(
                     }
                 },
                 onScrubEnd = { scrubbing = false },
+                onSeekFraction = { fraction ->
+                    seekLap((fraction * currentLap.lapTimeMs).roundToLong())
+                },
                 onRewind = { seekLap(cursorMs - TRANSPORT_MS) },
                 onPlayPause = {
                     if (player.isPlaying) {

@@ -42,6 +42,17 @@ class TelemetryChartsTest {
         compose.onNodeWithText("No telemetry for this lap").assertExists()
     }
 
+    @Test
+    fun `a single sample has no track map path`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                TrackMap(samples = listOf(samples.first()), lap = lap, cursorMs = 0)
+            }
+        }
+
+        compose.onNodeWithText("No track positions for this lap").assertExists()
+    }
+
     private val lap = LapMetadata(
         index = 1,
         lapTimeMs = 90_000,

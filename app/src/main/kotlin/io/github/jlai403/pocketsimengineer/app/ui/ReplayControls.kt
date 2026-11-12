@@ -48,7 +48,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
@@ -163,6 +166,7 @@ internal fun PlaybackFooter(
     onScrubStart: () -> Unit,
     onScrub: (Int) -> Unit,
     onScrubEnd: () -> Unit,
+    onSeekFraction: (Float) -> Unit,
     onRewind: () -> Unit,
     onPlayPause: () -> Unit,
     onForward: () -> Unit,
@@ -193,6 +197,7 @@ internal fun PlaybackFooter(
                 onScrubEnd = onScrubEnd,
                 events = events,
                 showProgress = true,
+                onSeekFraction = onSeekFraction,
                 hapticsEnabled = hapticsEnabled,
             )
             Row(
@@ -313,6 +318,7 @@ internal fun FrameRuler(
     onScrubEnd: () -> Unit = {},
     events: List<LapEvent> = emptyList(),
     showProgress: Boolean = false,
+    onSeekFraction: (Float) -> Unit = {},
     hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -324,6 +330,7 @@ internal fun FrameRuler(
     val currentOnScrubStart by rememberUpdatedState(onScrubStart)
     val currentOnScrub by rememberUpdatedState(onScrub)
     val currentOnScrubEnd by rememberUpdatedState(onScrubEnd)
+    val currentOnSeekFraction by rememberUpdatedState(onSeekFraction)
     val currentHapticsEnabled by rememberUpdatedState(hapticsEnabled)
     val textMeasurer = rememberTextMeasurer()
     val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
@@ -342,6 +349,8 @@ internal fun FrameRuler(
     )
     val step = frameStepMs.coerceAtLeast(1L)
     val labelEvery = (500L / step).coerceAtLeast(1L)
+    val progress = ((valueMs - startMs).toFloat() / (endMs - startMs).coerceAtLeast(1L))
+        .coerceIn(0f, 1f)
 
     Canvas(
         modifier = modifier
@@ -350,7 +359,16 @@ internal fun FrameRuler(
             .clip(RoundedCornerShape(16.dp))
             .background(trackColor)
             .alpha(if (enabled) 1f else 0.5f)
-            .semantics { contentDescription = "Frame ruler" }
+            .semantics {
+                contentDescription = "Frame ruler"
+                progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
+                if (enabled) {
+                    setProgress { value ->
+                        currentOnSeekFraction(value)
+                        true
+                    }
+                }
+            }
             .pointerInput(enabled, pxPerFrame, step) {
                 if (!enabled) return@pointerInput
                 detectHorizontalDragGestures(

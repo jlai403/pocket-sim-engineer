@@ -115,49 +115,36 @@ internal fun EditLapSheet(
             )
 
             SectionLabel("Replay")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    when {
-                        lap.replayPending -> "Sync pending"
-                        lap.hasReplay -> "Saved"
-                        else -> "No replay"
-                    },
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+            Text(
                 when {
-                    lap.replayPending -> GhostPill(
+                    lap.replayPending -> "Sync pending"
+                    lap.hasReplay -> "Saved"
+                    else -> "No replay"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (lap.replayPending) {
+                    GhostPill(
                         text = "Resume sync",
                         onClick = {
                             onDismiss()
                             onResumeSync()
                         },
                     )
-                    lap.hasReplay -> ReplaySourcePill(
-                        text = "Replace replay",
-                        primary = false,
-                        onFiles = {
-                            onDismiss()
-                            onAddReplay()
-                        },
-                        onPlayStation = {
-                            onDismiss()
-                            onOpenPlayStation()
-                        },
-                    )
-                    else -> ReplaySourcePill(
-                        text = "Add a replay",
-                        primary = false,
-                        onFiles = {
-                            onDismiss()
-                            onAddReplay()
-                        },
-                        onPlayStation = {
-                            onDismiss()
-                            onOpenPlayStation()
-                        },
-                    )
                 }
+                ReplaySourcePill(
+                    text = if (lap.hasReplay || lap.replayPending) "Replace replay" else "Add a replay",
+                    primary = false,
+                    onFiles = {
+                        onDismiss()
+                        onAddReplay()
+                    },
+                    onPlayStation = {
+                        onDismiss()
+                        onOpenPlayStation()
+                    },
+                )
             }
 
             PrimaryPill(

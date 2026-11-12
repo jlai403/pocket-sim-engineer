@@ -177,7 +177,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Missing video: `Replay` card with a one-sentence explanation and the source pill.
 - Playback footer (sticky): `current / lap` in mono, the frame ruler, then compact transport and a speed dropdown (0.5×/1×/1.5×/2×). The ruler is the only scrubber and shows a progress track plus event dots.
 - Scrolling content above the footer: video, telemetry card, track-map card. The rendered frame drives the charts and map, including while paused.
-- Speed changes last the session; the default comes from Settings.
+- Speed changes last until you leave the lap screen; the default comes from Settings.
 
 ### Settings
 
@@ -202,7 +202,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Axis: 1 px `outlineVariant`; cursor: 2 px `onSurface` at 75%.
 - Trace stroke: 2 px. Chart heights: speed/throttle-brake/RPM 52 dp, gear 40 dp.
 - Map: 3 px `onSurfaceVariant` polyline, 7 px green dot at the cursor, 200 dp tall.
-- Event dots on the map and matching dots on the ruler: brake red, coast grey, throttle green, turn amber; turn comes from steering peaks. A legend sits under the map.
+- Event dots on the map and matching dots on the ruler: brake red, coast grey, throttle green, turn amber; turn comes from steering peaks, or track curvature when steering is unavailable. A legend sits under the map.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.
 - Current values above the charts: speed with unit and gear as text; throttle, brake, and RPM as colored value bars with ±5 s sparklines; a 2×2 tire heatmap below (blue cold → green optimal → red hot).
 - Values and the map dot interpolate between the two samples that bracket the cursor time; gear snaps to the nearest sample. The cursor line stays on the video frame.

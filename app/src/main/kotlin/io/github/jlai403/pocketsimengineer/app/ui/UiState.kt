@@ -66,9 +66,12 @@ fun Sample.lapTimeMs(lap: LapMetadata): Int =
 fun List<Sample>.lapWindow(lap: LapMetadata): List<Sample> =
     filter { it.timeNanos >= lap.startNanos && it.timeNanos <= lap.endNanos }
 
-/** Samples within [radiusMs] of [timeMs] on the lap clock, for context sparklines. */
+/** Samples within [radiusMs] of [timeMs] on the lap clock, clamped to the lap. */
 fun List<Sample>.windowAround(lap: LapMetadata, timeMs: Int, radiusMs: Int): List<Sample> =
-    filter { abs(it.lapTimeMs(lap) - timeMs) <= radiusMs }
+    filter {
+        val sampleMs = it.lapTimeMs(lap)
+        sampleMs >= 0 && sampleMs <= lap.lapTimeMs && abs(sampleMs - timeMs) <= radiusMs
+    }
 
 /**
  * The sample at [timeMs], interpolated between the two samples that bracket it.
