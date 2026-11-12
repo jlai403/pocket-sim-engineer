@@ -4,6 +4,7 @@ import io.github.jlai403.pocketsimengineer.app.service.TelemetryEvent
 import io.github.jlai403.pocketsimengineer.core.capture.CaptureState
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import java.time.Instant
 import java.time.ZoneId
@@ -64,6 +65,10 @@ fun Sample.lapTimeMs(lap: LapMetadata): Int =
 
 fun List<Sample>.lapWindow(lap: LapMetadata): List<Sample> =
     filter { it.timeNanos >= lap.startNanos && it.timeNanos <= lap.endNanos }
+
+/** Samples within [radiusMs] of [timeMs] on the lap clock, for context sparklines. */
+fun List<Sample>.windowAround(lap: LapMetadata, timeMs: Int, radiusMs: Int): List<Sample> =
+    filter { abs(it.lapTimeMs(lap) - timeMs) <= radiusMs }
 
 /**
  * The sample at [timeMs], interpolated between the two samples that bracket it.
