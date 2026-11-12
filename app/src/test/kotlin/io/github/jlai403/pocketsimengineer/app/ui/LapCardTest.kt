@@ -1,6 +1,7 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.app.Application
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -213,6 +214,33 @@ class LapCardTest {
         assertEquals(0, compose.onAllNodesWithText("Delete").fetchSemanticsNodes().size)
         assertEquals(0, edited)
         assertEquals(0, deleted)
+    }
+
+    @Test
+    fun `swipe actions fill the card height`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LazyColumn {
+                    item {
+                        LapCard(lap, null, false, null, {}, {}, {})
+                    }
+                }
+            }
+        }
+
+        compose.onNodeWithTag("lap-card").performTouchInput {
+            down(center)
+            moveBy(Offset(width * 0.2f, 0f))
+        }
+        compose.waitForIdle()
+
+        val card = compose.onNodeWithTag("lap-card").fetchSemanticsNode().boundsInRoot
+        val action = compose.onNodeWithTag("lap-card-action").fetchSemanticsNode().boundsInRoot
+
+        assertEquals(card.top, action.top, 1f)
+        assertEquals(card.height, action.height, 1f)
+
+        compose.onNodeWithTag("lap-card").performTouchInput { up() }
     }
 
     @Test
