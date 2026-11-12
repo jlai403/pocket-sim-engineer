@@ -166,9 +166,10 @@ internal fun FrameStepRow(
 
 /**
  * A fixed needle over a horizontally scrolling ruler. Each 6 dp of travel is one
- * video frame; the slider above handles distance. The ruler reports how far the
- * drag has travelled in total, so callers can seek from the playhead they held
- * when the drag started.
+ * video frame; the slider above handles distance. The strip follows the finger,
+ * so dragging right rewinds and dragging left moves forward. The ruler reports
+ * how far the drag has travelled in total, so callers can seek from the playhead
+ * they held when the drag started.
  */
 @Composable
 internal fun FrameRuler(
@@ -219,7 +220,9 @@ internal fun FrameRuler(
                     },
                     onHorizontalDrag = { change, dragAmount ->
                         change.consume()
-                        val frames = accumulator.framesFor(dragAmount)
+                        // The needle is fixed, so the ruler is a physical strip: dragging
+                        // right pulls earlier frames under the needle.
+                        val frames = accumulator.framesFor(-dragAmount)
                         if (frames != 0) {
                             if (currentHapticsEnabled) {
                                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
