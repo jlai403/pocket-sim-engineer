@@ -86,4 +86,15 @@ class RemuxPlannerTest {
         assertEquals(8_000_000, aligned.clipStartUs)
         assertEquals(2_000, aligned.videoStartOffsetMs)
     }
+
+    @Test
+    fun `offset is the distance from the keyframe to the line`() {
+        val aligned = RemuxPlanner.alignToKeyframe(
+            requestedStartUs = 5_269_000,
+            keyframeUs = 4_000_000,
+            lapStartUs = 5_269_000,
+        )
+        assertEquals(4_000_000, aligned.clipStartUs)
+        assertEquals(1_269, aligned.videoStartOffsetMs)
+    }
 }
