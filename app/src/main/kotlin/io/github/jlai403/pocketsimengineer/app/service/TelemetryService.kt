@@ -17,6 +17,7 @@ import androidx.core.app.NotificationCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
 import io.github.jlai403.pocketsimengineer.app.capture.LapSaver
 import io.github.jlai403.pocketsimengineer.app.recording.StreamNotificationText
+import io.github.jlai403.pocketsimengineer.app.track.TrackCatalog
 import io.github.jlai403.pocketsimengineer.app.Diagnostics
 import io.github.jlai403.pocketsimengineer.core.capture.CaptureState
 import io.github.jlai403.pocketsimengineer.core.capture.LapCaptureCoordinator
@@ -140,7 +141,10 @@ class TelemetryService : Service() {
                 state.value = TelemetryUiState(status = "Waiting for telemetry")
                 if (!::coordinator.isInitialized) {
                     coordinator = LapCaptureCoordinator(
-                        sink = LapSaver(File(filesDir, "sessions")),
+                        sink = LapSaver(
+                            sessionsDir = File(filesDir, "sessions"),
+                            trackName = TrackCatalog(this)::identify,
+                        ),
                     )
                     serviceScope.launch {
                         coordinator.state.collect { capture.value = it }

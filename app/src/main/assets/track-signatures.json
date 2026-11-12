@@ -1,0 +1,724 @@
+{
+  "signatures": [
+    {
+      "official_id": "c272b2",
+      "official_name": "24 Heures du Mans Racing Circuit",
+      "length_m": 13550.0,
+      "min_x": -1353.3,
+      "max_x": 1372.8,
+      "min_z": -2570.9,
+      "max_z": 2808.7
+    },
+    {
+      "official_id": "fbd5bc",
+      "official_name": "24 Heures du Mans Racing Circuit No Chicane",
+      "length_m": 13494.0,
+      "min_x": -1354.8,
+      "max_x": 1373.3,
+      "min_z": -2569.9,
+      "max_z": 2808.9
+    },
+    {
+      "official_id": "42ea84",
+      "official_name": "Alsace - Test Course",
+      "length_m": 2082.0,
+      "min_x": -132.4,
+      "max_x": 388.2,
+      "min_z": -75.0,
+      "max_z": 659.3
+    },
+    {
+      "official_id": "81f860",
+      "official_name": "Alsace - Village",
+      "length_m": 5345.0,
+      "min_x": -117.7,
+      "max_x": 1028.1,
+      "min_z": -951.9,
+      "max_z": 649.6
+    },
+    {
+      "official_id": "46b3d9",
+      "official_name": "Autodrome Lago Maggiore - Centre",
+      "length_m": 1972.0,
+      "min_x": -372.1,
+      "max_x": 323.5,
+      "min_z": -283.9,
+      "max_z": 357.0
+    },
+    {
+      "official_id": "7828c0",
+      "official_name": "Autodrome Lago Maggiore - East",
+      "length_m": 3582.0,
+      "min_x": -361.4,
+      "max_x": 861.4,
+      "min_z": -288.9,
+      "max_z": 350.7
+    },
+    {
+      "official_id": "cdd5eb",
+      "official_name": "Autodrome Lago Maggiore - East End",
+      "length_m": 1883.0,
+      "min_x": 257.0,
+      "max_x": 862.9,
+      "min_z": -302.4,
+      "max_z": 339.9
+    },
+    {
+      "official_id": "5ba087",
+      "official_name": "Autodrome Lago Maggiore - Full Course",
+      "length_m": 5717.0,
+      "min_x": -766.8,
+      "max_x": 863.9,
+      "min_z": -391.7,
+      "max_z": 516.6
+    },
+    {
+      "official_id": "e829d7",
+      "official_name": "Autodrome Lago Maggiore - West",
+      "length_m": 4107.0,
+      "min_x": -756.5,
+      "max_x": 311.4,
+      "min_z": -375.9,
+      "max_z": 507.6
+    },
+    {
+      "official_id": "ab5c32",
+      "official_name": "Autodrome Lago Maggiore - West End",
+      "length_m": 2373.0,
+      "min_x": -757.9,
+      "max_x": -319.9,
+      "min_z": -377.3,
+      "max_z": 508.2
+    },
+    {
+      "official_id": "e6817f",
+      "official_name": "Autodromo Nazionale Monza",
+      "length_m": 5756.0,
+      "min_x": -539.0,
+      "max_x": 733.8,
+      "min_z": -1270.2,
+      "max_z": 920.3
+    },
+    {
+      "official_id": "f9e0f3",
+      "official_name": "Autodromo Nazionale Monza No Chicane",
+      "length_m": 5722.0,
+      "min_x": -526.6,
+      "max_x": 730.6,
+      "min_z": -1263.9,
+      "max_z": 898.1
+    },
+    {
+      "official_id": "1d0c5e",
+      "official_name": "Autopolis International Racing Course",
+      "length_m": 4606.0,
+      "min_x": -762.3,
+      "max_x": 498.7,
+      "min_z": -248.4,
+      "max_z": 645.4
+    },
+    {
+      "official_id": "101516",
+      "official_name": "Autódromo de Interlagos",
+      "length_m": 4219.0,
+      "min_x": -420.3,
+      "max_x": 234.1,
+      "min_z": -517.2,
+      "max_z": 517.6
+    },
+    {
+      "official_id": "1fb373",
+      "official_name": "BB Raceway",
+      "length_m": 1691.0,
+      "min_x": -340.7,
+      "max_x": 269.0,
+      "min_z": -204.9,
+      "max_z": 205.8
+    },
+    {
+      "official_id": "6bf104",
+      "official_name": "Blue Moon Bay Speedway",
+      "length_m": 3236.0,
+      "min_x": -713.4,
+      "max_x": 611.8,
+      "min_z": -272.2,
+      "max_z": 371.9
+    },
+    {
+      "official_id": "890aef",
+      "official_name": "Blue Moon Bay Speedway - Infield A",
+      "length_m": 3324.0,
+      "min_x": -711.6,
+      "max_x": 505.1,
+      "min_z": 10.9,
+      "max_z": 371.5
+    },
+    {
+      "official_id": "02e205",
+      "official_name": "Blue Moon Bay Speedway - Infield B",
+      "length_m": 2864.0,
+      "min_x": -711.7,
+      "max_x": 507.6,
+      "min_z": -36.7,
+      "max_z": 370.6
+    },
+    {
+      "official_id": "3f4c16",
+      "official_name": "Brands Hatch Grand Prix Circuit",
+      "length_m": 3890.0,
+      "min_x": -416.5,
+      "max_x": 414.5,
+      "min_z": -468.4,
+      "max_z": 468.1
+    },
+    {
+      "official_id": "4ff578",
+      "official_name": "Brands Hatch Indy Circuit",
+      "length_m": 1919.0,
+      "min_x": -421.1,
+      "max_x": 160.6,
+      "min_z": -471.5,
+      "max_z": -53.9
+    },
+    {
+      "official_id": "e86599",
+      "official_name": "Circuit Gilles-Villeneuve",
+      "length_m": 4313.0,
+      "min_x": -315.4,
+      "max_x": 307.0,
+      "min_z": -955.2,
+      "max_z": 955.3
+    },
+    {
+      "official_id": "aa8dc5",
+      "official_name": "Circuit de Barcelona-Catalunya GP Layout",
+      "length_m": 4580.0,
+      "min_x": -594.5,
+      "max_x": 379.7,
+      "min_z": -510.5,
+      "max_z": 664.6
+    },
+    {
+      "official_id": "a5d0f0",
+      "official_name": "Circuit de Barcelona-Catalunya GP Layout No Chicane",
+      "length_m": 4567.0,
+      "min_x": -589.9,
+      "max_x": 368.6,
+      "min_z": -506.9,
+      "max_z": 653.9
+    },
+    {
+      "official_id": "d84128",
+      "official_name": "Circuit de Barcelona-Catalunya National Layout",
+      "length_m": 2790.0,
+      "min_x": -268.0,
+      "max_x": 368.0,
+      "min_z": -498.7,
+      "max_z": 453.5
+    },
+    {
+      "official_id": "3bee8b",
+      "official_name": "Circuit de Barcelona-Catalunya Rallycross Layout",
+      "length_m": 1133.0,
+      "min_x": -34.3,
+      "max_x": 224.7,
+      "min_z": -521.2,
+      "max_z": -264.1
+    },
+    {
+      "official_id": "954433",
+      "official_name": "Circuit de Sainte-Croix - A",
+      "length_m": 9401.0,
+      "min_x": -937.4,
+      "max_x": 1056.4,
+      "min_z": -1320.6,
+      "max_z": 926.5
+    },
+    {
+      "official_id": "c81c02",
+      "official_name": "Circuit de Sainte-Croix - B",
+      "length_m": 6992.0,
+      "min_x": -935.8,
+      "max_x": 708.8,
+      "min_z": -967.0,
+      "max_z": 1215.1
+    },
+    {
+      "official_id": "041ba3",
+      "official_name": "Circuit de Sainte-Croix - C",
+      "length_m": 10760.0,
+      "min_x": -1507.9,
+      "max_x": 805.2,
+      "min_z": -1362.4,
+      "max_z": 1214.6
+    },
+    {
+      "official_id": "3c4be1",
+      "official_name": "Circuit de Spa-Francorchamps",
+      "length_m": 6938.0,
+      "min_x": -773.5,
+      "max_x": 513.4,
+      "min_z": -952.5,
+      "max_z": 1129.7
+    },
+    {
+      "official_id": "14872f",
+      "official_name": "Colorado Springs - Lake",
+      "length_m": 2932.0,
+      "min_x": -599.6,
+      "max_x": 350.2,
+      "min_z": -586.3,
+      "max_z": 198.4
+    },
+    {
+      "official_id": "c58e28",
+      "official_name": "Daytona Road Course",
+      "length_m": 5702.0,
+      "min_x": -605.8,
+      "max_x": 604.3,
+      "min_z": -715.7,
+      "max_z": 717.2
+    },
+    {
+      "official_id": "d93f3a",
+      "official_name": "Daytona Tri-Oval",
+      "length_m": 3986.0,
+      "min_x": -605.8,
+      "max_x": 604.2,
+      "min_z": -715.6,
+      "max_z": 717.2
+    },
+    {
+      "official_id": "0457d4",
+      "official_name": "Deep Forest Raceway",
+      "length_m": 4191.0,
+      "min_x": -485.1,
+      "max_x": 878.3,
+      "min_z": -266.1,
+      "max_z": 218.2
+    },
+    {
+      "official_id": "1a1157",
+      "official_name": "Dragon Trail - Gardens",
+      "length_m": 4294.0,
+      "min_x": -901.1,
+      "max_x": -362.3,
+      "min_z": -482.6,
+      "max_z": 595.7
+    },
+    {
+      "official_id": "36a3db",
+      "official_name": "Dragon Trail - Seaside",
+      "length_m": 5151.0,
+      "min_x": -472.5,
+      "max_x": 910.7,
+      "min_z": -856.6,
+      "max_z": 733.2
+    },
+    {
+      "official_id": "8d429d",
+      "official_name": "Eiger Nordwand",
+      "length_m": 2359.0,
+      "min_x": -536.8,
+      "max_x": 97.6,
+      "min_z": -413.0,
+      "max_z": 337.1
+    },
+    {
+      "official_id": "795ed4",
+      "official_name": "Fishermans Ranch",
+      "length_m": 6699.0,
+      "min_x": -777.7,
+      "max_x": 656.6,
+      "min_z": -860.2,
+      "max_z": 660.5
+    },
+    {
+      "official_id": "d066e4",
+      "official_name": "Fuji International Speedway",
+      "length_m": 4499.0,
+      "min_x": -653.3,
+      "max_x": 622.1,
+      "min_z": -658.8,
+      "max_z": 646.2
+    },
+    {
+      "official_id": "b72701",
+      "official_name": "Goodwood Motor Circuit",
+      "length_m": 3810.0,
+      "min_x": -687.2,
+      "max_x": 427.2,
+      "min_z": -583.7,
+      "max_z": 533.5
+    },
+    {
+      "official_id": "c2fd94",
+      "official_name": "Grand Valley - Highway 1",
+      "length_m": 5020.0,
+      "min_x": -625.1,
+      "max_x": 183.4,
+      "min_z": -255.9,
+      "max_z": 1392.5
+    },
+    {
+      "official_id": "a8725d",
+      "official_name": "Grand Valley - South",
+      "length_m": 3033.0,
+      "min_x": -290.8,
+      "max_x": 178.4,
+      "min_z": 140.4,
+      "max_z": 1394.9
+    },
+    {
+      "official_id": "65e108",
+      "official_name": "High Speed Ring",
+      "length_m": 4344.0,
+      "min_x": -829.0,
+      "max_x": 738.5,
+      "min_z": -390.9,
+      "max_z": 540.3
+    },
+    {
+      "official_id": "53f1ef",
+      "official_name": "Kyoto Driving Park - Miyabi",
+      "length_m": 1916.0,
+      "min_x": -663.2,
+      "max_x": 64.5,
+      "min_z": 413.8,
+      "max_z": 1002.2
+    },
+    {
+      "official_id": "6dfca5",
+      "official_name": "Kyoto Driving Park - Yamagiwa",
+      "length_m": 4843.0,
+      "min_x": -907.3,
+      "max_x": 401.4,
+      "min_z": -228.7,
+      "max_z": 491.7
+    },
+    {
+      "official_id": "6d5688",
+      "official_name": "Kyoto Driving Park - Yamagiwa+Miyabi",
+      "length_m": 6757.0,
+      "min_x": -908.1,
+      "max_x": 404.1,
+      "min_z": -228.3,
+      "max_z": 991.3
+    },
+    {
+      "official_id": "40e254",
+      "official_name": "Lake Louise Long Track",
+      "length_m": 3664.0,
+      "min_x": -202.9,
+      "max_x": 448.3,
+      "min_z": -653.8,
+      "max_z": 609.3
+    },
+    {
+      "official_id": "26e1df",
+      "official_name": "Lake Louise Short Track",
+      "length_m": 2555.0,
+      "min_x": -201.9,
+      "max_x": 397.4,
+      "min_z": -461.2,
+      "max_z": 587.7
+    },
+    {
+      "official_id": "97aa3b",
+      "official_name": "Lake Louise Tri-Oval",
+      "length_m": 3052.0,
+      "min_x": -199.0,
+      "max_x": 457.2,
+      "min_z": -659.0,
+      "max_z": 589.4
+    },
+    {
+      "official_id": "da093f",
+      "official_name": "Michelin Raceway Road Atlanta",
+      "length_m": 4049.0,
+      "min_x": -391.1,
+      "max_x": 390.2,
+      "min_z": -809.2,
+      "max_z": 816.3
+    },
+    {
+      "official_id": "ec1eb6",
+      "official_name": "Mount Panorama Motor Racing Circuit",
+      "length_m": 6165.0,
+      "min_x": -713.5,
+      "max_x": 629.2,
+      "min_z": -1088.6,
+      "max_z": 1081.2
+    },
+    {
+      "official_id": "6e659a",
+      "official_name": "Northern Isle Speedway",
+      "length_m": 975.0,
+      "min_x": -191.3,
+      "max_x": 191.3,
+      "min_z": -99.2,
+      "max_z": 99.1
+    },
+    {
+      "official_id": "fd4818",
+      "official_name": "Nürburgring 24h",
+      "length_m": 24982.0,
+      "min_x": -3043.0,
+      "max_x": 3044.2,
+      "min_z": -3167.5,
+      "max_z": 3166.4
+    },
+    {
+      "official_id": "31acde",
+      "official_name": "Nürburgring Endurance",
+      "length_m": 24029.0,
+      "min_x": -3043.4,
+      "max_x": 3044.7,
+      "min_z": -3169.1,
+      "max_z": 2578.6
+    },
+    {
+      "official_id": "2066d9",
+      "official_name": "Nürburgring GP",
+      "length_m": 5069.0,
+      "min_x": -2037.4,
+      "max_x": -915.2,
+      "min_z": 1636.0,
+      "max_z": 3163.9
+    },
+    {
+      "official_id": "12ceac",
+      "official_name": "Nürburgring Nordschleife",
+      "length_m": 20701.0,
+      "min_x": -3042.2,
+      "max_x": 3044.9,
+      "min_z": -3167.9,
+      "max_z": 1677.5
+    },
+    {
+      "official_id": "f3f7f9",
+      "official_name": "Red Bull Ring",
+      "length_m": 4286.0,
+      "min_x": -392.1,
+      "max_x": 856.7,
+      "min_z": -406.2,
+      "max_z": 385.4
+    },
+    {
+      "official_id": "c7e77c",
+      "official_name": "Red Bull Ring Short Track",
+      "length_m": 2336.0,
+      "min_x": -88.4,
+      "max_x": 863.9,
+      "min_z": -56.6,
+      "max_z": 393.1
+    },
+    {
+      "official_id": "4bf61b",
+      "official_name": "SUGO International Racing Course",
+      "length_m": 3560.0,
+      "min_x": -534.1,
+      "max_x": 540.3,
+      "min_z": -263.9,
+      "max_z": 264.3
+    },
+    {
+      "official_id": "e9eec1",
+      "official_name": "Sardegna - Road Track - A",
+      "length_m": 5086.0,
+      "min_x": -654.0,
+      "max_x": 629.8,
+      "min_z": -804.1,
+      "max_z": 820.2
+    },
+    {
+      "official_id": "394c28",
+      "official_name": "Sardegna - Road Track - B",
+      "length_m": 3855.0,
+      "min_x": -440.3,
+      "max_x": 92.1,
+      "min_z": -517.4,
+      "max_z": 812.1
+    },
+    {
+      "official_id": "3a0fe1",
+      "official_name": "Sardegna - Road Track - C",
+      "length_m": 2637.0,
+      "min_x": -441.1,
+      "max_x": 178.3,
+      "min_z": -190.2,
+      "max_z": 810.5
+    },
+    {
+      "official_id": "89bb71",
+      "official_name": "Sardegna - Windmills",
+      "length_m": 3237.0,
+      "min_x": -266.4,
+      "max_x": 142.0,
+      "min_z": -724.4,
+      "max_z": 669.1
+    },
+    {
+      "official_id": "d60ebc",
+      "official_name": "Spa 24h Layout",
+      "length_m": 6126.0,
+      "min_x": -766.1,
+      "max_x": 505.9,
+      "min_z": -699.5,
+      "max_z": 1121.2
+    },
+    {
+      "official_id": "ef3232",
+      "official_name": "Special Stage Route X",
+      "length_m": 30395.0,
+      "min_x": -5259.7,
+      "max_x": 5259.5,
+      "min_z": -5260.2,
+      "max_z": 5260.2
+    },
+    {
+      "official_id": "6e378b",
+      "official_name": "Suzuka Circuit",
+      "length_m": 5742.0,
+      "min_x": -987.8,
+      "max_x": 987.9,
+      "min_z": -527.6,
+      "max_z": 527.5
+    },
+    {
+      "official_id": "5aeb53",
+      "official_name": "Tokyo Expressway - Central Clockwise",
+      "length_m": 4393.0,
+      "min_x": -636.0,
+      "max_x": 725.6,
+      "min_z": -509.7,
+      "max_z": 840.7
+    },
+    {
+      "official_id": "dcdc93",
+      "official_name": "Tokyo Expressway - Central Counterclockwise",
+      "length_m": 4359.0,
+      "min_x": -636.3,
+      "max_x": 716.2,
+      "min_z": -499.2,
+      "max_z": 833.2
+    },
+    {
+      "official_id": "779efe",
+      "official_name": "Tokyo Expressway - East Clockwise",
+      "length_m": 7267.0,
+      "min_x": -1478.0,
+      "max_x": 1808.6,
+      "min_z": -370.5,
+      "max_z": 509.0
+    },
+    {
+      "official_id": "fd9a21",
+      "official_name": "Tokyo Expressway - East Counterclockwise",
+      "length_m": 7170.0,
+      "min_x": -1481.9,
+      "max_x": 1789.2,
+      "min_z": -327.7,
+      "max_z": 497.6
+    },
+    {
+      "official_id": "afcb24",
+      "official_name": "Tokyo Expressway - South Clockwise",
+      "length_m": 5175.0,
+      "min_x": -462.2,
+      "max_x": 1005.5,
+      "min_z": -979.0,
+      "max_z": 863.8
+    },
+    {
+      "official_id": "80ef82",
+      "official_name": "Tokyo Expressway - South Counterclockwise",
+      "length_m": 6498.0,
+      "min_x": -451.0,
+      "max_x": 1005.3,
+      "min_z": -977.3,
+      "max_z": 1177.9
+    },
+    {
+      "official_id": "802508",
+      "official_name": "Trial Mountain Circuit",
+      "length_m": 5332.0,
+      "min_x": -976.5,
+      "max_x": 954.0,
+      "min_z": -402.2,
+      "max_z": 379.4
+    },
+    {
+      "official_id": "f18da2",
+      "official_name": "Tsukuba Circuit",
+      "length_m": 2070.0,
+      "min_x": -333.4,
+      "max_x": 204.8,
+      "min_z": -180.7,
+      "max_z": 195.5
+    },
+    {
+      "official_id": "60d74b",
+      "official_name": "Watkins Glen Long Course",
+      "length_m": 5411.0,
+      "min_x": -364.4,
+      "max_x": 362.9,
+      "min_z": -878.9,
+      "max_z": 874.9
+    },
+    {
+      "official_id": "59f32b",
+      "official_name": "Watkins Glen Short Course",
+      "length_m": 3896.0,
+      "min_x": -364.8,
+      "max_x": 364.5,
+      "min_z": -878.2,
+      "max_z": 680.4
+    },
+    {
+      "official_id": "6cdd45",
+      "official_name": "WeatherTech Raceway Laguna Seca",
+      "length_m": 3560.0,
+      "min_x": -385.5,
+      "max_x": 412.0,
+      "min_z": -496.3,
+      "max_z": 490.8
+    },
+    {
+      "official_id": "381321",
+      "official_name": "Willow Springs International Raceway: Big Willow",
+      "length_m": 3917.0,
+      "min_x": -648.5,
+      "max_x": 720.7,
+      "min_z": -135.9,
+      "max_z": 660.0
+    },
+    {
+      "official_id": "38d7ae",
+      "official_name": "Willow Springs International Raceway: Horse Thief Mile",
+      "length_m": 1591.0,
+      "min_x": -186.3,
+      "max_x": 165.5,
+      "min_z": -530.0,
+      "max_z": -217.7
+    },
+    {
+      "official_id": "1d6a80",
+      "official_name": "Willow Springs International Raceway: Streets of Willow Springs",
+      "length_m": 2493.0,
+      "min_x": 206.2,
+      "max_x": 695.6,
+      "min_z": -732.3,
+      "max_z": 52.2
+    },
+    {
+      "official_id": "d3bd76",
+      "official_name": "Yas Marina Circuit",
+      "length_m": 5100.0,
+      "min_x": -393.9,
+      "max_x": 411.9,
+      "min_z": -854.4,
+      "max_z": 847.7
+    }
+  ]
+}
