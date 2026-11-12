@@ -25,7 +25,7 @@ pocket-sim-engineer/
 1. **PSE → Live**: connect to GT7 and drive.
 2. Tap **Capture this lap** after crossing the start line. The app saves exactly one lap at the next crossing.
 3. In GT7, record the single-lap replay with HUD on and the race camera. Use the PS5 Create menu and keep a few seconds of lead-in.
-4. Media Gallery → **Upload to PlayStation App**; in the PS App, **Download** or **Share** to PSE.
+4. Media Gallery → **Upload to PlayStation App**; in the PS App, **Download** or **Share** to PSE. The lap screen's **PS App** button opens the app (or its store listing).
 5. Open the lap → **Add replay** → frame-step to the lap-end line → **Set anchor at this frame**.
 6. Preview, save, and review. The trimmed clip is one lap; the imported original is deleted.
 

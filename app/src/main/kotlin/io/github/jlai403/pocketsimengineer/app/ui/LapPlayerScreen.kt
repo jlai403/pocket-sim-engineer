@@ -1,6 +1,7 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
@@ -41,6 +42,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import io.github.jlai403.pocketsimengineer.app.replay.PlayStationApp
 import io.github.jlai403.pocketsimengineer.app.share.Sharing
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.core.model.Sample
@@ -65,6 +67,11 @@ fun LapPlayerScreen(
     val scope = rememberCoroutineScope()
     val store = remember { SessionStore(context.filesDir) }
     val settings = remember { SettingsStore(context) }
+    fun openPlayStationApp() {
+        if (!PlayStationApp.open(context)) {
+            Toast.makeText(context, "PlayStation App is not available.", Toast.LENGTH_SHORT).show()
+        }
+    }
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -207,6 +214,7 @@ fun LapPlayerScreen(
                         onClick = { importLauncher.launch(arrayOf("video/*")) },
                         modifier = Modifier.weight(1f),
                     )
+                    GhostPill("PS App", onClick = { openPlayStationApp() })
                     if (lap.sourceFile != null) {
                         GhostPill(
                             "Resume import",
@@ -249,11 +257,14 @@ fun LapPlayerScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        PrimaryPill(
-                            text = "Add replay",
-                            onClick = { importLauncher.launch(arrayOf("video/*")) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PrimaryPill(
+                                text = "Add replay",
+                                onClick = { importLauncher.launch(arrayOf("video/*")) },
+                                modifier = Modifier.weight(1f),
+                            )
+                            GhostPill("PS App", onClick = { openPlayStationApp() })
+                        }
                     }
                 }
             }

@@ -170,6 +170,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - Record `sourceFile` in lap metadata.
 - Reject unreadable URIs with a clear message; SAF remains available.
 - An interrupted replacement import keeps the current clip playable and offers resume.
+- **PS App** opens the PlayStation App (`com.scee.psxandroid`), or its store listing when it is not installed.
 
 ### 8.6 Trim
 
