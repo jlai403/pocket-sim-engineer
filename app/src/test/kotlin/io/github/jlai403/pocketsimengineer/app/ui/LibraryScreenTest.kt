@@ -4,12 +4,16 @@ import android.app.Application
 import android.content.Context
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
 import io.github.jlai403.pocketsimengineer.core.track.TrackCandidate
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,6 +29,48 @@ class LibraryScreenTest {
     val compose = createComposeRule()
 
     private val context: Context get() = ApplicationProvider.getApplicationContext()
+
+    @Before
+    fun clearProfile() {
+        DriverProfileStore(context).clear()
+    }
+
+    @Test
+    fun `shows the saved driver name and profile links`() {
+        DriverProfileStore(context).save(DriverProfile("skino2024", "Skino", "GB"))
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Skino").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("skino2024").assertExists()
+        compose.onNodeWithText("🇬🇧").assertExists()
+        compose.onNodeWithTag("library-profile-menu").performClick()
+        compose.onNodeWithText("GT GridStats").assertExists()
+        compose.onNodeWithText("GTSH-Rank").assertExists()
+        compose.onNodeWithText("Edit profile").assertExists()
+    }
+
+    @Test
+    fun `add profile opens settings`() {
+        var edits = 0
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LibraryScreen(onOpenLap = { _, _ -> }, onOpenSettings = { edits++ })
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Add GT profile").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("library-add-profile").performClick()
+
+        assertEquals(1, edits)
+    }
 
     @Test
     fun `shows lap time and replay badge`() {

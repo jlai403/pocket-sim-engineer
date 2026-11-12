@@ -25,6 +25,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.BuildConfig
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
+import io.github.jlai403.pocketsimengineer.app.profile.GridStatsProfileClient
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.updater.UpdateManager
 import io.github.jlai403.pocketsimengineer.core.network.Ipv4
@@ -35,6 +37,7 @@ fun SettingsScreen(
     onCheckUpdate: () -> Unit = {},
     onDownloadUpdate: () -> Unit = {},
     onInstallUpdate: () -> Unit = {},
+    lookupProfile: suspend (String) -> DriverProfile = { GridStatsProfileClient().fetch(it) },
 ) {
     val context = LocalContext.current
     val settings = remember { SettingsStore(context) }
@@ -64,8 +67,10 @@ fun SettingsScreen(
     ) {
         ScreenHeader(
             title = "Settings",
-            subtitle = "Console, units, and updates",
+            subtitle = "Console, profile, units, and updates",
         )
+
+        DriverProfileSection(lookupProfile = lookupProfile)
 
         SectionCard(title = "Console") {
             OutlinedTextField(

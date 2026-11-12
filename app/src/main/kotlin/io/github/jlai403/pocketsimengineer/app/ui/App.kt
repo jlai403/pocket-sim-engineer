@@ -80,6 +80,7 @@ fun App(
                     when (val current = screen) {
                         Screen.Library -> LibraryScreen(
                             onOpenLap = { id, index -> screen = Screen.Player(id, index) },
+                            onOpenSettings = { screen = Screen.Settings },
                         )
 
                         is Screen.ImportPick -> ImportPickScreen(

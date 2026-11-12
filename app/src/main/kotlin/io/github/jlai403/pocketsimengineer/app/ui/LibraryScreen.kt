@@ -1,5 +1,7 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,7 +35,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileLinks
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
+import io.github.jlai403.pocketsimengineer.app.profile.countryFlagEmoji
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.track.TrackCatalog
 import io.github.jlai403.pocketsimengineer.app.track.TrackNamer
@@ -51,12 +59,16 @@ import kotlinx.coroutines.withContext
 @Composable
 fun LibraryScreen(
     onOpenLap: (String, Int) -> Unit,
+    onOpenSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val store = remember { SessionStore(context.filesDir) }
     val settings = remember { SettingsStore(context) }
+    val profileStore = remember { DriverProfileStore(context) }
     val namer = remember { TrackNamer(store, TrackCatalog(context)) }
+    val profile = remember { profileStore.load() }
+    var profileMenu by remember { mutableStateOf(false) }
     var laps by remember { mutableStateOf<List<LapSummary>?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     var filter by remember { mutableStateOf(LapFilter()) }
@@ -104,6 +116,14 @@ fun LibraryScreen(
         }
     }
 
+    fun openProfile(url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (runCatching { context.startActivity(intent) }.isFailure) {
+            message = "No app can open that link."
+        }
+    }
+
     val all = laps
     val visible = all?.applyFilter(filter)?.applySort(sort)
     val tracks = all?.map { it.trackLabel }?.distinct()?.sorted().orEmpty()
@@ -119,6 +139,26 @@ fun LibraryScreen(
             subtitle = "One lap per card · replay optional",
             actions = {
                 GhostPill("Refresh", onClick = { reload++ })
+            },
+        )
+
+        DriverProfileHeader(
+            profile = profile,
+            menuOpen = profileMenu,
+            onAdd = onOpenSettings,
+            onOpenMenu = { profileMenu = true },
+            onDismissMenu = { profileMenu = false },
+            onGridStats = {
+                profileMenu = false
+                profile?.let { openProfile(DriverProfileLinks.gridStats(it.psnId)) }
+            },
+            onGtshRank = {
+                profileMenu = false
+                profile?.let { openProfile(DriverProfileLinks.gtshRank(it.psnId)) }
+            },
+            onEdit = {
+                profileMenu = false
+                onOpenSettings()
             },
         )
 
@@ -360,6 +400,72 @@ private fun LapCard(
                 onDelete,
                 contentColor = MaterialTheme.colorScheme.error,
             )
+        }
+    }
+}
+
+@Composable
+private fun DriverProfileHeader(
+    profile: DriverProfile?,
+    menuOpen: Boolean,
+    onAdd: () -> Unit,
+    onOpenMenu: () -> Unit,
+    onDismissMenu: () -> Unit,
+    onGridStats: () -> Unit,
+    onGtshRank: () -> Unit,
+    onEdit: () -> Unit,
+) {
+    if (profile == null) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Your GT profile appears here",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            GhostPill(
+                text = "Add GT profile",
+                onClick = onAdd,
+                modifier = Modifier.testTag("library-add-profile"),
+            )
+        }
+        return
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        countryFlagEmoji(profile.countryCode)?.let {
+            Text(it, style = MaterialTheme.typography.headlineSmall)
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                profile.nickname,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                profile.psnId,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Box {
+            GhostPill(
+                text = "GT profile ▾",
+                onClick = onOpenMenu,
+                modifier = Modifier.testTag("library-profile-menu"),
+            )
+            DropdownMenu(expanded = menuOpen, onDismissRequest = onDismissMenu) {
+                DropdownMenuItem(text = { Text("GT GridStats") }, onClick = onGridStats)
+                DropdownMenuItem(text = { Text("GTSH-Rank") }, onClick = onGtshRank)
+                DropdownMenuItem(text = { Text("Edit profile") }, onClick = onEdit)
+            }
         }
     }
 }
