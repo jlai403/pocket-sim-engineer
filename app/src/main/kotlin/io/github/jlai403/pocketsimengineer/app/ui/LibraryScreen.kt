@@ -67,7 +67,10 @@ fun LibraryScreen(
     val settings = remember { SettingsStore(context) }
     val profileStore = remember { DriverProfileStore(context) }
     val namer = remember { TrackNamer(store, TrackCatalog(context)) }
-    val profile = remember { profileStore.load() }
+    val owner = remember { profileStore.owner() }
+    val profiles = remember {
+        profileStore.profiles().associateBy { it.psnId.lowercase() }
+    }
     var profileMenu by remember { mutableStateOf(false) }
     var laps by remember { mutableStateOf<List<LapSummary>?>(null) }
     var reload by remember { mutableIntStateOf(0) }
@@ -143,18 +146,18 @@ fun LibraryScreen(
         )
 
         DriverProfileHeader(
-            profile = profile,
+            profile = owner,
             menuOpen = profileMenu,
             onAdd = onOpenSettings,
             onOpenMenu = { profileMenu = true },
             onDismissMenu = { profileMenu = false },
             onGridStats = {
                 profileMenu = false
-                profile?.let { openProfile(DriverProfileLinks.gridStats(it.psnId)) }
+                owner?.let { openProfile(DriverProfileLinks.gridStats(it.psnId)) }
             },
             onGtshRank = {
                 profileMenu = false
-                profile?.let { openProfile(DriverProfileLinks.gtshRank(it.psnId)) }
+                owner?.let { openProfile(DriverProfileLinks.gtshRank(it.psnId)) }
             },
             onEdit = {
                 profileMenu = false
@@ -259,6 +262,7 @@ fun LibraryScreen(
                 items(visible) { lap ->
                     LapCard(
                         lap = lap,
+                        driver = lap.driverPsnId?.let { profiles[it.lowercase()] },
                         menuOpen = choosing == lap,
                         candidates = if (choosing == lap) choices else null,
                         onOpen = { onOpenLap(lap.sessionId, lap.lapIndex) },
@@ -330,6 +334,7 @@ fun LibraryScreen(
 @Composable
 private fun LapCard(
     lap: LapSummary,
+    driver: DriverProfile?,
     menuOpen: Boolean,
     candidates: List<TrackCandidate>?,
     onOpen: () -> Unit,
@@ -339,6 +344,8 @@ private fun LapCard(
     onDismissMenu: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val driverName = driver?.nickname ?: lap.driverPsnId
+    val driverFlag = driver?.countryCode?.let(::countryFlagEmoji)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -355,11 +362,31 @@ private fun LapCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    formatDate(lap.createdAt),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    driverFlag?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text(
+                        driverName ?: "Driver not set",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (driverName == null) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        formatDate(lap.createdAt),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Box(
                 modifier = Modifier

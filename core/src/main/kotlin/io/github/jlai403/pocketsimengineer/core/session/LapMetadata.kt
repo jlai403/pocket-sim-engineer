@@ -16,4 +16,6 @@ data class LapMetadata(
     val needsCut: Boolean = false,
     /** Imported replay before trimming; null once the lap clip is attached or the import is discarded. */
     val sourceFile: String? = null,
+    /** PSN ID of the driver for this lap/replay; null for legacy laps. */
+    val driverPsnId: String? = null,
 )

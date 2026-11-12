@@ -15,6 +15,7 @@ class LapSaver(
     private val idFactory: () -> String = { "lap-" + UUID.randomUUID() },
     private val clock: () -> Instant = { Instant.now() },
     private val trackName: (List<Sample>) -> String? = { null },
+    private val driverPsnId: () -> String? = { null },
 ) : LapSink {
     override fun save(boundary: LapBoundary, samples: List<Sample>): SessionMetadata {
         val id = idFactory()
@@ -31,7 +32,12 @@ class LapSaver(
         )
         val writer = SessionWriter(File(sessionsDir, id), metadata)
         samples.forEach(writer::addSample)
-        writer.writeLap(boundary, videoFile = "", videoStartOffsetMs = 0)
+        writer.writeLap(
+            boundary,
+            videoFile = "",
+            videoStartOffsetMs = 0,
+            driverPsnId = driverPsnId(),
+        )
         writer.finalize(rawDeleted = true)
         return writer.metadata()
     }

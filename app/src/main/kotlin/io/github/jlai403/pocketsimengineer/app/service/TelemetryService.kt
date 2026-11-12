@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import io.github.jlai403.pocketsimengineer.app.MainActivity
 import io.github.jlai403.pocketsimengineer.app.capture.LapSaver
+import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
 import io.github.jlai403.pocketsimengineer.app.recording.StreamNotificationText
 import io.github.jlai403.pocketsimengineer.app.track.TrackCatalog
 import io.github.jlai403.pocketsimengineer.app.Diagnostics
@@ -140,10 +141,12 @@ class TelemetryService : Service() {
                 completedLaps.value = 0
                 state.value = TelemetryUiState(status = "Waiting for telemetry")
                 if (!::coordinator.isInitialized) {
+                    val driverProfiles = DriverProfileStore(this)
                     coordinator = LapCaptureCoordinator(
                         sink = LapSaver(
                             sessionsDir = File(filesDir, "sessions"),
                             trackName = TrackCatalog(this)::identify,
+                            driverPsnId = { driverProfiles.owner()?.psnId },
                         ),
                     )
                     serviceScope.launch {

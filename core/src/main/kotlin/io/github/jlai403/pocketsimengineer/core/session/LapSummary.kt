@@ -12,6 +12,7 @@ data class LapSummary(
     val carName: String,
     val hasReplay: Boolean,
     val replayPending: Boolean,
+    val driverPsnId: String? = null,
 )
 
 enum class LapSort { Newest, Fastest, Track }

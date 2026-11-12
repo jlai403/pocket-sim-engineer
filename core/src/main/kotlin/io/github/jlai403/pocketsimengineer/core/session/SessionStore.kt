@@ -89,6 +89,7 @@ class SessionStore(private val rootDir: File) {
                     lap.videoFile != session.rawFile &&
                     File(dir, lap.videoFile).isFile,
                 replayPending = !lap.sourceFile.isNullOrBlank(),
+                driverPsnId = lap.driverPsnId,
             )
         }
     }.sortedByDescending { parseInstant(it.createdAt) }
@@ -99,6 +100,14 @@ class SessionStore(private val rootDir: File) {
     fun setSource(sessionId: String, lapIndex: Int, sourceFile: String?): SessionMetadata? {
         val lap = lap(sessionId, lapIndex) ?: return null
         return updateLap(sessionId, lap.copy(sourceFile = sourceFile))
+    }
+
+    fun setLapDriver(sessionId: String, lapIndex: Int, psnId: String?): SessionMetadata? {
+        val lap = lap(sessionId, lapIndex) ?: return null
+        return updateLap(
+            sessionId,
+            lap.copy(driverPsnId = psnId?.trim()?.takeIf { it.isNotEmpty() }),
+        )
     }
 
     fun attachClip(

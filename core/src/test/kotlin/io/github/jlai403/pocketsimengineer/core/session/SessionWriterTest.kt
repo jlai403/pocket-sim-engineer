@@ -61,10 +61,16 @@ class SessionWriterTest {
             ),
             videoFile = "raw.mp4",
             videoStartOffsetMs = 0,
+            driverPsnId = "skino2024",
         )
 
         assertEquals(1, lap.index)
         assertEquals(3, lap.sampleCount)
+        assertEquals("skino2024", lap.driverPsnId)
+        assertEquals(
+            "skino2024",
+            SessionJsonCodec.decodeLap(File(temp, "laps/lap-001.json").readText()).driverPsnId,
+        )
         assertTrue(File(temp, "session.json").exists())
         assertTrue(File(temp, "laps/lap-001.gt7lap").exists())
         assertTrue(File(temp, "laps/lap-001.json").exists())

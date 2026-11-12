@@ -69,13 +69,13 @@ class SettingsScreenTest {
             compose.onAllNodesWithText("Skino").fetchSemanticsNodes().isNotEmpty()
         }
 
-        assertEquals("Skino", DriverProfileStore(context).load()?.nickname)
+        assertEquals("Skino", DriverProfileStore(context).owner()?.nickname)
         compose.onNodeWithText("🇬🇧").assertExists()
     }
 
     @Test
     fun `a failed lookup keeps the stored profile`() {
-        DriverProfileStore(context).save(DriverProfile("skino2024", "Skino", "GB"))
+        DriverProfileStore(context).setOwner(DriverProfile("skino2024", "Skino", "GB"))
         compose.setContent {
             PocketSimEngineerTheme {
                 SettingsScreen(
@@ -91,20 +91,20 @@ class SettingsScreenTest {
                 .fetchSemanticsNodes().isNotEmpty()
         }
 
-        assertEquals("Skino", DriverProfileStore(context).load()?.nickname)
+        assertEquals("Skino", DriverProfileStore(context).owner()?.nickname)
         compose.onNodeWithText("Skino").assertExists()
     }
 
     @Test
     fun `removing the profile clears it`() {
-        DriverProfileStore(context).save(DriverProfile("skino2024", "Skino", "GB"))
+        DriverProfileStore(context).setOwner(DriverProfile("skino2024", "Skino", "GB"))
         compose.setContent {
             PocketSimEngineerTheme { SettingsScreen() }
         }
 
         compose.onNodeWithTag("settings-profile-remove").performClick()
 
-        assertNull(DriverProfileStore(context).load())
+        assertNull(DriverProfileStore(context).owner())
         compose.onNodeWithText("Fetch profile").assertExists()
     }
 

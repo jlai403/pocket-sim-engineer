@@ -1,6 +1,9 @@
 package io.github.jlai403.pocketsimengineer.app.profile
 
-/** The public GT identity shown above the lap list. */
+import kotlinx.serialization.Serializable
+
+/** The public GT identity for a driver. */
+@Serializable
 data class DriverProfile(
     val psnId: String,
     val nickname: String,

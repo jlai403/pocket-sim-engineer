@@ -33,7 +33,7 @@ internal fun DriverProfileSection(
     val context = LocalContext.current
     val store = remember { DriverProfileStore(context) }
     val scope = rememberCoroutineScope()
-    var profile by remember { mutableStateOf(store.load()) }
+    var profile by remember { mutableStateOf(store.owner()) }
     var psnId by remember { mutableStateOf(profile?.psnId.orEmpty()) }
     var fetching by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -52,7 +52,7 @@ internal fun DriverProfileSection(
                 val fetched = lookupProfile(target)
                 profile = fetched
                 psnId = fetched.psnId
-                store.save(fetched)
+                store.setOwner(fetched)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -65,7 +65,7 @@ internal fun DriverProfileSection(
 
     SectionCard(title = "Driver profile") {
         Text(
-            "Shows your GT name and country flag above the lap list.",
+            "Default driver for new laps. Change a lap's driver from the lap screen.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -96,7 +96,7 @@ internal fun DriverProfileSection(
                 GhostPill(
                     text = "Remove",
                     onClick = {
-                        store.clear()
+                        profile?.let { store.remove(it.psnId) }
                         profile = null
                         psnId = ""
                         error = null

@@ -19,6 +19,7 @@ class LapSummaryTest {
         lapTimeMs: Int = 90_000,
         createdAt: String = "2026-11-11T10:00:00Z",
         trackLabel: String = "Suzuka",
+        driverPsnId: String? = null,
     ): SessionStore {
         val store = SessionStore(temp)
         val lap = LapMetadata(
@@ -29,6 +30,7 @@ class LapSummaryTest {
             sampleCount = 1,
             videoFile = videoFile,
             videoStartOffsetMs = 0,
+            driverPsnId = driverPsnId,
         )
         store.save(
             SessionMetadata(
@@ -56,6 +58,12 @@ class LapSummaryTest {
         assertFalse(summary.hasReplay)
         assertEquals(1, summary.lapIndex)
         assertEquals("Suzuka", summary.trackLabel)
+    }
+
+    @Test
+    fun `summaries carry the lap driver`() {
+        val summary = install(driverPsnId = "skino2024").summaries().single()
+        assertEquals("skino2024", summary.driverPsnId)
     }
 
     @Test

@@ -21,6 +21,7 @@ object SessionFixtures {
         needsCut: Boolean = false,
         withReplay: Boolean = true,
         pendingSource: Boolean = false,
+        driverPsnId: String? = null,
     ): SessionMetadata {
         val laps = lapTimesMs.mapIndexed { index, lapTime ->
             LapMetadata(
@@ -37,6 +38,7 @@ object SessionFixtures {
                 videoStartOffsetMs = 2_000,
                 needsCut = needsCut,
                 sourceFile = if (pendingSource) "laps/lap-%03d-source.mp4".format(index + 1) else null,
+                driverPsnId = driverPsnId,
             )
         }
         return SessionMetadata(

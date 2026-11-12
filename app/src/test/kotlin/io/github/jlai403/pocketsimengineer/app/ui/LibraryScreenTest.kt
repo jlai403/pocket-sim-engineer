@@ -37,7 +37,7 @@ class LibraryScreenTest {
 
     @Test
     fun `shows the saved driver name and profile links`() {
-        DriverProfileStore(context).save(DriverProfile("skino2024", "Skino", "GB"))
+        DriverProfileStore(context).setOwner(DriverProfile("skino2024", "Skino", "GB"))
         SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
 
         compose.setContent {
@@ -53,6 +53,39 @@ class LibraryScreenTest {
         compose.onNodeWithText("GT GridStats").assertExists()
         compose.onNodeWithText("GTSH-Rank").assertExists()
         compose.onNodeWithText("Edit profile").assertExists()
+    }
+
+    @Test
+    fun `shows another driver on the lap card`() {
+        val profiles = DriverProfileStore(context)
+        profiles.setOwner(DriverProfile("skino2024", "Skino", "GB"))
+        profiles.save(DriverProfile("friend", "Friend", "US"))
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(lapTimesMs = listOf(90_000), driverPsnId = "friend"),
+        )
+
+        compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Friend").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("🇺🇸").assertExists()
+    }
+
+    @Test
+    fun `an unassigned lap says so`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme { LibraryScreen(onOpenLap = { _, _ -> }) }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Driver not set").fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test

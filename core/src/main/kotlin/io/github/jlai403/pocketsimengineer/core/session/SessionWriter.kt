@@ -31,6 +31,7 @@ class SessionWriter(
         boundary: LapBoundary,
         videoFile: String,
         videoStartOffsetMs: Int,
+        driverPsnId: String? = null,
     ): LapMetadata {
         val preRollNanos = 2_000_000_000L
         val postRollNanos = 1_000_000_000L
@@ -48,6 +49,7 @@ class SessionWriter(
             videoFile = videoFile,
             videoStartOffsetMs = videoStartOffsetMs,
             syncOffsetMs = metadata.syncOffsetMs,
+            driverPsnId = driverPsnId?.trim()?.takeIf { it.isNotEmpty() },
         )
 
         val lapsDir = File(rootDir, "laps").apply { mkdirs() }

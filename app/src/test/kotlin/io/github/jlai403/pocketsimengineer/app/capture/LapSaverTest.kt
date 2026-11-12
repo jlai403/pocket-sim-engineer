@@ -59,6 +59,19 @@ class LapSaverTest {
     }
 
     @Test
+    fun `records the default driver on the lap`() {
+        val root = Files.createTempDirectory("laps").toFile()
+        val saver = LapSaver(
+            root,
+            idFactory = { "lap-test" },
+            driverPsnId = { "skino2024" },
+        )
+        val metadata = saver.save(boundary(startMs = 0, endMs = 120_000), listOf(sample(0)))
+
+        assertEquals("skino2024", metadata.laps.single().driverPsnId)
+    }
+
+    @Test
     fun `track identification sees only the lap samples`() {
         val root = Files.createTempDirectory("laps").toFile()
         var seen: List<Sample>? = null

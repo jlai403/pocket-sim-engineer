@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -78,7 +79,8 @@ fun LapPlayerScreen(
         if (uri != null) onImportSync(uri.toString())
     }
 
-    val session by produceState<SessionMetadata?>(null, sessionId) {
+    var sessionReload by remember { mutableIntStateOf(0) }
+    val session by produceState<SessionMetadata?>(null, sessionId, sessionReload) {
         value = withContext(Dispatchers.IO) { store.load(sessionId) }
     }
     val lap = session?.laps?.firstOrNull { it.index == lapIndex }
@@ -268,6 +270,13 @@ fun LapPlayerScreen(
                     }
                 }
             }
+
+            DriverSection(
+                sessionId = sessionId,
+                lapIndex = lapIndex,
+                driverPsnId = lap.driverPsnId,
+                onChanged = { sessionReload++ },
+            )
 
             NumericText(
                 "%s / %s".format(lapTimeLabel(cursorMs), lapTimeLabel(lap.lapTimeMs)),

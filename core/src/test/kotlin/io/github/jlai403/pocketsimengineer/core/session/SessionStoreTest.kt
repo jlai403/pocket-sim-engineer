@@ -74,6 +74,17 @@ class SessionStoreTest {
     }
 
     @Test
+    fun `sets the driver on one lap`() {
+        writeSession("s1", "2026-11-10T10:00:00Z")
+        val store = SessionStore(temp)
+
+        store.setLapDriver("s1", 1, "skino2024")
+
+        assertEquals("skino2024", store.lap("s1", 1)?.driverPsnId)
+        assertNull(store.setLapDriver("s1", 99, "skino2024"))
+    }
+
+    @Test
     fun `renames the track label`() {
         writeSession("s1", "2026-11-10T10:00:00Z")
         val store = SessionStore(temp)
