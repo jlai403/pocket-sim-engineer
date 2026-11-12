@@ -33,5 +33,14 @@ fun List<LapSummary>.applySort(sort: LapSort): List<LapSummary> = when (sort) {
     LapSort.Track -> sortedWith(compareBy({ it.trackLabel }, { it.lapTimeMs }))
 }
 
+/** Quickest lap for each track label. A track with one lap keeps it; callers decide if that counts. */
+fun List<LapSummary>.fastestPerTrack(): Map<String, LapSummary> =
+    groupBy { it.trackLabel }.mapValues { (_, laps) ->
+        laps.minWith(compareBy({ it.lapTimeMs }, { parseInstant(it.createdAt) }))
+    }
+
+fun LapSummary.sameLap(other: LapSummary): Boolean =
+    sessionId == other.sessionId && lapIndex == other.lapIndex
+
 private fun parseInstant(value: String): Instant =
     runCatching { Instant.parse(value) }.getOrDefault(Instant.EPOCH)
