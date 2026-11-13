@@ -174,6 +174,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - An interrupted replacement import keeps the current clip playable and offers resume.
 - One replay source button opens a menu: **Files** (the SAF picker) or **PlayStation App** (`com.scee.psxandroid`, or its store listing when it is not installed).
 - The button reads **Add replay**, **Replace replay**, or **Choose another clip** to match the lap's state; a pending clip adds a separate **Resume sync** action.
+- The sync screen has a **Replay quality** section: the effective preset and a live `≈ N MB` estimate (plus the estimated percentage smaller than the trimmed original). `Change` expands the same controls as Settings. Overrides apply to that import only and never rewrite the saved defaults.
 
 ### 8.6 Trim
 

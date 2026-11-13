@@ -35,7 +35,8 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 - New imports are trimmed, then compacted with the Settings replay profile before `attachClip`.
 - Settings live in `SettingsStore`: `replayPreset` (default `Balanced`), `replayKeyframes` (`Fast`),
   `replayAudio` (`Stereo`), `replayResolution` (`FullHd`), `replayCodec` (`Hevc`).
-- `app/.../settings/ReplayCompression.kt` defines the enums, resolved `ReplayProfile`, and captions.
+- `app/.../settings/ReplayCompression.kt` defines the enums, resolved `ReplayProfile`, captions, and size estimates.
+- `ReplayCompressionControls` (`app/.../ui/`) is shared by Settings (defaults) and the sync screen (per-lap override, session-only, with a live `≈ N MB` estimate).
 - `app/.../replay/VideoTranscoder.kt` re-encodes with Media3 Transformer (`media3-transformer:1.5.1`).
   On failure the trimmed original is kept and the save shows a "Compaction failed" toast.
 - `LapSummary` carries `videoBytes`, `telemetryBytes`, and `pendingBytes`, computed in

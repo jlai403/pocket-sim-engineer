@@ -65,4 +65,24 @@ class ReplayCompressionTest {
         assertTrue(resolutionCaption(ReplayResolution.Hd).contains("25% smaller"))
         assertTrue(codecCaption(ReplayCodec.H264).contains("older devices"))
     }
+
+    @Test
+    fun `estimate scales with duration and bitrate`() {
+        val profile = replayProfile(
+            preset = ReplayPreset.Balanced,
+            keyframes = ReplayKeyframes.Fast,
+            audio = ReplayAudio.Stereo,
+            resolution = ReplayResolution.FullHd,
+            codec = ReplayCodec.Hevc,
+        )
+
+        assertEquals(57_330_000L, estimateReplayBytes(profile, 90_000))
+        assertEquals(0L, estimateReplayBytes(profile.copy(transcode = false), 90_000))
+    }
+
+    @Test
+    fun `original estimate scales by the trim fraction`() {
+        assertEquals(50_000_000L, estimatedOriginalBytes(100_000_000, 45_000, 90_000))
+        assertEquals(0L, estimatedOriginalBytes(0, 45_000, 90_000))
+    }
 }
