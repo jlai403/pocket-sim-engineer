@@ -3,6 +3,7 @@ package io.github.jlai403.pocketsimengineer.app.ui
 import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -38,6 +39,8 @@ class PlaybackFooterTest {
                     onScrub = {},
                     onScrubEnd = {},
                     onSeekFraction = {},
+                    onPreviousBrake = {},
+                    onNextBrake = {},
                     onRewind = {},
                     onPlayPause = { plays++ },
                     onForward = {},
@@ -49,5 +52,7 @@ class PlaybackFooterTest {
         compose.onNodeWithContentDescription("Play").performClick()
 
         assertEquals(1, plays)
+        compose.onNodeWithText("⏮ Brake").assertExists()
+        compose.onNodeWithText("Brake ⏭").assertExists()
     }
 }

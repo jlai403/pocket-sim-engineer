@@ -184,7 +184,12 @@ class LapPlayerScreenTest {
         }
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Suzuka · 🇬🇧 Skino").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("Expand details").performClick()
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Suzuka · 🇬🇧 Skino", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
         }
     }
 
@@ -300,7 +305,12 @@ class LapPlayerScreenTest {
         }
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Suzuka · other").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("Expand details").performClick()
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Suzuka · other", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
         }
     }
 

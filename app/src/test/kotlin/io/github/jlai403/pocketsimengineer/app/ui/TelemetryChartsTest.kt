@@ -54,6 +54,27 @@ class TelemetryChartsTest {
         compose.onNodeWithText("No track positions for this lap").assertExists()
     }
 
+    @Test
+    fun `track map shows ghost, follow, and turn legend`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                TrackMap(
+                    samples = samples,
+                    lap = lap,
+                    cursorMs = 1_000,
+                    ghost = GhostLap(lap, samples),
+                    showGhost = true,
+                    follow = true,
+                )
+            }
+        }
+
+        compose.onNodeWithText("Turn-in").assertExists()
+        compose.onNodeWithText("Apex").assertExists()
+        compose.onNodeWithText("Exit").assertExists()
+        compose.onNodeWithText("Ghost").assertExists()
+    }
+
     private val lap = LapMetadata(
         index = 1,
         lapTimeMs = 90_000,

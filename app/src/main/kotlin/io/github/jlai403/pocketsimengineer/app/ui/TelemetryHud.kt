@@ -24,7 +24,7 @@ internal fun TelemetryHud(
     cursorMs: Int,
     modifier: Modifier = Modifier,
 ) {
-    val context = remember(window, lap, cursorMs) { window.windowAround(lap, cursorMs, 5_000) }
+    val context = remember(window, lap, cursorMs) { window.windowAround(lap, cursorMs, 2_000) }
     if (context.isEmpty()) return
     val throttleColor = MaterialTheme.colorScheme.primary
     val brakeColor = MaterialTheme.colorScheme.error

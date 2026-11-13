@@ -41,7 +41,7 @@ internal fun TelemetrySparkline(
                 path.lineTo(x, y)
             }
         }
-        drawPath(path, color = color, style = Stroke(width = 1.5f))
+        drawPath(path, color = color, style = Stroke(width = 2.5f))
     }
 }
 

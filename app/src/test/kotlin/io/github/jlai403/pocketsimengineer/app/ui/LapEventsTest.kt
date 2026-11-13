@@ -26,10 +26,16 @@ class LapEventsTest {
     }
 
     @Test
-    fun `a steering peak marks a turn`() {
-        val window = steeringSamples(1_000 to 0f, 1_100 to 0.2f, 1_200 to 0.6f, 1_300 to 0.2f)
-        val turns = lapEvents(window, lap).filter { it.type == LapEventType.Turn }
-        assertEquals(listOf(LapEvent(LapEventType.Turn, 1_200)), turns)
+    fun `a steering corner marks turn-in, apex, and exit`() {
+        val window = steeringSamples(
+            1_000 to 0f,
+            1_100 to 0.2f,
+            1_200 to 0.6f,
+            1_300 to 0.2f,
+            1_400 to 0f,
+        )
+        val types = lapEvents(window, lap).map { it.type }.filter { it in TURN_TYPES }.toSet()
+        assertEquals(TURN_TYPES, types)
     }
 
     @Test
@@ -40,9 +46,11 @@ class LapEventsTest {
     }
 
     @Test
-    fun `a curved path marks a turn without steering`() {
-        val turns = lapEvents(arcSamples(), lap).filter { it.type == LapEventType.Turn }
-        assertTrue(turns.isNotEmpty())
+    fun `a curved path marks turns without steering`() {
+        val turns = lapEvents(arcSamples(), lap).filter { it.type in TURN_TYPES }
+        assertTrue(turns.any { it.type == LapEventType.TurnIn })
+        assertTrue(turns.any { it.type == LapEventType.Apex })
+        assertTrue(turns.any { it.type == LapEventType.Exit })
     }
 
     @Test
@@ -54,7 +62,7 @@ class LapEventsTest {
                 z = 0f,
             )
         }
-        assertTrue(lapEvents(window, lap).none { it.type == LapEventType.Turn })
+        assertTrue(lapEvents(window, lap).none { it.type in TURN_TYPES })
     }
 
     private fun arcSamples(): List<Sample> {
@@ -91,4 +99,12 @@ class LapEventsTest {
         videoFile = "",
         leadInMs = 0,
     )
+
+    private companion object {
+        val TURN_TYPES = setOf(
+            LapEventType.TurnIn,
+            LapEventType.Apex,
+            LapEventType.Exit,
+        )
+    }
 }

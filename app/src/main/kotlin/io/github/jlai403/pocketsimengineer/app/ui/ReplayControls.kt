@@ -2,7 +2,10 @@ package io.github.jlai403.pocketsimengineer.app.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +32,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -70,7 +74,7 @@ internal fun playbackSpeedLabel(speed: Float): String =
 private val FrameStepWidth = 6.dp
 
 /** Turns horizontal drag pixels into whole frames, carrying the remainder and the drag total. */
-internal class FrameSteps(private val pxPerFrame: Float) {
+internal class FrameSteps(private var pxPerFrame: Float) {
     private var pendingPx = 0f
 
     var totalFrames = 0
@@ -82,6 +86,11 @@ internal class FrameSteps(private val pxPerFrame: Float) {
         pendingPx -= frames * pxPerFrame
         totalFrames += frames
         return frames
+    }
+
+    fun updatePxPerFrame(value: Float) {
+        pxPerFrame = value
+        pendingPx = 0f
     }
 
     fun reset() {
@@ -167,6 +176,8 @@ internal fun PlaybackFooter(
     onScrub: (Int) -> Unit,
     onScrubEnd: () -> Unit,
     onSeekFraction: (Float) -> Unit,
+    onPreviousBrake: () -> Unit,
+    onNextBrake: () -> Unit,
     onRewind: () -> Unit,
     onPlayPause: () -> Unit,
     onForward: () -> Unit,
@@ -182,6 +193,10 @@ internal fun PlaybackFooter(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GhostPill(text = "⏮ Brake", onClick = onPreviousBrake)
+                GhostPill(text = "Brake ⏭", onClick = onNextBrake)
+            }
             NumericText(
                 "%s / %s".format(formatMillis(cursorMs.toLong()), lapTimeLabel(lapTimeMs)),
                 style = MaterialTheme.typography.labelMedium,
@@ -326,8 +341,13 @@ internal fun FrameRuler(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
-    val pxPerFrame = with(density) { FrameStepWidth.toPx() }
-    val accumulator = remember(pxPerFrame) { FrameSteps(pxPerFrame) }
+    val minPxPerFrame = with(density) { 3.dp.toPx() }
+    val maxPxPerFrame = with(density) { 14.dp.toPx() }
+    val pxPerFrameState = remember {
+        mutableFloatStateOf(with(density) { FrameStepWidth.toPx() })
+    }
+    val pxPerFrame = pxPerFrameState.floatValue
+    val accumulator = remember { FrameSteps(pxPerFrame) }
     val haptics = LocalHapticFeedback.current
     // The pointer coroutine outlives recomposition, so never capture the callbacks directly.
     val currentOnScrubStart by rememberUpdatedState(onScrubStart)
@@ -343,7 +363,9 @@ internal fun FrameRuler(
     val eventColors = mapOf(
         LapEventType.Brake to MaterialTheme.colorScheme.error,
         LapEventType.Throttle to MaterialTheme.colorScheme.primary,
-        LapEventType.Turn to MaterialTheme.colorScheme.tertiary,
+        LapEventType.TurnIn to MaterialTheme.colorScheme.secondary,
+        LapEventType.Apex to MaterialTheme.colorScheme.tertiary,
+        LapEventType.Exit to MaterialTheme.colorScheme.onSurfaceVariant,
     )
     val labelStyle = MaterialTheme.typography.labelSmall.copy(
         fontFamily = GeistMonoFamily,
@@ -371,34 +393,41 @@ internal fun FrameRuler(
                     }
                 }
             }
-            .pointerInput(enabled, pxPerFrame, step) {
+            .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
-                detectHorizontalDragGestures(
-                    onDragStart = {
-                        accumulator.reset()
-                        currentOnScrubStart()
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
-                        change.consume()
-                        // The needle is fixed, so the ruler is a physical strip: dragging
-                        // right pulls earlier frames under the needle.
-                        val frames = accumulator.framesFor(-dragAmount)
-                        if (frames != 0) {
-                            if (currentHapticsEnabled) {
-                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    accumulator.reset()
+                    currentOnScrubStart()
+                    var zoomed = false
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val zoom = event.calculateZoom()
+                        val pan = event.calculatePan()
+                        if (zoom != 1f) {
+                            zoomed = true
+                            val next = (pxPerFrameState.floatValue * zoom)
+                                .coerceIn(minPxPerFrame, maxPxPerFrame)
+                            pxPerFrameState.floatValue = next
+                            accumulator.updatePxPerFrame(next)
+                            event.changes.forEach { it.consume() }
+                        } else if (!zoomed && pan.x != 0f) {
+                            event.changes.forEach { it.consume() }
+                            // The needle is fixed, so the ruler is a physical strip:
+                            // dragging right pulls earlier frames under the needle.
+                            val frames = accumulator.framesFor(-pan.x)
+                            if (frames != 0) {
+                                if (currentHapticsEnabled) {
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                                currentOnScrub(accumulator.totalFrames)
                             }
-                            currentOnScrub(accumulator.totalFrames)
                         }
-                    },
-                    onDragCancel = {
-                        accumulator.reset()
-                        currentOnScrubEnd()
-                    },
-                    onDragEnd = {
-                        accumulator.reset()
-                        currentOnScrubEnd()
-                    },
-                )
+                        if (event.changes.none { it.pressed }) break
+                    }
+                    accumulator.reset()
+                    currentOnScrubEnd()
+                }
             },
     ) {
         if (size.width <= 0f || size.height <= 0f) return@Canvas
