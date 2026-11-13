@@ -46,6 +46,16 @@ class UiStateTest {
     }
 
     @Test
+    fun `sample between samples lerps steering`() {
+        val window = listOf(
+            sample(timeNanos = 0, steering = 0f),
+            sample(timeNanos = 1_000_000_000, steering = 1f),
+        )
+
+        assertEquals(0.25f, window.sampleAt(lap, 250)!!.steering, 0.001f)
+    }
+
+    @Test
     fun `gear comes from the nearest sample`() {
         assertEquals(3, samples().sampleAt(lap, 250)!!.gear)
         assertEquals(4, samples().sampleAt(lap, 750)!!.gear)
@@ -63,7 +73,7 @@ class UiStateTest {
     }
 
     @Test
-    fun `window around keeps samples within the radius`() {
+    fun `trailing window keeps only the past`() {
         val longLap = LapMetadata(
             index = 1,
             lapTimeMs = 5_000,
@@ -75,21 +85,21 @@ class UiStateTest {
         )
         val window = listOf(0, 1_000, 2_000, 3_000, 4_000, 5_000)
             .map { ms -> SessionFixtures.sample(timeNanos = ms * 1_000_000L) }
-            .windowAround(longLap, 3_000, 1_500)
-        assertEquals(listOf(2_000L, 3_000L, 4_000L), window.map { it.timeNanos / 1_000_000 })
+            .windowEndingAt(longLap, 3_000, 1_500)
+        assertEquals(listOf(2_000L, 3_000L), window.map { it.timeNanos / 1_000_000 })
     }
 
     @Test
-    fun `window around an empty lap is empty`() {
-        assertTrue(emptyList<Sample>().windowAround(lap, 0, 5_000).isEmpty())
+    fun `trailing window of an empty lap is empty`() {
+        assertTrue(emptyList<Sample>().windowEndingAt(lap, 0, 5_000).isEmpty())
     }
 
     @Test
-    fun `window around clamps to the lap bounds`() {
+    fun `trailing window clamps to the lap bounds`() {
         val samples = listOf(-1_000, 0, 1_000, 2_000, 3_000)
             .map { ms -> SessionFixtures.sample(timeNanos = ms * 1_000_000L) }
-        val window = samples.windowAround(lap, 0, 5_000)
-        assertEquals(listOf(0L, 1_000L, 2_000L), window.map { it.timeNanos / 1_000_000 })
+        val window = samples.windowEndingAt(lap, 1_000, 5_000)
+        assertEquals(listOf(0L, 1_000L), window.map { it.timeNanos / 1_000_000 })
     }
 
     private fun samples() = listOf(
@@ -106,6 +116,7 @@ class UiStateTest {
         rpm: Float = 0f,
         x: Float = 0f,
         z: Float = 0f,
+        steering: Float = 0f,
     ) = Sample(
         timeNanos = timeNanos,
         speedMps = speedMps,
@@ -127,6 +138,7 @@ class UiStateTest {
         tyreTempRL = 0f,
         tyreTempRR = 0f,
         packetId = 0,
+        steering = steering,
     )
 
     private companion object {

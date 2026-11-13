@@ -32,6 +32,7 @@ object TestPacketFactory {
         lastLapTimeMs: Int = 90_000,
         packetId: Int = 7,
         iv1: Int = 0x11223344,
+        steeringRadians: Float = 0f,
     ): ByteArray {
         val plain = ByteArray(format.size)
         val b = ByteBuffer.wrap(plain).order(ByteOrder.LITTLE_ENDIAN)
@@ -40,6 +41,7 @@ object TestPacketFactory {
         b.putInt(0x70, packetId)
         b.putShort(0x74, lapCount.toShort())
         b.putInt(0x7C, lastLapTimeMs)
+        if (format.size > 0x128) b.putFloat(0x128, steeringRadians)
 
         val iv2 = iv1 xor format.xor
         val nonce = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)

@@ -2,6 +2,7 @@ package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
 import org.junit.Rule
@@ -30,6 +31,34 @@ class TelemetryChartsTest {
         compose.onNodeWithText("Speed / Gear").assertExists()
         compose.onNodeWithText("FL").assertExists()
         compose.onNodeWithText("RR").assertExists()
+    }
+
+    @Test
+    fun `steering wheel appears when the lap recorded steering`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                ChartColumn(
+                    samples = samples.map { it.copy(steering = 0.5f) },
+                    lap = lap,
+                    cursorMs = 1_000,
+                )
+            }
+        }
+
+        compose.onNodeWithTag("steering-wheel").assertExists()
+        compose.onNodeWithText("STEER").assertExists()
+    }
+
+    @Test
+    fun `steering wheel is hidden without steering`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                ChartColumn(samples = samples, lap = lap, cursorMs = 1_000)
+            }
+        }
+
+        compose.onNodeWithTag("steering-wheel").assertDoesNotExist()
+        compose.onNodeWithText("STEER").assertDoesNotExist()
     }
 
     @Test
