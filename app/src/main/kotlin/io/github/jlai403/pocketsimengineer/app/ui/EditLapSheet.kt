@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -45,6 +47,8 @@ internal fun EditLapSheet(
     onOpenPlayStation: () -> Unit,
     onResumeSync: () -> Unit,
     developerTools: Boolean = false,
+    reencoding: Boolean = false,
+    reencodeResult: Boolean? = null,
     onReencode: () -> Unit = {},
 ) {
     var track by remember(lap.trackLabel) {
@@ -149,17 +153,37 @@ internal fun EditLapSheet(
                 )
             }
             if (developerTools && lap.hasReplay) {
-                GhostPill(
-                    text = "Re-encode clip",
-                    onClick = {
-                        onDismiss()
-                        onReencode()
-                    },
-                )
+                if (reencoding) {
+                    Row(
+                        modifier = Modifier.testTag("reencode-progress"),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text("Re-encoding…", style = MaterialTheme.typography.bodyMedium)
+                    }
+                } else {
+                    GhostPill(
+                        text = "Re-encode clip",
+                        onClick = onReencode,
+                    )
+                }
                 Text(
-                    "Rebuilds the clip with a 0.1 s keyframe interval so exact frame seeking is cheap.",
+                    when (reencodeResult) {
+                        true -> "Re-encoded with 0.1 s keyframes."
+                        false -> "Re-encode failed. The clip is unchanged."
+                        null -> "Rebuilds the clip with a 0.1 s keyframe interval so exact frame seeking is cheap."
+                    },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (reencodeResult == false) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 )
             }
 

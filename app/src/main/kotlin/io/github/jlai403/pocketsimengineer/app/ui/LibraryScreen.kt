@@ -1,6 +1,5 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -93,6 +92,7 @@ fun LibraryScreen(
     var deleting by remember { mutableStateOf<LapSummary?>(null) }
     var syncTarget by remember { mutableStateOf<LapSummary?>(null) }
     var reencoding by remember { mutableStateOf(false) }
+    var reencodeResult by remember { mutableStateOf<Boolean?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     var trackMenu by remember { mutableStateOf(false) }
     var sortMenu by remember { mutableStateOf(false) }
@@ -126,6 +126,7 @@ fun LibraryScreen(
     fun edit(lap: LapSummary) {
         editing = lap
         candidates = null
+        reencodeResult = null
         if (lap.trackLabel == TrackNamer.UNKNOWN) {
             scope.launch {
                 val found = withContext(Dispatchers.IO) {
@@ -166,16 +167,18 @@ fun LibraryScreen(
     fun reencode(lap: LapSummary) {
         if (reencoding) return
         reencoding = true
-        Toast.makeText(context, "Re-encoding lap ${lap.lapIndex}…", Toast.LENGTH_SHORT).show()
+        reencodeResult = null
         scope.launch {
             val reencoded = runCatching {
                 LapReencoder(store, VideoTranscoder(context)).reencode(lap.sessionId, lap.lapIndex)
             }.getOrDefault(false)
             reencoding = false
+            reencodeResult = reencoded
             if (reencoded) {
-                Toast.makeText(context, "Lap ${lap.lapIndex} re-encoded", Toast.LENGTH_SHORT).show()
-            } else {
-                message = "Lap ${lap.lapIndex} could not be re-encoded."
+                val fresh = withContext(Dispatchers.IO) {
+                    store.summaries().firstOrNull { it.sameLap(lap) }
+                }
+                if (fresh != null && editing?.sameLap(lap) == true) editing = fresh
             }
             reload++
         }
@@ -402,7 +405,10 @@ fun LibraryScreen(
             owner = owner,
             profiles = profiles.values.toList(),
             candidates = candidates,
-            onDismiss = { editing = null },
+            onDismiss = {
+                editing = null
+                reencodeResult = null
+            },
             onSaveTrack = { name ->
                 editing = null
                 saveTrack(lap, name)
@@ -417,6 +423,8 @@ fun LibraryScreen(
             },
             onResumeSync = { onOpenSync(lap.sessionId, lap.lapIndex, null) },
             developerTools = settings.developerTools,
+            reencoding = reencoding,
+            reencodeResult = reencodeResult,
             onReencode = { reencode(lap) },
         )
     }

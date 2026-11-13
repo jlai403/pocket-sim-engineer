@@ -12,7 +12,7 @@ class ScrubSeekerTest {
     @Test
     fun `a burst seeks the newest target after the frame lands`() = runTest {
         val seeks = mutableListOf<Long>()
-        val seeker = ScrubSeeker(backgroundScope, waitForFrame = true) { seeks += it }
+        val seeker = ScrubSeeker(backgroundScope) { seeks += it }
 
         seeker.submit(10)
         runCurrent()
@@ -28,27 +28,26 @@ class ScrubSeekerTest {
     }
 
     @Test
-    fun `keyframe seeks are paced by the interval`() = runTest {
+    fun `a seek that never renders is released by the timeout`() = runTest {
         val seeks = mutableListOf<Long>()
-        val seeker = ScrubSeeker(backgroundScope, seekIntervalMs = 33L) { seeks += it }
+        val seeker = ScrubSeeker(backgroundScope, exactWaitMs = 120L) { seeks += it }
 
         seeker.submit(10)
         runCurrent()
         seeker.submit(20)
-        seeker.submit(30)
 
         assertEquals(listOf(10L), seeks)
 
-        advanceTimeBy(34)
+        advanceTimeBy(121)
         runCurrent()
 
-        assertEquals(listOf(10L, 30L), seeks)
+        assertEquals(listOf(10L, 20L), seeks)
     }
 
     @Test
     fun `clear pending drops a queued target`() = runTest {
         val seeks = mutableListOf<Long>()
-        val seeker = ScrubSeeker(backgroundScope, waitForFrame = true) { seeks += it }
+        val seeker = ScrubSeeker(backgroundScope) { seeks += it }
 
         seeker.submit(10)
         runCurrent()
@@ -63,7 +62,7 @@ class ScrubSeekerTest {
     @Test
     fun `repeating the same target seeks once`() = runTest {
         val seeks = mutableListOf<Long>()
-        val seeker = ScrubSeeker(backgroundScope, waitForFrame = true) { seeks += it }
+        val seeker = ScrubSeeker(backgroundScope) { seeks += it }
 
         seeker.submit(10)
         runCurrent()

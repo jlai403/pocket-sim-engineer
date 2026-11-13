@@ -168,37 +168,40 @@ fun LapPlayerScreen(
     var scrubbing by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
+    var reencoding by remember { mutableStateOf(false) }
+    var reencodeResult by remember { mutableStateOf<Boolean?>(null) }
     var candidates by remember { mutableStateOf<List<TrackCandidate>?>(null) }
     var headerExpanded by remember { mutableStateOf(false) }
     var showGhost by remember { mutableStateOf(true) }
     var followMap by remember { mutableStateOf(true) }
     var looping by remember { mutableStateOf(false) }
 
-    var scrubSeeker: ScrubSeeker? = null
+    fun applySeek(targetMs: Long) {
+        val clamped = targetMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
+        player.seekTo(clamped)
+        positionMs = clamped
+        renderedUs = -1L
+    }
+
+    val scrubSeeker = remember(player) {
+        ScrubSeeker(
+            scope = scope,
+            exactWaitMs = SCRUB_EXACT_WAIT_MS,
+        ) { target -> applySeek(target) }
+    }
+
+    fun seekClip(targetMs: Long) {
+        applySeek(targetMs)
+        player.pause()
+        scrubTargetMs = null
+        scrubSeeker.clearPending()
+    }
+
     LaunchedEffect(playbackSpeed) {
         player.setPlaybackSpeed(playbackSpeed)
     }
     LaunchedEffect(looping) {
         player.repeatMode = if (looping) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-    }
-
-    fun seekClip(targetMs: Long, fromScrub: Boolean = false) {
-        val clamped = targetMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
-        player.seekTo(clamped)
-        positionMs = clamped
-        renderedUs = -1L
-        if (!fromScrub) player.pause()
-        if (!fromScrub) {
-            scrubTargetMs = null
-            scrubSeeker?.clearPending()
-        }
-    }
-    scrubSeeker = remember(player) {
-        ScrubSeeker(
-            scope = scope,
-            waitForFrame = true,
-            exactWaitMs = SCRUB_EXACT_WAIT_MS,
-        ) { target -> seekClip(target, fromScrub = true) }
     }
 
     fun shareVideo() {
@@ -228,6 +231,7 @@ fun LapPlayerScreen(
     fun openEdit() {
         editing = true
         candidates = null
+        reencodeResult = null
         if (session?.trackLabel == TrackNamer.UNKNOWN) {
             scope.launch {
                 val found = withContext(Dispatchers.IO) {
@@ -259,7 +263,7 @@ fun LapPlayerScreen(
         player.addListener(listener)
         player.setVideoFrameMetadataListener { presentationTimeUs, _, _, _ ->
             renderedUs = presentationTimeUs
-            scrubSeeker?.onFrameRendered()
+            scrubSeeker.onFrameRendered()
         }
         onDispose {
             player.removeListener(listener)
@@ -269,6 +273,9 @@ fun LapPlayerScreen(
 
     LaunchedEffect(videoVersion) {
         val file = videoFile ?: return@LaunchedEffect
+        // The old clip's last frame and scrub target must not leak into the new one.
+        renderedUs = -1L
+        scrubTargetMs = null
         val probe = withContext(Dispatchers.IO) { probeClip(file) }
         durationMs = probe.durationMs
         frameStepMs = probe.frameMs
@@ -599,7 +606,7 @@ fun LapPlayerScreen(
                 onScrub = { frames ->
                     scrubTarget(scrubBaseUs, frames)?.let { target ->
                         scrubTargetMs = target
-                        scrubSeeker?.submit(target)
+                        scrubSeeker.submit(target)
                     }
                 },
                 onScrubEnd = {
@@ -633,7 +640,10 @@ fun LapPlayerScreen(
                 owner = profileStore.owner(),
                 profiles = profileStore.profiles(),
                 candidates = candidates,
-                onDismiss = { editing = false },
+                onDismiss = {
+                    editing = false
+                    reencodeResult = null
+                },
                 onSaveTrack = { name ->
                     editing = false
                     scope.launch {
@@ -672,20 +682,21 @@ fun LapPlayerScreen(
                     onImportSync(null)
                 },
                 developerTools = settings.developerTools,
+                reencoding = reencoding,
+                reencodeResult = reencodeResult,
                 onReencode = {
-                    editing = false
-                    Toast.makeText(context, "Re-encoding lap $lapIndex…", Toast.LENGTH_SHORT).show()
-                    scope.launch {
-                        val reencoded = runCatching {
-                            LapReencoder(store, VideoTranscoder(context))
-                                .reencode(sessionId, lapIndex)
-                        }.getOrDefault(false)
-                        if (reencoded) {
-                            Toast.makeText(context, "Lap re-encoded", Toast.LENGTH_SHORT).show()
-                        } else {
-                            message = "Re-encode failed."
+                    if (!reencoding) {
+                        reencoding = true
+                        reencodeResult = null
+                        scope.launch {
+                            val reencoded = runCatching {
+                                LapReencoder(store, VideoTranscoder(context))
+                                    .reencode(sessionId, lapIndex)
+                            }.getOrDefault(false)
+                            reencoding = false
+                            reencodeResult = reencoded
+                            sessionReload++
                         }
-                        sessionReload++
                     }
                 },
             )

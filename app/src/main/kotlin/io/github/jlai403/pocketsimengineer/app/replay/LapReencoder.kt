@@ -130,7 +130,10 @@ class LapReencoder(
     private fun swap(clip: File, output: File): Boolean {
         val backup = File(clip.absolutePath + ".bak")
         backup.delete()
-        if (!clip.renameTo(backup)) return false
+        if (!clip.renameTo(backup)) {
+            output.delete()
+            return false
+        }
         if (output.renameTo(clip)) {
             backup.delete()
             return true

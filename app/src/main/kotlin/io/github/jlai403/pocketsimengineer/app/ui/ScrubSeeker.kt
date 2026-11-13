@@ -2,16 +2,8 @@ package io.github.jlai403.pocketsimengineer.app.ui
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-
-/**
- * How long a keyframe seek gets before the next one is issued. Nearest-keyframe
- * seeks flush the codec but do not decode a GOP, so they finish far quicker
- * than an exact seek; two display frames is enough to keep the video moving.
- */
-internal const val SCRUB_SEEK_INTERVAL_MS = 33L
 
 /**
  * How long an exact seek waits for its frame before the next one is issued.
@@ -25,14 +17,11 @@ internal const val SCRUB_EXACT_WAIT_MS = 120L
 
 /**
  * Keeps at most one seek in flight and always seeks to the newest target.
- * A fast drag produces hundreds of targets; with [waitForFrame] the player
- * gets one per rendered frame (or [exactWaitMs]), otherwise one every
- * [seekIntervalMs] instead of a seek storm that never finishes.
+ * A fast drag produces hundreds of targets, so the player gets one per
+ * rendered frame (or [exactWaitMs]) instead of a seek storm that never finishes.
  */
 internal class ScrubSeeker(
     scope: CoroutineScope,
-    private val seekIntervalMs: Long = SCRUB_SEEK_INTERVAL_MS,
-    private val waitForFrame: Boolean = false,
     private val exactWaitMs: Long = EXACT_FRAME_WAIT_MS,
     private val seek: (Long) -> Unit,
 ) {
@@ -45,15 +34,10 @@ internal class ScrubSeeker(
             for (target in targets) {
                 if (target == lastSeeked) continue
                 lastSeeked = target
-                if (waitForFrame) {
-                    // A frame queued before this seek would release the wait early.
-                    while (rendered.tryReceive().isSuccess) Unit
-                    seek(target)
-                    withTimeoutOrNull(exactWaitMs) { rendered.receive() }
-                } else {
-                    seek(target)
-                    delay(seekIntervalMs)
-                }
+                // A frame queued before this seek would release the wait early.
+                while (rendered.tryReceive().isSuccess) Unit
+                seek(target)
+                withTimeoutOrNull(exactWaitMs) { rendered.receive() }
             }
         }
     }
