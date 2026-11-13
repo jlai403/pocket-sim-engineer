@@ -17,11 +17,12 @@ class LapEventsTest {
     }
 
     @Test
-    fun `coasting marks where both pedals are released`() {
+    fun `a light brake press marks the onset`() {
         val window = samples(
-            1_000 to 200, 1_100 to 0, 1_200 to 0, 1_300 to 0,
+            1_000 to 0, 1_100 to 1, 1_200 to 0,
         )
-        assertTrue(lapEvents(window, lap).any { it.type == LapEventType.Coast && it.timeMs == 1_100 })
+        val brakes = lapEvents(window, lap).filter { it.type == LapEventType.Brake }
+        assertEquals(listOf(LapEvent(LapEventType.Brake, 1_100)), brakes)
     }
 
     @Test

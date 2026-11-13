@@ -6,12 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -27,13 +27,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
 import kotlin.math.ceil
 
-private data class TraceSeries(val color: Color, val valueOf: (Sample) -> Float)
+private data class TraceSeries(
+    val color: Color,
+    val valueOf: (Sample) -> Float,
+    val maxValue: Float,
+)
 
 @Composable
 fun ChartColumn(
@@ -44,127 +47,106 @@ fun ChartColumn(
     modifier: Modifier = Modifier,
 ) {
     val speedFactor = if (imperial) 2.23694f else 3.6f
-    val speedUnit = if (imperial) "mph" else "km/h"
     val window = remember(samples, lap) { samples.lapWindow(lap) }
     if (window.isEmpty()) {
         Text("No telemetry for this lap", modifier = modifier)
         return
     }
     val current = remember(window, lap, cursorMs) { window.sampleAt(lap, cursorMs) }
-    val context = remember(window, lap, cursorMs) { window.windowAround(lap, cursorMs, 5_000) }
     val speedColor = MaterialTheme.colorScheme.secondary
     val throttleColor = MaterialTheme.colorScheme.primary
     val brakeColor = MaterialTheme.colorScheme.error
     val rpmColor = MaterialTheme.colorScheme.tertiary
+    val gearColor = MaterialTheme.colorScheme.tertiary
     val rpmMax = remember(window) { window.maxOf { it.rpm }.coerceAtLeast(1f) }
+    val speedMax = remember(window, speedFactor) {
+        window.maxOf { it.speedMps * speedFactor }.coerceAtLeast(1f)
+    }
+    val gearMax = remember(window) { window.maxOf { it.gear }.coerceAtLeast(1) }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         current?.let { sample ->
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                NumericText(
-                    "%.0f %s".format(sample.speedMps * speedFactor, speedUnit),
-                    style = MaterialTheme.typography.labelLarge,
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    BarRow(
+                        label = "THR",
+                        fraction = sample.throttle / 255f,
+                        value = "%d%%".format(sample.throttle * 100 / 255),
+                        color = throttleColor,
+                    )
+                    BarRow(
+                        label = "BRK",
+                        fraction = sample.brake / 255f,
+                        value = "%d%%".format(sample.brake * 100 / 255),
+                        color = brakeColor,
+                    )
+                    BarRow(
+                        label = "RPM",
+                        fraction = sample.rpm / rpmMax,
+                        value = "%.0f".format(sample.rpm),
+                        color = rpmColor,
+                    )
+                }
+                TireHeatmap(
+                    fl = sample.tyreTempFL,
+                    fr = sample.tyreTempFR,
+                    rl = sample.tyreTempRL,
+                    rr = sample.tyreTempRR,
+                    imperial = imperial,
                 )
-                NumericText("Gear %d".format(sample.gear), style = MaterialTheme.typography.labelLarge)
             }
-            PedalBar(
-                label = "THR",
-                fraction = sample.throttle / 255f,
-                value = "%d%%".format(sample.throttle * 100 / 255),
-                color = throttleColor,
-                window = context,
-                lap = lap,
-                valueOf = { it.throttle.toFloat() },
-                maxValue = 255f,
-            )
-            PedalBar(
-                label = "BRK",
-                fraction = sample.brake / 255f,
-                value = "%d%%".format(sample.brake * 100 / 255),
-                color = brakeColor,
-                window = context,
-                lap = lap,
-                valueOf = { it.brake.toFloat() },
-                maxValue = 255f,
-            )
-            PedalBar(
-                label = "RPM",
-                fraction = sample.rpm / rpmMax,
-                value = "%.0f".format(sample.rpm),
-                color = rpmColor,
-                window = context,
-                lap = lap,
-                valueOf = { it.rpm },
-                maxValue = rpmMax,
-            )
-            TireHeatmap(
-                fl = sample.tyreTempFL,
-                fr = sample.tyreTempFR,
-                rl = sample.tyreTempRL,
-                rr = sample.tyreTempRR,
-                imperial = imperial,
-            )
         }
         TraceChart(
             window = window,
             lap = lap,
             cursorMs = cursorMs,
-            maxValue = window.maxOf { it.speedMps * speedFactor }.coerceAtLeast(1f),
-            label = "Speed",
-            series = listOf(TraceSeries(speedColor) { it.speedMps * speedFactor }),
-        )
-        TraceChart(
-            window = window,
-            lap = lap,
-            cursorMs = cursorMs,
-            maxValue = 255f,
             label = "Throttle / Brake",
             series = listOf(
-                TraceSeries(throttleColor) { it.throttle.toFloat() },
-                TraceSeries(brakeColor) { it.brake.toFloat() },
+                TraceSeries(throttleColor, { it.throttle.toFloat() }, 255f),
+                TraceSeries(brakeColor, { it.brake.toFloat() }, 255f),
             ),
         )
         TraceChart(
             window = window,
             lap = lap,
             cursorMs = cursorMs,
-            maxValue = rpmMax,
-            label = "RPM",
-            series = listOf(TraceSeries(rpmColor) { it.rpm }),
+            label = "Speed / Gear",
+            series = listOf(
+                TraceSeries(speedColor, { it.speedMps * speedFactor }, speedMax),
+                TraceSeries(gearColor, { it.gear.toFloat() }, gearMax.toFloat()),
+            ),
         )
-        GearTrace(window = window, lap = lap, cursorMs = cursorMs)
     }
 }
 
 @Composable
-private fun PedalBar(
-    label: String,
-    fraction: Float,
-    value: String,
-    color: Color,
-    window: List<Sample>,
-    lap: LapMetadata,
-    valueOf: (Sample) -> Float,
-    maxValue: Float,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+private fun BarRow(label: String, fraction: Float, value: String, color: Color) {
+    Column(
+        modifier = Modifier.fillMaxWidth().height(44.dp),
+        verticalArrangement = Arrangement.Center,
     ) {
-        Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(28.dp))
-        ValueBar(fraction = fraction, color = color, modifier = Modifier.weight(1f))
-        TelemetrySparkline(
-            window = window,
-            lap = lap,
-            valueOf = valueOf,
-            maxValue = maxValue,
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                label,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Text(
+                value,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        ValueBar(
+            fraction = fraction,
             color = color,
-            modifier = Modifier.width(52.dp).height(16.dp),
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.width(40.dp),
-            textAlign = TextAlign.End,
+            modifier = Modifier.fillMaxWidth().height(8.dp),
         )
     }
 }
@@ -173,7 +155,6 @@ private fun PedalBar(
 private fun ValueBar(fraction: Float, color: Color, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .height(6.dp)
             .clip(RoundedCornerShape(3.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant),
     ) {
@@ -191,7 +172,6 @@ private fun TraceChart(
     window: List<Sample>,
     lap: LapMetadata,
     cursorMs: Int,
-    maxValue: Float,
     label: String,
     series: List<TraceSeries>,
 ) {
@@ -219,7 +199,7 @@ private fun TraceChart(
                     val sample = window[index]
                     val x = timeToX(sample.lapTimeMs(lap), lap.lapTimeMs, size.width)
                     val y = size.height -
-                        (line.valueOf(sample) / maxValue).coerceIn(0f, 1f) * size.height
+                        (line.valueOf(sample) / line.maxValue).coerceIn(0f, 1f) * size.height
                     if (first) {
                         path.moveTo(x, y)
                         first = false
@@ -229,45 +209,6 @@ private fun TraceChart(
                 }
                 drawPath(path, color = line.color, style = Stroke(width = 2f))
             }
-            drawCursor(cursorMs, lap.lapTimeMs, size, cursorColor)
-        }
-    }
-}
-
-@Composable
-private fun GearTrace(window: List<Sample>, lap: LapMetadata, cursorMs: Int) {
-    val cursorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
-    val gearColor = MaterialTheme.colorScheme.tertiary
-    Column {
-        Text("Gear", style = MaterialTheme.typography.labelSmall)
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(40.dp)
-                .padding(vertical = 2.dp),
-        ) {
-            val gears = window.map { it.gear }
-            val minGear = gears.minOrNull() ?: 0
-            val maxGear = gears.maxOrNull() ?: 1
-            val span = (maxGear - minGear).coerceAtLeast(1)
-            val path = Path()
-            var previousY = 0f
-            var first = true
-            val step = ceil(window.size / size.width.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
-            for (index in window.indices step step) {
-                val sample = window[index]
-                val x = timeToX(sample.lapTimeMs(lap), lap.lapTimeMs, size.width)
-                val y = size.height - (sample.gear - minGear).toFloat() / span * size.height
-                if (first) {
-                    path.moveTo(x, y)
-                    first = false
-                } else {
-                    path.lineTo(x, previousY)
-                    path.lineTo(x, y)
-                }
-                previousY = y
-            }
-            drawPath(path, color = gearColor, style = Stroke(width = 2f))
             drawCursor(cursorMs, lap.lapTimeMs, size, cursorColor)
         }
     }
@@ -295,12 +236,10 @@ fun TrackMap(
     val lineColor = MaterialTheme.colorScheme.onSurfaceVariant
     val dotColor = MaterialTheme.colorScheme.primary
     val brakeColor = MaterialTheme.colorScheme.error
-    val coastColor = MaterialTheme.colorScheme.onSurfaceVariant
     val throttleColor = MaterialTheme.colorScheme.primary
     val turnColor = MaterialTheme.colorScheme.tertiary
     val eventColors = mapOf(
         LapEventType.Brake to brakeColor,
-        LapEventType.Coast to coastColor,
         LapEventType.Throttle to throttleColor,
         LapEventType.Turn to turnColor,
     )
@@ -351,7 +290,6 @@ fun TrackMap(
 private fun MarkerLegend(modifier: Modifier = Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         LegendItem("Brake", MaterialTheme.colorScheme.error)
-        LegendItem("Coast", MaterialTheme.colorScheme.onSurfaceVariant)
         LegendItem("Throttle", MaterialTheme.colorScheme.primary)
         LegendItem("Turn", MaterialTheme.colorScheme.tertiary)
     }

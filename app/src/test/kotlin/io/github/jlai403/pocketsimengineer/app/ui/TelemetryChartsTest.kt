@@ -27,6 +27,7 @@ class TelemetryChartsTest {
         }
 
         compose.onNodeWithText("Throttle / Brake").assertExists()
+        compose.onNodeWithText("Speed / Gear").assertExists()
         compose.onNodeWithText("FL").assertExists()
         compose.onNodeWithText("RR").assertExists()
     }

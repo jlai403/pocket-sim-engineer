@@ -59,7 +59,7 @@ class LapPlayerScreenTest {
             compose.onAllNodesWithText("No replay attached").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Add replay").assertExists()
-        compose.onNodeWithText("Speed").assertExists()
+        compose.onNodeWithText("Speed / Gear").assertExists()
         compose.onNodeWithText("Track map").assertExists()
         compose.onNodeWithText("Lap 1 · 1:30.000").assertExists()
     }

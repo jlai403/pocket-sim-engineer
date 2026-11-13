@@ -200,38 +200,41 @@ internal fun PlaybackFooter(
                 onSeekFraction = onSeekFraction,
                 hapticsEnabled = hapticsEnabled,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                TransportButton(
-                    icon = TransportIcons.Rewind,
-                    description = "Rewind 10 seconds",
-                    enabled = enabled,
-                    onClick = onRewind,
-                    size = 36.dp,
-                    iconSize = 20.dp,
-                )
-                TransportButton(
-                    icon = if (playing) TransportIcons.Pause else Icons.Filled.PlayArrow,
-                    description = if (playing) "Pause" else "Play",
-                    enabled = enabled,
-                    onClick = onPlayPause,
-                    primary = true,
-                    size = 44.dp,
-                    iconSize = 24.dp,
-                )
-                TransportButton(
-                    icon = TransportIcons.Forward,
-                    description = "Forward 10 seconds",
-                    enabled = enabled,
-                    onClick = onForward,
-                    size = 36.dp,
-                    iconSize = 20.dp,
-                )
-                Spacer(Modifier.weight(1f))
-                SpeedPill(speed = speed, onSpeedChange = onSpeedChange)
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.align(Alignment.Center),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    TransportButton(
+                        icon = TransportIcons.Rewind,
+                        description = "Rewind 10 seconds",
+                        enabled = enabled,
+                        onClick = onRewind,
+                        size = 36.dp,
+                        iconSize = 20.dp,
+                    )
+                    TransportButton(
+                        icon = if (playing) TransportIcons.Pause else Icons.Filled.PlayArrow,
+                        description = if (playing) "Pause" else "Play",
+                        enabled = enabled,
+                        onClick = onPlayPause,
+                        primary = true,
+                        size = 44.dp,
+                        iconSize = 24.dp,
+                    )
+                    TransportButton(
+                        icon = TransportIcons.Forward,
+                        description = "Forward 10 seconds",
+                        enabled = enabled,
+                        onClick = onForward,
+                        size = 36.dp,
+                        iconSize = 20.dp,
+                    )
+                }
+                Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+                    SpeedPill(speed = speed, onSpeedChange = onSpeedChange)
+                }
             }
         }
     }
@@ -339,7 +342,6 @@ internal fun FrameRuler(
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val eventColors = mapOf(
         LapEventType.Brake to MaterialTheme.colorScheme.error,
-        LapEventType.Coast to MaterialTheme.colorScheme.onSurfaceVariant,
         LapEventType.Throttle to MaterialTheme.colorScheme.primary,
         LapEventType.Turn to MaterialTheme.colorScheme.tertiary,
     )
