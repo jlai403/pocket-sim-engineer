@@ -87,6 +87,7 @@ object LibraryArchive {
         onProgress: (Long, Long) -> Unit = { _, _ -> },
     ): ImportReport {
         val sessionsDir = File(rootDir, "sessions").apply { mkdirs() }
+        sweepStaging(sessionsDir)
         val staging = File(sessionsDir, ".import-${UUID.randomUUID()}")
         var manifest: LibraryManifest? = null
         var readBytes = 0L
@@ -120,49 +121,61 @@ object LibraryArchive {
                     entry = zip.nextEntry
                 }
             }
-            requireNotNull(manifest) { "Unsupported library format: missing $MANIFEST" }
+            val parsed = requireNotNull(manifest) { "Unsupported library format: missing $MANIFEST" }
+            require(parsed.format == FORMAT) {
+                "Unsupported library format ${parsed.format}; expected $FORMAT"
+            }
 
             staging.listFiles().orEmpty().forEach { dir ->
                 if (!dir.isDirectory) return@forEach
                 val id = dir.name
-                val target = File(sessionsDir, id)
                 if (!ID_PATTERN.matches(id)) {
                     failed++
                     dir.deleteRecursively()
                     return@forEach
                 }
-                if (target.exists()) {
+                if (File(sessionsDir, id).exists()) {
                     skipped++
                     dir.deleteRecursively()
                     return@forEach
                 }
-                val session = SessionJsonCodec.decodeSession(File(dir, "session.json").readText())
-                val incoming = SessionJsonCodec.decodeLap(File(dir, "lap.json").readText())
-                var lap = incoming
-                if (lap.videoFile.isNotBlank() && !File(dir, lap.videoFile).isFile) lap = lap.copy(videoFile = "")
-                val source = lap.sourceFile
-                if (!source.isNullOrBlank() && !File(dir, source).isFile) lap = lap.copy(sourceFile = null)
-                var stored = session.copy(sessionId = id, laps = listOf(lap))
-                if (stored.rawFile.isNotBlank() && !File(dir, stored.rawFile).isFile) {
-                    stored = stored.copy(rawFile = "", rawDeleted = true)
-                }
-                AtomicFiles.writeText(File(dir, "session.json"), SessionJsonCodec.encodeSession(stored))
-                AtomicFiles.writeText(
-                    File(dir, "laps/lap-%03d.json".format(lap.index)),
-                    SessionJsonCodec.encodeLap(lap),
-                )
-                File(dir, "lap.json").delete()
-                if (!dir.renameTo(target)) {
+                if (runCatching { importStaged(dir, id, sessionsDir) }.getOrDefault(false)) {
+                    imported++
+                } else {
                     failed++
                     dir.deleteRecursively()
-                    return@forEach
                 }
-                imported++
             }
         } finally {
             staging.deleteRecursively()
         }
         return ImportReport(imported, skipped, failed)
+    }
+
+    private fun importStaged(dir: File, id: String, sessionsDir: File): Boolean {
+        val session = SessionJsonCodec.decodeSession(File(dir, "session.json").readText())
+        val incoming = SessionJsonCodec.decodeLap(File(dir, "lap.json").readText())
+        var lap = incoming
+        if (lap.videoFile.isNotBlank() && !File(dir, lap.videoFile).isFile) lap = lap.copy(videoFile = "")
+        val source = lap.sourceFile
+        if (!source.isNullOrBlank() && !File(dir, source).isFile) lap = lap.copy(sourceFile = null)
+        var stored = session.copy(sessionId = id, laps = listOf(lap))
+        if (stored.rawFile.isNotBlank() && !File(dir, stored.rawFile).isFile) {
+            stored = stored.copy(rawFile = "", rawDeleted = true)
+        }
+        AtomicFiles.writeText(File(dir, "session.json"), SessionJsonCodec.encodeSession(stored))
+        AtomicFiles.writeText(
+            File(dir, "laps/lap-%03d.json".format(lap.index)),
+            SessionJsonCodec.encodeLap(lap),
+        )
+        File(dir, "lap.json").delete()
+        return dir.renameTo(File(sessionsDir, id))
+    }
+
+    private fun sweepStaging(sessionsDir: File) {
+        sessionsDir.listFiles()
+            ?.filter { it.isDirectory && it.name.startsWith(".import-") }
+            ?.forEach { it.deleteRecursively() }
     }
 
     /** Entry names are untrusted: keep extraction inside the staging directory. */

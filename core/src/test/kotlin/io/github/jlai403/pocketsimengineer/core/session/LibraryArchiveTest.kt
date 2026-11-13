@@ -12,6 +12,7 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -158,6 +159,91 @@ class LibraryArchiveTest {
 
         assertEquals(ImportReport(laps = 1, skipped = 0, failed = 0), report)
         assertEquals("", SessionStore(target).lap("s9", 1)!!.videoFile)
+    }
+
+    @Test
+    fun `rejects path traversal entries`() {
+        val zip = File(temp, "evil.zip")
+        writeZip(
+            zip,
+            mapOf(
+                "library.json" to json.encodeToString(LibraryManifest(1, "2026-11-13T10:00:00Z", 1, 4)).toByteArray(),
+                "library/../evil/session.json" to "{}".toByteArray(),
+            ),
+        )
+        val target = File(temp, "target").apply { mkdirs() }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            LibraryArchive.import(target, zip.inputStream())
+        }
+
+        assertTrue(error.message!!.contains("unsafe"))
+        assertFalse(File(temp, "evil").exists())
+        assertFalse(File(target, "sessions/evil").exists())
+        assertTrue(File(target, "sessions").listFiles()!!.none { it.name.startsWith(".import-") })
+    }
+
+    @Test
+    fun `rejects an unknown format`() {
+        val zip = File(temp, "v2.zip")
+        writeZip(zip, mapOf("library.json" to json.encodeToString(LibraryManifest(2, "x", 0, 0)).toByteArray()))
+        val target = File(temp, "target").apply { mkdirs() }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            LibraryArchive.import(target, zip.inputStream())
+        }
+
+        assertTrue(error.message!!.contains("Unsupported library format 2"))
+    }
+
+    @Test
+    fun `corrupt session entry is counted as failed and does not block the rest`() {
+        val zip = File(temp, "mixed.zip")
+        val good = SessionMetadata(
+            sessionId = "good",
+            createdAt = "2026-11-13T10:00:00Z",
+            trackLabel = "Monza",
+            carCode = 1,
+            carName = "x",
+            rawFile = "",
+            laps = listOf(
+                LapMetadata(
+                    index = 1,
+                    lapTimeMs = 90_000,
+                    startNanos = 0,
+                    endNanos = 0,
+                    sampleCount = 0,
+                    videoFile = "",
+                    leadInMs = 0,
+                ),
+            ),
+        )
+        writeZip(
+            zip,
+            mapOf(
+                "library.json" to json.encodeToString(LibraryManifest(1, "2026-11-13T10:00:00Z", 2, 0)).toByteArray(),
+                "library/good/session.json" to SessionJsonCodec.encodeSession(good).toByteArray(),
+                "library/good/lap.json" to SessionJsonCodec.encodeLap(good.laps.first()).toByteArray(),
+                "library/bad/session.json" to "not json".toByteArray(),
+                "library/bad/lap.json" to "not json".toByteArray(),
+            ),
+        )
+
+        val report = LibraryArchive.import(File(temp, "target").apply { mkdirs() }, zip.inputStream())
+
+        assertEquals(ImportReport(laps = 1, skipped = 0, failed = 1), report)
+    }
+
+    @Test
+    fun `stale staging directories are swept before import`() {
+        val stale = File(temp, "target/sessions/.import-stale").apply { mkdirs() }
+        File(stale, "junk.txt").writeText("x")
+        val zip = File(temp, "empty.zip")
+        writeZip(zip, mapOf("library.json" to json.encodeToString(LibraryManifest(1, "x", 0, 0)).toByteArray()))
+
+        LibraryArchive.import(File(temp, "target"), zip.inputStream())
+
+        assertFalse(stale.exists())
     }
 
     private fun writeZip(file: File, entries: Map<String, ByteArray>) {
