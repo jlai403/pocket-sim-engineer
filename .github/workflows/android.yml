@@ -56,12 +56,12 @@ jobs:
           version_code=$((1000 + $(git rev-list --count HEAD)))
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            "dist/PocketSimEngineer-${version_name}-${version_code}-debug.apk"
+            "dist/LapCraft-${version_name}-${version_code}-debug.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: pocketsimengineer-debug-${{ github.sha }}
+          name: lapcraft-debug-${{ github.sha }}
           path: dist/*.apk
           if-no-files-found: error
 
@@ -89,7 +89,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: pocketsimengineer-debug-${{ github.sha }}
+          name: lapcraft-debug-${{ github.sha }}
           path: dist
 
       - name: Publish preview build
@@ -98,22 +98,22 @@ jobs:
           TAG: preview-latest
         run: |
           apk=$(ls dist/*.apk | head -1)
-          cp "$apk" dist/PocketSimEngineer-preview.apk
+          cp "$apk" dist/LapCraft-preview.apk
           version_name=$(sed -n 's/.*versionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -1)
           version_code=$((1000 + $(git rev-list --count HEAD)))
-          sha=$(sha256sum dist/PocketSimEngineer-preview.apk | cut -d' ' -f1)
+          sha=$(sha256sum dist/LapCraft-preview.apk | cut -d' ' -f1)
           jq -n \
             --argjson code "$version_code" \
             --arg name "$version_name" \
-            --arg apk "PocketSimEngineer-preview.apk" \
+            --arg apk "LapCraft-preview.apk" \
             --arg sha "$sha" \
             --arg notes "Preview build ${{ github.run_number }} · ${GITHUB_SHA:0:7}" \
             '{versionCode:$code,versionName:$name,apk:$apk,sha256:$sha,notes:$notes}' \
             > dist/latest.json
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/PocketSimEngineer-preview.apk dist/latest.json --clobber
+            gh release upload "$TAG" dist/LapCraft-preview.apk dist/latest.json --clobber
           else
-            gh release create "$TAG" dist/PocketSimEngineer-preview.apk dist/latest.json \
+            gh release create "$TAG" dist/LapCraft-preview.apk dist/latest.json \
               --prerelease --title "Preview builds" \
               --notes "Rolling debug build from main. Android will ask before installing."
           fi
@@ -132,7 +132,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: pocketsimengineer-debug-${{ github.sha }}
+          name: lapcraft-debug-${{ github.sha }}
           path: dist
 
       - name: Publish stable release
@@ -141,21 +141,21 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           apk=$(ls dist/*.apk | head -1)
-          cp "$apk" "dist/PocketSimEngineer-${TAG}.apk"
+          cp "$apk" "dist/LapCraft-${TAG}.apk"
           version_name=$(sed -n 's/.*versionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -1)
           version_code=$((1000 + $(git rev-list --count HEAD)))
-          sha=$(sha256sum "dist/PocketSimEngineer-${TAG}.apk" | cut -d' ' -f1)
+          sha=$(sha256sum "dist/LapCraft-${TAG}.apk" | cut -d' ' -f1)
           jq -n \
             --argjson code "$version_code" \
             --arg name "$version_name" \
-            --arg apk "PocketSimEngineer-${TAG}.apk" \
+            --arg apk "LapCraft-${TAG}.apk" \
             --arg sha "$sha" \
             --arg notes "Stable $TAG" \
             '{versionCode:$code,versionName:$name,apk:$apk,sha256:$sha,notes:$notes}' \
             > dist/latest.json
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "dist/PocketSimEngineer-${TAG}.apk" dist/latest.json --clobber
+            gh release upload "$TAG" "dist/LapCraft-${TAG}.apk" dist/latest.json --clobber
           else
-            gh release create "$TAG" "dist/PocketSimEngineer-${TAG}.apk" dist/latest.json \
+            gh release create "$TAG" "dist/LapCraft-${TAG}.apk" dist/latest.json \
               --title "$TAG" --generate-notes --latest
           fi

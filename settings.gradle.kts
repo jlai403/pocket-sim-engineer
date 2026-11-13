@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PocketSimEngineer"
+rootProject.name = "LapCraft"
 include(":core", ":app")

@@ -1,0 +1,26 @@
+package io.github.jlai403.lapcraft.core.model
+
+data class Sample(
+    val timeNanos: Long,
+    val speedMps: Float,
+    val throttle: Int,
+    val brake: Int,
+    val gear: Int,
+    val rpm: Float,
+    val positionX: Float,
+    val positionY: Float,
+    val positionZ: Float,
+    val lapCount: Int,
+    val bestLapTimeMs: Int,
+    val lastLapTimeMs: Int,
+    val flags: Int,
+    val carCode: Int,
+    val fuel: Float,
+    val tyreTempFL: Float,
+    val tyreTempFR: Float,
+    val tyreTempRL: Float,
+    val tyreTempRR: Float,
+    val packetId: Int,
+    val steering: Float = 0f,
+    val currentLapTimeMs: Int = 0,
+)

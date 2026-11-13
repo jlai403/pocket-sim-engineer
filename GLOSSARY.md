@@ -1,4 +1,4 @@
-# Pocket Sim Engineer
+# LapCraft
 
 Android app for Gran Turismo 7 that captures one lap of telemetry and pairs it with a single-lap replay for review.
 
