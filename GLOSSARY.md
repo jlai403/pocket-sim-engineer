@@ -16,6 +16,16 @@ _Avoid_: record, log
 The capture run that owns one or more laps and their telemetry.
 _Avoid_: recording, track day
 
+## Library
+
+**Library archive**:
+A zip of the selected laps, one directory per lap, carried with its clips and telemetry.
+_Avoid_: backup file, export bundle
+
+**Import (library)**:
+Merging laps from an archive, skipping any id that already exists.
+_Avoid_: restore, sync
+
 ## Video
 
 **Clip**:

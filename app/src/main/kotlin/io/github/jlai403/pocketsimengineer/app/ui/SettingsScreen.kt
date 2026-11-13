@@ -88,6 +88,8 @@ fun SettingsScreen(
 
         DriverProfileSection(lookupProfile = lookupProfile)
 
+        LibrarySection()
+
         SectionCard(title = "Console") {
             OutlinedTextField(
                 value = ip,
