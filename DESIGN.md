@@ -173,7 +173,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 ### Player
 
 - Header: `Lap N · M:SS.mmm` with a chevron. Collapsed shows only the title; tapping expands track, driver flag/name, car, lap stats (top/min/avg), and the vs-ghost comparison. One overflow menu: `Share video`, `Share screenshot`, `Export CSV`, `Edit lap`.
-- Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden. A telemetry HUD overlays the top centre with the last 2 s of throttle/brake traces when enabled in Settings.
+- Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden. The lap player uses a `TextureView`-backed `PlayerView` so the telemetry HUD and scrub preview can draw over the video. A telemetry HUD overlays the top centre with the last 2 s of throttle/brake traces when enabled in Settings.
 - Replay management lives in the `Edit lap` sheet: track, driver, add/replace replay, resume a pending sync, and the lap's data volume (replay + telemetry). The main screen keeps only `Add replay` when no clip exists.
 - Scrub preview: each trimmed clip can have `laps/lap-NNN.preview/` with one 480×270 JPEG per keyframe and an `index.json` of keyframe times (~3–4 MB per 90 s lap). It is warmed after import and generated on first open; a small `Preparing scrub preview…` label shows while it builds. It is deleted when the clip is replaced or the lap is deleted. Missing or half-built caches fall back to keyframe seeks.
 - New imports are trimmed and then compacted with the Settings replay profile (default 1080p HEVC, ~5 Mbps, 0.5 s keyframes, stereo). If compaction fails the trimmed clip is kept and a `Compaction failed` toast appears.
