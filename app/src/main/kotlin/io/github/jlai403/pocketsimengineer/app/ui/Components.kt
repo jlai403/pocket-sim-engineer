@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -41,6 +43,8 @@ fun ScreenHeader(
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onTitleClick: (() -> Unit)? = null,
+    titleExpanded: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
@@ -64,12 +68,44 @@ fun ScreenHeader(
             }
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.headlineMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val clickable = if (onTitleClick == null) {
+                Modifier
+            } else {
+                Modifier.clickable { onTitleClick() }
+            }
+            Row(
+                modifier = clickable,
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (onTitleClick == null) {
+                        Modifier
+                    } else {
+                        Modifier.weight(1f, fill = false)
+                    },
+                )
+                if (onTitleClick != null) {
+                    Icon(
+                        imageVector = if (titleExpanded) {
+                            Icons.Filled.KeyboardArrowUp
+                        } else {
+                            Icons.Filled.KeyboardArrowDown
+                        },
+                        contentDescription = if (titleExpanded) {
+                            "Collapse details"
+                        } else {
+                            "Expand details"
+                        },
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
             subtitle?.let {
                 Text(
                     it,

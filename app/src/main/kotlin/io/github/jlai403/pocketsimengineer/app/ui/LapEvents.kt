@@ -6,7 +6,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 
-enum class LapEventType { Brake, Throttle, Turn }
+enum class LapEventType { Brake, Throttle, TurnIn, Apex, Exit }
 
 data class LapEvent(val type: LapEventType, val timeMs: Int)
 
@@ -19,7 +19,7 @@ private const val TURN_WINDOW_MS = 250
 
 /**
  * Onset markers for the lap: one brake and throttle marker when the condition
- * first appears, plus steering (or curvature) peaks for turns. Repeated markers
+ * first appears, plus turn-in / apex / exit for each corner. Repeated markers
  * of the same type are spaced by at least [MIN_EVENT_GAP_MS] so the ruler and
  * map stay readable.
  */
@@ -36,9 +36,7 @@ internal fun lapEvents(window: List<Sample>, lap: LapMetadata): List<LapEvent> {
     }
 
     var previous: Sample? = null
-    val steeringAvailable = window.any { abs(it.steering) > 0.01f }
-    val curvature = if (steeringAvailable) null else curvatureAt(window, lap)
-    for ((index, sample) in window.withIndex()) {
+    for (sample in window) {
         val timeMs = sample.lapTimeMs(lap)
         val before = previous
         if (sample.brake >= BRAKE_ON && (before == null || before.brake < BRAKE_ON)) {
@@ -47,26 +45,42 @@ internal fun lapEvents(window: List<Sample>, lap: LapMetadata): List<LapEvent> {
         if (sample.throttle >= THROTTLE_ON && (before == null || before.throttle < THROTTLE_ON)) {
             add(LapEventType.Throttle, timeMs)
         }
-
-        val turn = if (steeringAvailable) {
-            abs(sample.steering) to TURN_STEERING
-        } else {
-            abs(curvature!![index]) to TURN_CURVATURE
-        }
-        val turnBefore = if (steeringAvailable) {
-            if (index > 0) abs(window[index - 1].steering) else 0f
-        } else {
-            if (index > 0) abs(curvature!![index - 1]) else 0f
-        }
-        val turnAfter = if (steeringAvailable) {
-            if (index + 1 < window.size) abs(window[index + 1].steering) else 0f
-        } else {
-            if (index + 1 < window.size) abs(curvature!![index + 1]) else 0f
-        }
-        if (turn.first >= turn.second && turn.first >= turnBefore && turn.first > turnAfter) {
-            add(LapEventType.Turn, timeMs)
-        }
         previous = sample
+    }
+
+    val steeringAvailable = window.any { abs(it.steering) > 0.01f }
+    val curvature = if (steeringAvailable) null else curvatureAt(window, lap)
+    val threshold = if (steeringAvailable) TURN_STEERING else TURN_CURVATURE
+    fun signalAt(index: Int): Float =
+        if (steeringAvailable) abs(window[index].steering) else abs(curvature!![index])
+
+    var inCorner = false
+    var apexIndex = 0
+    var apexValue = 0f
+    for (index in window.indices) {
+        val value = signalAt(index)
+        if (!inCorner) {
+            if (value >= threshold) {
+                add(LapEventType.TurnIn, window[index].lapTimeMs(lap))
+                inCorner = true
+                apexIndex = index
+                apexValue = value
+            }
+            continue
+        }
+        if (value > apexValue) {
+            apexValue = value
+            apexIndex = index
+        }
+        if (value < threshold) {
+            add(LapEventType.Apex, window[apexIndex].lapTimeMs(lap))
+            add(LapEventType.Exit, window[index].lapTimeMs(lap))
+            inCorner = false
+        }
+    }
+    if (inCorner) {
+        add(LapEventType.Apex, window[apexIndex].lapTimeMs(lap))
+        add(LapEventType.Exit, window.last().lapTimeMs(lap))
     }
     return events.sortedBy { it.timeMs }
 }

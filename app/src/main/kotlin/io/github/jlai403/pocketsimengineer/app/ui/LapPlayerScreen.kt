@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -116,6 +117,25 @@ fun LapPlayerScreen(
             }
         }
     }
+    val ghost by produceState<GhostLap?>(null, sessionId, lapIndex, sessionReload) {
+        value = withContext(Dispatchers.IO) {
+            val laps = store.summaries()
+            val current = laps.firstOrNull {
+                it.sessionId == sessionId && it.lapIndex == lapIndex
+            } ?: return@withContext null
+            val best = laps
+                .filter {
+                    it.trackLabel == current.trackLabel &&
+                        !(it.sessionId == sessionId && it.lapIndex == lapIndex)
+                }
+                .minByOrNull { it.lapTimeMs } ?: return@withContext null
+            val bestLap = store.lap(best.sessionId, best.lapIndex) ?: return@withContext null
+            val bestSamples = runCatching {
+                store.readSamples(best.sessionId, best.lapIndex)
+            }.getOrDefault(emptyList())
+            if (bestSamples.isEmpty()) null else GhostLap(bestLap, bestSamples)
+        }
+    }
 
     val videoFile = lap
         ?.takeIf { !it.needsCut && it.videoFile != session?.rawFile }
@@ -142,6 +162,11 @@ fun LapPlayerScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
     var candidates by remember { mutableStateOf<List<TrackCandidate>?>(null) }
+    var headerExpanded by remember { mutableStateOf(false) }
+    var showSpeed by remember { mutableStateOf(true) }
+    var showPedals by remember { mutableStateOf(true) }
+    var showGhost by remember { mutableStateOf(true) }
+    var followMap by remember { mutableStateOf(false) }
 
     lateinit var scrubSeeker: ScrubSeeker
     LaunchedEffect(playbackSpeed) {
@@ -311,13 +336,21 @@ fun LapPlayerScreen(
         }
     }
     val subtitle = listOfNotNull(session?.trackLabel, driverLabel).joinToString(" · ").ifBlank { null }
+    val currentStats = remember(samples, lap) {
+        lap?.let { lapStats(samples.lapWindow(it), it) }
+    }
+    val ghostStats = remember(ghost) {
+        ghost?.let { lapStats(it.samples.lapWindow(it.lap), it.lap) }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             title = lap?.let { "Lap ${it.index} · ${lapTimeLabel(it.lapTimeMs)}" } ?: "Lap",
-            subtitle = subtitle,
+            subtitle = null,
             onBack = onBack,
+            onTitleClick = { headerExpanded = !headerExpanded },
+            titleExpanded = headerExpanded,
             actions = {
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
@@ -333,6 +366,13 @@ fun LapPlayerScreen(
                             onClick = {
                                 menuOpen = false
                                 shareVideo()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Share screenshot") },
+                            onClick = {
+                                menuOpen = false
+                                shareScreenshot(context, "Share lap $lapIndex") { message = it }
                             },
                         )
                         DropdownMenuItem(
@@ -354,6 +394,27 @@ fun LapPlayerScreen(
             },
         )
 
+        if (headerExpanded && lap != null) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    listOfNotNull(subtitle, session?.carName).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                currentStats?.let {
+                    Text(lapStatsLine(it, settings.imperialUnits), style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        lapStatsComparison(it, ghostStats, settings.imperialUnits),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
         if (lap == null) {
             Text(
                 "Loading lap…",
@@ -366,6 +427,17 @@ fun LapPlayerScreen(
 
         val events = remember(samples, currentLap) {
             lapEvents(samples.lapWindow(currentLap), currentLap)
+        }
+        val brakeTimes = remember(events) {
+            events.filter { it.type == LapEventType.Brake }.map { it.timeMs }
+        }
+        fun seekBrake(direction: Int) {
+            val target = if (direction > 0) {
+                brakeTimes.firstOrNull { it > cursorMs + 200 }
+            } else {
+                brakeTimes.lastOrNull { it < cursorMs - 200 }
+            }
+            if (target != null) seekLap(target.toLong())
         }
         Column(
             modifier = Modifier
@@ -443,18 +515,59 @@ fun LapPlayerScreen(
             }
 
             SectionCard(title = "Telemetry") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = showPedals,
+                        onClick = { showPedals = !showPedals },
+                        label = { Text("Pedals") },
+                    )
+                    FilterChip(
+                        selected = showSpeed,
+                        onClick = { showSpeed = !showSpeed },
+                        label = { Text("Speed") },
+                    )
+                }
                 ChartColumn(
                     samples = samples,
                     lap = currentLap,
                     cursorMs = cursorMs,
                     imperial = settings.imperialUnits,
+                    showSpeed = showSpeed,
+                    showPedals = showPedals,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
 
             SectionCard {
-                Text("Track map", style = MaterialTheme.typography.titleMedium)
-                TrackMap(samples = samples, lap = currentLap, cursorMs = cursorMs)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        "Track map",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    FilterChip(
+                        selected = followMap,
+                        onClick = { followMap = !followMap },
+                        label = { Text("Follow") },
+                    )
+                    FilterChip(
+                        selected = showGhost && ghost != null,
+                        onClick = { showGhost = !showGhost },
+                        enabled = ghost != null,
+                        label = { Text("Ghost") },
+                    )
+                }
+                TrackMap(
+                    samples = samples,
+                    lap = currentLap,
+                    cursorMs = cursorMs,
+                    ghost = ghost,
+                    showGhost = showGhost,
+                    follow = followMap,
+                )
             }
 
             Spacer(Modifier.padding(bottom = 8.dp))
@@ -485,6 +598,8 @@ fun LapPlayerScreen(
                 onSeekFraction = { fraction ->
                     seekLap((fraction * currentLap.lapTimeMs).roundToLong())
                 },
+                onPreviousBrake = { seekBrake(-1) },
+                onNextBrake = { seekBrake(1) },
                 onRewind = { seekLap(cursorMs - TRANSPORT_MS) },
                 onPlayPause = {
                     if (player.isPlaying) {

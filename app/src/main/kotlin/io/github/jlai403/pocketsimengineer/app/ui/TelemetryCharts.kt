@@ -25,12 +25,17 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
+import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.ceil
+import kotlin.math.cos
+import kotlin.math.sin
 
 private data class TraceSeries(
     val color: Color,
@@ -44,6 +49,8 @@ fun ChartColumn(
     lap: LapMetadata,
     cursorMs: Int,
     imperial: Boolean = false,
+    showSpeed: Boolean = true,
+    showPedals: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val speedFactor = if (imperial) 2.23694f else 3.6f
@@ -101,26 +108,30 @@ fun ChartColumn(
                 )
             }
         }
-        TraceChart(
-            window = window,
-            lap = lap,
-            cursorMs = cursorMs,
-            label = "Throttle / Brake",
-            series = listOf(
-                TraceSeries(throttleColor, { it.throttle.toFloat() }, 255f),
-                TraceSeries(brakeColor, { it.brake.toFloat() }, 255f),
-            ),
-        )
-        TraceChart(
-            window = window,
-            lap = lap,
-            cursorMs = cursorMs,
-            label = "Speed / Gear",
-            series = listOf(
-                TraceSeries(speedColor, { it.speedMps * speedFactor }, speedMax),
-                TraceSeries(gearColor, { it.gear.toFloat() }, gearMax.toFloat()),
-            ),
-        )
+        if (showPedals) {
+            TraceChart(
+                window = window,
+                lap = lap,
+                cursorMs = cursorMs,
+                label = "Throttle / Brake",
+                series = listOf(
+                    TraceSeries(throttleColor, { it.throttle.toFloat() }, 255f),
+                    TraceSeries(brakeColor, { it.brake.toFloat() }, 255f),
+                ),
+            )
+        }
+        if (showSpeed) {
+            TraceChart(
+                window = window,
+                lap = lap,
+                cursorMs = cursorMs,
+                label = "Speed / Gear",
+                series = listOf(
+                    TraceSeries(speedColor, { it.speedMps * speedFactor }, speedMax),
+                    TraceSeries(gearColor, { it.gear.toFloat() }, gearMax.toFloat()),
+                ),
+            )
+        }
     }
 }
 
@@ -176,7 +187,7 @@ private fun TraceChart(
     series: List<TraceSeries>,
 ) {
     val axisColor = MaterialTheme.colorScheme.outlineVariant
-    val cursorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+    val cursorColor = MaterialTheme.colorScheme.onSurface
     Column {
         Text(label, style = MaterialTheme.typography.labelSmall)
         Canvas(
@@ -215,10 +226,13 @@ private fun TraceChart(
 }
 
 @Composable
-fun TrackMap(
+internal fun TrackMap(
     samples: List<Sample>,
     lap: LapMetadata,
     cursorMs: Int,
+    ghost: GhostLap? = null,
+    showGhost: Boolean = true,
+    follow: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val window = remember(samples, lap) { samples.lapWindow(lap) }
@@ -233,16 +247,35 @@ fun TrackMap(
     val maxZ = points.maxOf { it.second }
     val current = remember(window, lap, cursorMs) { window.sampleAt(lap, cursorMs) }
     val events = remember(window, lap) { lapEvents(window, lap) }
-    val lineColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val ghostWindow = remember(ghost) {
+        ghost?.let { it.samples.lapWindow(it.lap) } ?: emptyList()
+    }
+    val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
     val dotColor = MaterialTheme.colorScheme.primary
     val brakeColor = MaterialTheme.colorScheme.error
     val throttleColor = MaterialTheme.colorScheme.primary
-    val turnColor = MaterialTheme.colorScheme.tertiary
+    val turnInColor = MaterialTheme.colorScheme.secondary
+    val apexColor = MaterialTheme.colorScheme.tertiary
+    val exitColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
     val eventColors = mapOf(
         LapEventType.Brake to brakeColor,
         LapEventType.Throttle to throttleColor,
-        LapEventType.Turn to turnColor,
+        LapEventType.TurnIn to turnInColor,
+        LapEventType.Apex to apexColor,
+        LapEventType.Exit to exitColor,
     )
+    val anchor = if (follow) current else null
+    val heading = remember(anchor, window, lap, cursorMs) {
+        if (anchor == null) {
+            0f
+        } else {
+            val ahead = window.sampleAt(lap, cursorMs + 250) ?: anchor
+            val dx = ahead.positionX - anchor.positionX
+            val dz = ahead.positionZ - anchor.positionZ
+            if (dx == 0f && dz == 0f) 0f else atan2(dz.toDouble(), dx.toDouble()).toFloat()
+        }
+    }
 
     Column(modifier) {
         Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
@@ -251,35 +284,97 @@ fun TrackMap(
             val scale = minOf(size.width / spanX, size.height / spanZ) * 0.9f
             val offsetX = (size.width - spanX * scale) / 2f
             val offsetY = (size.height - spanZ * scale) / 2f
-            fun mapPoint(sample: Sample): Offset = Offset(
-                offsetX + (sample.positionX - minX) * scale,
-                offsetY + (sample.positionZ - minZ) * scale,
-            )
+            val rotation = -heading - PI.toFloat() / 2f
+            val cosR = cos(rotation)
+            val sinR = sin(rotation)
 
-            val path = Path()
-            val step = ceil(window.size / 400f).toInt().coerceAtLeast(1)
-            var first = true
-            for (index in window.indices step step) {
-                val point = mapPoint(window[index])
-                if (first) {
-                    path.moveTo(point.x, point.y)
-                    first = false
-                } else {
-                    path.lineTo(point.x, point.y)
-                }
-            }
-            drawPath(path, color = lineColor, style = Stroke(width = 3f))
-            events.forEach { event ->
-                val point = window.sampleAt(lap, event.timeMs)?.let(::mapPoint) ?: return@forEach
-                drawCircle(
-                    color = eventColors.getValue(event.type),
-                    radius = 4.dp.toPx(),
-                    center = point,
+            fun mapPoint(sample: Sample): Offset = if (anchor == null) {
+                Offset(
+                    offsetX + (sample.positionX - minX) * scale,
+                    offsetY + (sample.positionZ - minZ) * scale,
+                )
+            } else {
+                val dx = sample.positionX - anchor.positionX
+                val dz = sample.positionZ - anchor.positionZ
+                Offset(
+                    size.width / 2f + (dx * cosR - dz * sinR) * scale,
+                    size.height / 2f + (dx * sinR + dz * cosR) * scale,
                 )
             }
+
+            if (showGhost && ghostWindow.size >= 2) {
+                val ghostPath = Path()
+                val ghostStep = ceil(ghostWindow.size / 500f).toInt().coerceAtLeast(1)
+                var first = true
+                for (index in ghostWindow.indices step ghostStep) {
+                    val point = mapPoint(ghostWindow[index])
+                    if (first) {
+                        ghostPath.moveTo(point.x, point.y)
+                        first = false
+                    } else {
+                        ghostPath.lineTo(point.x, point.y)
+                    }
+                }
+                drawPath(
+                    path = ghostPath,
+                    color = ghostColor,
+                    style = Stroke(
+                        width = 2.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(
+                            floatArrayOf(6.dp.toPx(), 4.dp.toPx()),
+                        ),
+                    ),
+                )
+            }
+
+            val segmentStep = ceil(window.size / 500f).toInt().coerceAtLeast(1)
+            for (index in segmentStep until window.size step segmentStep) {
+                val previous = window[index - segmentStep]
+                val sample = window[index]
+                val color = when {
+                    sample.brake > 0 -> brakeColor
+                    sample.throttle >= 60 -> throttleColor
+                    else -> trackColor
+                }
+                drawLine(
+                    color = color,
+                    start = mapPoint(previous),
+                    end = mapPoint(sample),
+                    strokeWidth = 3.dp.toPx(),
+                )
+            }
+
+            events.forEach { event ->
+                val sample = window.sampleAt(lap, event.timeMs) ?: return@forEach
+                val point = mapPoint(sample)
+                when (event.type) {
+                    LapEventType.TurnIn -> drawCircle(
+                        color = eventColors.getValue(event.type),
+                        radius = 4.dp.toPx(),
+                        center = point,
+                    )
+                    LapEventType.Apex -> drawPath(
+                        path = Path().apply {
+                            moveTo(point.x, point.y - 4.dp.toPx())
+                            lineTo(point.x + 4.dp.toPx(), point.y)
+                            lineTo(point.x, point.y + 4.dp.toPx())
+                            lineTo(point.x - 4.dp.toPx(), point.y)
+                            close()
+                        },
+                        color = eventColors.getValue(event.type),
+                    )
+                    LapEventType.Exit -> drawCircle(
+                        color = eventColors.getValue(event.type),
+                        radius = 4.dp.toPx(),
+                        center = point,
+                        style = Stroke(width = 2.dp.toPx()),
+                    )
+                    else -> Unit
+                }
+            }
+
             current?.let {
-                val point = mapPoint(it)
-                drawCircle(color = dotColor, radius = 7f, center = point)
+                drawCircle(color = dotColor, radius = 7f, center = mapPoint(it))
             }
         }
         MarkerLegend(modifier = Modifier.padding(top = 6.dp))
@@ -288,10 +383,17 @@ fun TrackMap(
 
 @Composable
 private fun MarkerLegend(modifier: Modifier = Modifier) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        LegendItem("Brake", MaterialTheme.colorScheme.error)
-        LegendItem("Throttle", MaterialTheme.colorScheme.primary)
-        LegendItem("Turn", MaterialTheme.colorScheme.tertiary)
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LegendItem("Brake", MaterialTheme.colorScheme.error)
+            LegendItem("Throttle", MaterialTheme.colorScheme.primary)
+            LegendItem("Turn-in", MaterialTheme.colorScheme.secondary)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LegendItem("Apex", MaterialTheme.colorScheme.tertiary)
+            LegendItem("Exit", MaterialTheme.colorScheme.onSurfaceVariant)
+            LegendItem("Ghost", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f))
+        }
     }
 }
 
@@ -329,6 +431,6 @@ private fun DrawScope.drawCursor(
         color = color,
         start = Offset(x, 0f),
         end = Offset(x, size.height),
-        strokeWidth = 2f,
+        strokeWidth = 3f,
     )
 }

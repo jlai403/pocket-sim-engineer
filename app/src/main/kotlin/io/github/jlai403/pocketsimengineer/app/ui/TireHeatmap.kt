@@ -36,12 +36,12 @@ internal fun TireHeatmap(
     imperial: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             TireTile("FL", fl, imperial)
             TireTile("FR", fr, imperial)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             TireTile("RL", rl, imperial)
             TireTile("RR", rr, imperial)
         }
@@ -53,7 +53,7 @@ private fun TireTile(label: String, celsius: Float, imperial: Boolean) {
     val shown = if (imperial) celsius * 9f / 5f + 32f else celsius
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(32.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(tireTemperatureColor(celsius)),
         contentAlignment = Alignment.Center,
@@ -66,7 +66,7 @@ private fun TireTile(label: String, celsius: Float, imperial: Boolean) {
             )
             Text(
                 "%.0f°".format(shown),
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 color = Color.Black.copy(alpha = 0.75f),
             )
         }
