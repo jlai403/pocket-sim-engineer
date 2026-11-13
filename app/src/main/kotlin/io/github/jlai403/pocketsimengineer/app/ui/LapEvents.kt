@@ -6,23 +6,22 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 
-enum class LapEventType { Brake, Coast, Throttle, Turn }
+enum class LapEventType { Brake, Throttle, Turn }
 
 data class LapEvent(val type: LapEventType, val timeMs: Int)
 
 private const val MIN_EVENT_GAP_MS = 600
-private const val BRAKE_ON = 60
+private const val BRAKE_ON = 1
 private const val THROTTLE_ON = 60
-private const val COAST_LIMIT = 20
 private const val TURN_STEERING = 0.35f
 private const val TURN_CURVATURE = 0.08f
 private const val TURN_WINDOW_MS = 250
 
 /**
- * Onset markers for the lap: one brake, throttle, and coast marker when the
- * condition first appears, plus steering peaks for turns. Repeated markers of
- * the same type are spaced by at least [MIN_EVENT_GAP_MS] so the ruler and map
- * stay readable.
+ * Onset markers for the lap: one brake and throttle marker when the condition
+ * first appears, plus steering (or curvature) peaks for turns. Repeated markers
+ * of the same type are spaced by at least [MIN_EVENT_GAP_MS] so the ruler and
+ * map stay readable.
  */
 internal fun lapEvents(window: List<Sample>, lap: LapMetadata): List<LapEvent> {
     if (window.isEmpty()) return emptyList()
@@ -48,14 +47,6 @@ internal fun lapEvents(window: List<Sample>, lap: LapMetadata): List<LapEvent> {
         if (sample.throttle >= THROTTLE_ON && (before == null || before.throttle < THROTTLE_ON)) {
             add(LapEventType.Throttle, timeMs)
         }
-        val coasting = sample.brake < COAST_LIMIT &&
-            sample.throttle < COAST_LIMIT &&
-            sample.speedMps > 3f
-        val wasCoasting = before != null &&
-            before.brake < COAST_LIMIT &&
-            before.throttle < COAST_LIMIT &&
-            before.speedMps > 3f
-        if (coasting && !wasCoasting) add(LapEventType.Coast, timeMs)
 
         val turn = if (steeringAvailable) {
             abs(sample.steering) to TURN_STEERING

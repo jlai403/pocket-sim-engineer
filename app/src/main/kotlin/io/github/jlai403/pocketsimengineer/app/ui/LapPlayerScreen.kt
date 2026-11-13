@@ -396,7 +396,6 @@ fun LapPlayerScreen(
                             window = samples,
                             lap = currentLap,
                             cursorMs = cursorMs,
-                            imperial = settings.imperialUnits,
                             modifier = Modifier.align(Alignment.TopCenter).padding(8.dp),
                         )
                     }

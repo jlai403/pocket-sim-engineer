@@ -172,7 +172,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 ### Player
 
 - Header: `Lap N · M:SS.mmm`, `Track · flag name` subtitle, back button, and one overflow menu (`Share video`, `Export CSV`, `Edit lap`).
-- Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden. A telemetry HUD (speed, gear, ±5 s throttle/brake traces) overlays the top centre when enabled in Settings.
+- Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden. A telemetry HUD overlays the top centre with the ±5 s throttle/brake traces when enabled in Settings.
 - Replay management lives in the `Edit lap` sheet: track, driver, and add/replace replay or resume a pending sync. The main screen keeps only `Add replay` when no clip exists.
 - Missing video: `Replay` card with a one-sentence explanation and the source pill.
 - Playback footer (sticky): `current / lap` in mono, the frame ruler, then compact transport and a speed dropdown (0.5×/1×/1.5×/2×). The ruler is the only scrubber and shows a progress track plus event dots.
@@ -195,16 +195,15 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 
 `ui/TelemetryCharts.kt`.
 
-- Speed: blue trace, max scaled to session peak.
-- Throttle: green; brake: red; both 0–255 on one combined chart.
-- RPM: amber, scaled to peak.
-- Gear: amber step trace.
+- Throttle/brake: green and red on one 0–255 chart (top).
+- Speed: blue trace with gear overlaid as an amber step trace, each scaled to its own peak (second).
+- RPM chart removed; RPM remains a value bar.
 - Axis: 1 px `outlineVariant`; cursor: 2 px `onSurface` at 75%.
-- Trace stroke: 2 px. Chart heights: speed/throttle-brake/RPM 52 dp, gear 40 dp.
+- Trace stroke: 2 px. Chart heights: 52 dp.
 - Map: 3 px `onSurfaceVariant` polyline, 7 px green dot at the cursor, 200 dp tall.
-- Event dots on the map and matching dots on the ruler: brake red, coast grey, throttle green, turn amber; turn comes from steering peaks, or track curvature when steering is unavailable. A legend sits under the map.
+- Event dots on the map and matching dots on the ruler: brake red, throttle green, turn amber; turn comes from steering peaks, or track curvature when steering is unavailable. A legend sits under the map.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.
-- Current values above the charts: speed with unit and gear as text; throttle, brake, and RPM as colored value bars with ±5 s sparklines; a 2×2 tire heatmap below (blue cold → green optimal → red hot).
+- Readout: three 44 dp bar rows (THR green, BRK red, RPM amber) with labels above and values right, no speed/gear text and no per-bar sparklines; the 2×2 tire heatmap (blue cold → green optimal → red hot) sits to the right, vertically centered.
 - Values and the map dot interpolate between the two samples that bracket the cursor time; gear snaps to the nearest sample. The cursor line stays on the video frame.
 
 ## Recording feedback outside the app
