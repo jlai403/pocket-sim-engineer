@@ -2,6 +2,7 @@ package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.net.Uri
 import android.graphics.Bitmap
+import android.view.LayoutInflater
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -68,6 +69,7 @@ import io.github.jlai403.pocketsimengineer.app.share.Sharing
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.track.TrackCatalog
 import io.github.jlai403.pocketsimengineer.app.track.TrackNamer
+import io.github.jlai403.pocketsimengineer.R
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.playback.PlaybackCursor
 import io.github.jlai403.pocketsimengineer.core.session.LapSummary
@@ -509,11 +511,12 @@ fun LapPlayerScreen(
                 ) {
                     AndroidView(
                         factory = { viewContext ->
-                            PlayerView(viewContext).apply {
+                            (LayoutInflater.from(viewContext)
+                                .inflate(R.layout.view_lap_player, null) as PlayerView).apply {
                                 this.player = player
-                                useController = false
                             }
                         },
+                        update = { it.player = player },
                         modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                     )
                     previewBitmap?.let { bitmap ->
