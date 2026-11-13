@@ -281,9 +281,16 @@ internal fun TrackMap(
         Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
             val spanX = (maxX - minX).coerceAtLeast(0.001f)
             val spanZ = (maxZ - minZ).coerceAtLeast(0.001f)
-            val scale = minOf(size.width / spanX, size.height / spanZ) * 0.9f
-            val offsetX = (size.width - spanX * scale) / 2f
-            val offsetY = (size.height - spanZ * scale) / 2f
+            val fitScale = minOf(size.width / spanX, size.height / spanZ) * 0.9f
+            val scale = if (anchor != null) {
+                val distance = anchor.speedMps.coerceAtLeast(0f) * 2f + 10f
+                (minOf(size.width, size.height) / distance * 0.9f)
+                    .coerceIn(fitScale * 1.5f, fitScale * 6f)
+            } else {
+                fitScale
+            }
+            val offsetX = (size.width - spanX * fitScale) / 2f
+            val offsetY = (size.height - spanZ * fitScale) / 2f
             val rotation = -heading - PI.toFloat() / 2f
             val cosR = cos(rotation)
             val sinR = sin(rotation)

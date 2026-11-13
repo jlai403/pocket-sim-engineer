@@ -163,8 +163,6 @@ fun LapPlayerScreen(
     var editing by remember { mutableStateOf(false) }
     var candidates by remember { mutableStateOf<List<TrackCandidate>?>(null) }
     var headerExpanded by remember { mutableStateOf(false) }
-    var showSpeed by remember { mutableStateOf(true) }
-    var showPedals by remember { mutableStateOf(true) }
     var showGhost by remember { mutableStateOf(true) }
     var followMap by remember { mutableStateOf(false) }
 
@@ -515,25 +513,11 @@ fun LapPlayerScreen(
             }
 
             SectionCard(title = "Telemetry") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = showPedals,
-                        onClick = { showPedals = !showPedals },
-                        label = { Text("Pedals") },
-                    )
-                    FilterChip(
-                        selected = showSpeed,
-                        onClick = { showSpeed = !showSpeed },
-                        label = { Text("Speed") },
-                    )
-                }
                 ChartColumn(
                     samples = samples,
                     lap = currentLap,
                     cursorMs = cursorMs,
                     imperial = settings.imperialUnits,
-                    showSpeed = showSpeed,
-                    showPedals = showPedals,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
