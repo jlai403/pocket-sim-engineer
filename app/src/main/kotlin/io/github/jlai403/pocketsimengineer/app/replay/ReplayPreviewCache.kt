@@ -24,10 +24,11 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
 
-private const val INDEX_VERSION = 1
-private const val PREVIEW_WIDTH = 480
+private const val INDEX_VERSION = 2
+// Matches the lap player's video box on a 1080 px display, so the preview is 1:1.
+private const val PREVIEW_WIDTH = 960
 private const val JPEG_QUALITY = 70
-private const val BITMAP_CACHE_BYTES = 8 * 1024 * 1024
+private const val BITMAP_CACHE_BYTES = 24 * 1024 * 1024
 private const val TAG = "ReplayPreview"
 
 /** One cached preview frame per video keyframe, plus the keyframe clock. */

@@ -332,11 +332,16 @@ fun LapPlayerScreen(
     LaunchedEffect(scrubbing, preview) {
         val cached = preview ?: return@LaunchedEffect
         if (!scrubbing) return@LaunchedEffect
+        var shownIndex = -1
         snapshotFlow { scrubTargetMs ?: if (renderedUs >= 0) renderedUs / 1_000 else positionMs }
             .conflate()
             .collect { timeMs ->
                 val index = nearestPreviewFrame(cached.index.timesMs, timeMs)
-                if (index >= 0) previewCache.frame(cached, index)?.let { previewBitmap = it }
+                if (index < 0 || index == shownIndex) return@collect
+                previewCache.frame(cached, index)?.let {
+                    shownIndex = index
+                    previewBitmap = it
+                }
             }
     }
 
@@ -525,8 +530,10 @@ fun LapPlayerScreen(
                         modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                     )
                     previewBitmap?.let { bitmap ->
+                        // Reuse the wrapper so an unchanged frame does not re-upload its texture.
+                        val image = remember(bitmap) { bitmap.asImageBitmap() }
                         Image(
-                            bitmap = bitmap.asImageBitmap(),
+                            bitmap = image,
                             contentDescription = null,
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.matchParentSize(),
