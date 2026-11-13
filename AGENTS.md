@@ -49,7 +49,7 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
   ScrubSeeker paces keyframe seeks at 33 ms and keeps exact mode's frame wait at 400 ms.
 - The lap player uses a `TextureView`-backed `PlayerView` (`res/layout/view_lap_player.xml`) so the
   scrub preview and telemetry HUD can draw over the video; a `SurfaceView` hides Compose overlays.
-- Scrub previews live under `sessions/<id>/laps/lap-NNN.preview/` (480×270 JPEG per keyframe +
+- Scrub previews live under `sessions/<id>/laps/lap-NNN.preview/` (960×540 JPEG per keyframe +
   `index.json`). Warmed after import and generated on first open; deleted by `attachClip` and `deleteLap`.
 - Typography: `labelSmall` is defined in `Theme.kt` (Geist Sans 11 sp); `NumericText` is mono with
   zero tracking. Do not use an undefined Material label style on Compose screens.
