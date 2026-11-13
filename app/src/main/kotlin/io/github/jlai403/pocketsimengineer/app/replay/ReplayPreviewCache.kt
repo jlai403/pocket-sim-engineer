@@ -47,9 +47,9 @@ internal data class ReplayPreview(
     val cacheKey: String,
 )
 
-/** The cached keyframe at or before [timeMs], or -1 when there is none. */
+/** The cached keyframe at or before [timeMs]; -1 when there is none or the time is negative. */
 internal fun nearestPreviewFrame(timesMs: List<Long>, timeMs: Long): Int {
-    if (timesMs.isEmpty()) return -1
+    if (timesMs.isEmpty() || timeMs < 0) return -1
     val exact = timesMs.binarySearch(timeMs)
     if (exact >= 0) return exact
     return (-exact - 2).coerceIn(0, timesMs.lastIndex)

@@ -42,6 +42,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,6 +79,7 @@ import io.github.jlai403.pocketsimengineer.core.session.SessionStore
 import io.github.jlai403.pocketsimengineer.core.track.TrackCandidate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -325,14 +327,17 @@ fun LapPlayerScreen(
     val cursorMs = lap?.let {
         PlaybackCursor.telemetryMs(displayedMs, it.leadInMs, it.syncOffsetMs, it.lapTimeMs)
     } ?: 0
-    val previewFrame = preview?.let {
-        nearestPreviewFrame(it.index.timesMs, scrubTargetMs ?: -1L)
-    } ?: -1
 
-    LaunchedEffect(scrubbing, previewFrame, preview) {
-        val cached = preview
-        if (!scrubbing || cached == null || previewFrame < 0) return@LaunchedEffect
-        previewCache.frame(cached, previewFrame)?.let { previewBitmap = it }
+    // The playhead stands in until the finger picks a frame, so a press never shows frame 0.
+    LaunchedEffect(scrubbing, preview) {
+        val cached = preview ?: return@LaunchedEffect
+        if (!scrubbing) return@LaunchedEffect
+        snapshotFlow { scrubTargetMs ?: if (renderedUs >= 0) renderedUs / 1_000 else positionMs }
+            .conflate()
+            .collect { timeMs ->
+                val index = nearestPreviewFrame(cached.index.timesMs, timeMs)
+                if (index >= 0) previewCache.frame(cached, index)?.let { previewBitmap = it }
+            }
     }
 
     LaunchedEffect(previewSettling, renderedUs, previewSeekMs) {
@@ -658,7 +663,6 @@ fun LapPlayerScreen(
                     scrubTargetMs = null
                     scrubbing = true
                     previewSettling = false
-                    previewBitmap = null
                     previewSeekMs = -1L
                     player.pause()
                 },
