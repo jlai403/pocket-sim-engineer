@@ -19,6 +19,7 @@ internal const val SCRUB_FRAME_WAIT_MS = 400L
  */
 internal class ScrubSeeker(
     scope: CoroutineScope,
+    private val frameWaitMs: Long = SCRUB_FRAME_WAIT_MS,
     private val seek: (Long) -> Unit,
 ) {
     private val targets = Channel<Long>(Channel.CONFLATED)
@@ -33,7 +34,7 @@ internal class ScrubSeeker(
                 while (rendered.tryReceive().isSuccess) Unit
                 lastSeeked = target
                 seek(target)
-                withTimeoutOrNull(SCRUB_FRAME_WAIT_MS) { rendered.receive() }
+                withTimeoutOrNull(frameWaitMs) { rendered.receive() }
             }
         }
     }

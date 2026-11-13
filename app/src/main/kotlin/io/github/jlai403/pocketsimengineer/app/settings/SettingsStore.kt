@@ -36,6 +36,39 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_TELEMETRY_HUD, true)
         set(value) = prefs.edit().putBoolean(KEY_TELEMETRY_HUD, value).apply()
 
+    /** How new replay clips are compressed; defaults to the balanced profile. */
+    var replayPreset: ReplayPreset
+        get() = enumPref(KEY_REPLAY_PRESET, ReplayPreset.Balanced)
+        set(value) = prefs.edit().putString(KEY_REPLAY_PRESET, value.name).apply()
+
+    var replayKeyframes: ReplayKeyframes
+        get() = enumPref(KEY_REPLAY_KEYFRAMES, ReplayKeyframes.Fast)
+        set(value) = prefs.edit().putString(KEY_REPLAY_KEYFRAMES, value.name).apply()
+
+    var replayAudio: ReplayAudio
+        get() = enumPref(KEY_REPLAY_AUDIO, ReplayAudio.Stereo)
+        set(value) = prefs.edit().putString(KEY_REPLAY_AUDIO, value.name).apply()
+
+    var replayResolution: ReplayResolution
+        get() = enumPref(KEY_REPLAY_RESOLUTION, ReplayResolution.FullHd)
+        set(value) = prefs.edit().putString(KEY_REPLAY_RESOLUTION, value.name).apply()
+
+    var replayCodec: ReplayCodec
+        get() = enumPref(KEY_REPLAY_CODEC, ReplayCodec.Hevc)
+        set(value) = prefs.edit().putString(KEY_REPLAY_CODEC, value.name).apply()
+
+    /** The resolved encoder profile for new imports. */
+    fun replayProfile(): ReplayProfile = replayProfile(
+        preset = replayPreset,
+        keyframes = replayKeyframes,
+        audio = replayAudio,
+        resolution = replayResolution,
+        codec = replayCodec,
+    )
+
+    private inline fun <reified T : Enum<T>> enumPref(key: String, default: T): T =
+        runCatching { enumValueOf<T>(prefs.getString(key, null).orEmpty()) }.getOrDefault(default)
+
     /** Developer preview: show the empty library while laps stay on disk. */
     var previewEmptyLibrary: Boolean
         get() = prefs.getBoolean(KEY_PREVIEW_EMPTY, false)
@@ -54,6 +87,11 @@ class SettingsStore(context: Context) {
         const val KEY_HAPTICS = "frame_ruler_haptics"
         const val KEY_PLAYBACK_SPEED = "default_playback_speed"
         const val KEY_TELEMETRY_HUD = "telemetry_hud"
+        const val KEY_REPLAY_PRESET = "replay_preset"
+        const val KEY_REPLAY_KEYFRAMES = "replay_keyframes"
+        const val KEY_REPLAY_AUDIO = "replay_audio"
+        const val KEY_REPLAY_RESOLUTION = "replay_resolution"
+        const val KEY_REPLAY_CODEC = "replay_codec"
         const val KEY_PREVIEW_EMPTY = "preview_empty_library"
         const val KEY_TRACK_ID_VERSION = "track_id_version"
     }

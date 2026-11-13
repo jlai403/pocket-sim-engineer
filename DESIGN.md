@@ -146,7 +146,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Fastest lap is computed per track across every lap, ignores the active filter, and only appears when the track has two or more laps. The other laps on that track show the delta.
 - Every card shows the lap's driver in the hero row: flag and nickname, the PSN when the profile is unknown, or `Driver not set` in muted text.
 - Swipe right opens Edit. Swipe left opens the delete confirmation, and the card springs back. Long press and the TalkBack custom actions offer the same two.
-- Edit sheet: track field with candidate rows for `Unknown` laps, the shared driver picker without profile links, a replay row (`Add a replay`, `Replace replay`, `Resume sync`), and Save.
+- Edit sheet: track field with candidate rows for `Unknown` laps, the shared driver picker without profile links, a replay row (`Add a replay`, `Replace replay`, `Resume sync`), a data row (`N MB total` with replay/pending/telemetry breakdown), and Save.
 - Empty state: `No laps yet`, the Record instruction, and `Go to Record`. A filtered empty list adds `Clear filters`.
 - Developer preview: Settings → Developer → `Preview empty library` renders the empty state over a banner with `Turn off`; the laps stay on disk. Preview channel only.
 
@@ -173,18 +173,18 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 
 - Header: `Lap N · M:SS.mmm` with a chevron. Collapsed shows only the title; tapping expands track, driver flag/name, car, lap stats (top/min/avg), and the vs-ghost comparison. One overflow menu: `Share video`, `Share screenshot`, `Export CSV`, `Edit lap`.
 - Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden. A telemetry HUD overlays the top centre with the ±2 s throttle/brake traces when enabled in Settings.
-- Replay management lives in the `Edit lap` sheet: track, driver, and add/replace replay or resume a pending sync. The main screen keeps only `Add replay` when no clip exists.
+- Replay management lives in the `Edit lap` sheet: track, driver, add/replace replay, resume a pending sync, and the lap's data volume (replay + telemetry). The main screen keeps only `Add replay` when no clip exists.
+- New imports are trimmed and then compacted with the Settings replay profile (default 1080p HEVC, ~5 Mbps, 0.5 s keyframes, stereo). If compaction fails the trimmed clip is kept and a `Compaction failed` toast appears.
 - Missing video: `Replay` card with a one-sentence explanation and the source pill.
-- Playback footer (sticky): `current / lap` in mono, the frame ruler, then centred compact transport (skip-previous/next jump to the previous/next brake point, with a Loop toggle and speed dropdown at the right). The ruler is the only scrubber and shows a progress track, event dots, and pinch zoom.
+- Playback footer (sticky): `current / lap` in mono, the frame ruler, then centred compact transport (skip-previous/next jump to the previous/next brake point, with a Loop toggle and speed dropdown at the right). The ruler is the only scrubber and shows a progress track, event dots, and pinch zoom. While the ruler is held, seeks snap to the nearest keyframe for responsiveness; releasing restores exact seeking and lands on the requested frame.
 - Scrolling content above the footer: video, telemetry card with trace toggles, track-map card. The rendered frame drives the charts and map, including while paused.
 - Speed changes last until you leave the lap screen; the default comes from Settings.
 
 ### Settings
 
-- Header: “Settings”, subtitle “Capture, video, and units”.
+- Header: “Settings”, subtitle “Console, profile, units, and updates”.
 - Console card: IP field.
-- Video card: resolution and codec segmented controls, bitrate label + slider.
-- Recording card: `Keep raw recording` toggle row.
+- Replay compression card: `Preset` (Original / Balanced / Compact), and while not Original, `Resolution` (1080p/720p), `Codec` (HEVC/H.264), `Keyframes` (Fast 0.5 s / Standard 1 s / Sparse 2 s), and `Audio` (Stereo 96 kbps / Mono 64 kbps / Remove). Defaults: Balanced, 1080p, HEVC, Fast, Stereo. Each control shows a caption describing its effect; a non-default choice is prefixed `Changed:` and uses the primary colour. A note says it applies to replays imported after the change.
 - Display card: `Imperial units`, `Frame ruler haptics`, and `Telemetry HUD` toggle rows, plus a `Default playback speed` dropdown (0.5×/1×/1.5×/2×); haptics are on by default, HUD is on by default.
 - Updates card: channel-aware status line (`Checks the rolling debug build once a day.`, `You are on the latest build.`, `Version X (build N) is available.`), then one action: `Check for updates`, `Download X`, `Downloading N%`, `Install update`, or `Installing…`. Failures use `error` color and name the next action.
 - Build card: version name, version code, update channel (`preview`/`stable`), CI build number (or `local`), and short commit SHA.

@@ -39,8 +39,35 @@ class EditLapSheetTest {
     )
 
     @Test
-    fun `saves the trimmed track name`() {
-        var saved: String? = null
+    fun `shows the lap data volume`() {
+        compose.setContent {
+            PocketSimEngineerTheme {
+                EditLapSheet(
+                    lap = lap.copy(
+                        hasReplay = true,
+                        videoBytes = 34_200_000,
+                        telemetryBytes = 1_800_000,
+                    ),
+                    driver = null,
+                    owner = null,
+                    profiles = emptyList(),
+                    candidates = null,
+                    onDismiss = {},
+                    onSaveTrack = {},
+                    onAssignDriver = {},
+                    onAddReplay = {},
+                    onOpenPlayStation = {},
+                    onResumeSync = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("36.0 MB total").performScrollTo().assertExists()
+        compose.onNodeWithText("Replay 34.2 MB · Telemetry 1.8 MB").performScrollTo().assertExists()
+    }
+
+    @Test
+    fun `saves the trimmed track name`() {        var saved: String? = null
 
         compose.setContent {
             PocketSimEngineerTheme {

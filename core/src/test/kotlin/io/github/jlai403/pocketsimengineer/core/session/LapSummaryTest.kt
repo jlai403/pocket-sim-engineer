@@ -73,6 +73,17 @@ class LapSummaryTest {
     }
 
     @Test
+    fun `summaries carry replay and telemetry sizes`() {
+        val store = install(videoFile = "laps/lap-001.mp4", createFile = true)
+        File(store.sessionDir("s1"), "laps/lap-001.gt7lap").writeBytes(ByteArray(2048))
+
+        val summary = store.summaries().single()
+
+        assertEquals(1L, summary.videoBytes)
+        assertEquals(2048L, summary.telemetryBytes)
+    }
+
+    @Test
     fun `legacy lap without a clip stays visible`() {
         val summary = install(videoFile = "laps/lap-001.mp4", createFile = false).summaries().single()
         assertFalse(summary.hasReplay)

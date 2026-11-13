@@ -63,7 +63,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - Upload manually: Media Gallery → clip → **Upload to PlayStation App**.
 - PS App: **Download** or **Share via** to Pocket Sim Engineer. The app copies the file into its own storage.
 - PS App limits: videos under 3 minutes, ≤1920×1080, non-4K, available for 14 days. Laps longer than 3 minutes cannot use this path; use a USB capture or a broadcast MP4 through the same importer.
-- The importer accepts any MP4 with a video track; H.264/AAC is the expected format. No re-encode.
+- The importer accepts any MP4 with a video track; H.264/AAC is the expected format. Imported clips are compacted with the Settings replay profile (default 1080p HEVC, ~5 Mbps, 0.5 s keyframes, stereo AAC). If compaction fails the trimmed clip is stored unchanged.
 
 ### Sync
 
@@ -190,7 +190,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - Media3 ExoPlayer; exact seeks for frame stepping, and the rendered frame drives the cursor. Ruler drags keep at most one seek in flight, always to the newest target, and the readout shows that target until the frame lands.
 - `PlaybackCursor.telemetryMs(positionMs, leadInMs, syncOffsetMs, lapTimeMs)` maps video to lap time; `clipMs(lapMs, leadInMs, syncOffsetMs)` is its inverse.
 - The sync screen's slider and frame ruler span the whole clip.
-- The lap screen's playback controls sit in a sticky footer: one time readout, the frame ruler as the only scrubber, centred play/pause with skip-previous/next jumping to the previous/next brake point, a Loop toggle, and a speed dropdown (0.5×/1×/1.5×/2×). Changes last until the screen closes; the default comes from Settings.
+- The lap screen's playback controls sit in a sticky footer: one time readout, the frame ruler as the only scrubber, centred play/pause with skip-previous/next jumping to the previous/next brake point, a Loop toggle, and a speed dropdown (0.5×/1×/1.5×/2×). Changes last until the screen closes; the default comes from Settings. While the ruler is held, seeks snap to the nearest keyframe; releasing restores exact seeking and lands on the requested frame.
 - The ruler shows a progress track and turn-in/apex/exit dots; it supports pinch-to-zoom. The track map colours its segments by pedal strength, marks turn-in, shows a dashed grey ghost lap, and offers Follow (driver-perspective tilt zoomed to the next ~2 s), Ghost, and Reset chips; its legend sits under the title, above the map.
 - A setting-controlled telemetry HUD overlays the video's top centre with the ±2 s throttle/brake traces.
 - The header collapses to the lap time; tapping it reveals track, driver, car, lap stats, and the vs-ghost comparison.
@@ -201,13 +201,13 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 ### 8.8 Library
 
-- `SessionStore.summaries()` flattens sessions into lap rows with `hasReplay` and `replayPending`.
+- `SessionStore.summaries()` flattens sessions into lap rows with `hasReplay`, `replayPending`, and replay/telemetry/pending byte counts.
 - The library is a flat feed: no card surface or radius, a leading flag column, and 1 dp full-bleed dividers between laps (none after the last).
 - Filters and sorts are pure functions in `:core`; `fastestPerTrack()` marks one quickest lap per track label.
 - The fastest marker needs two or more laps on that track and is computed from all laps, never the filtered list.
 - Pull to refresh reloads summaries; the spinner does not appear for automatic reloads after an edit.
 - Swipe right opens the edit sheet and reveals Edit pinned to the left; swipe left reveals Delete pinned to the right and opens the delete confirmation. The drag is clamped to 60% of the card width and always springs back to zero, including on a cancelled gesture.
-- The edit sheet writes the track label, the per-lap driver, and the replay source. `Add a replay` and `Replace replay` open the same source menu as the lap screen, and `Resume sync` reopens the pending clip.
+- The edit sheet writes the track label, the per-lap driver, and the replay source, and shows the lap's data volume (replay, pending clip, telemetry, total). `Add a replay` and `Replace replay` open the same source menu as the lap screen, and `Resume sync` reopens the pending clip.
 - Delete a lap; delete the session when its last lap goes.
 
 ### 8.9 Export

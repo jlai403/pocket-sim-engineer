@@ -32,7 +32,17 @@ import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.BuildConfig
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
 import io.github.jlai403.pocketsimengineer.app.profile.GridStatsProfileClient
+import io.github.jlai403.pocketsimengineer.app.settings.ReplayAudio
+import io.github.jlai403.pocketsimengineer.app.settings.ReplayCodec
+import io.github.jlai403.pocketsimengineer.app.settings.ReplayKeyframes
+import io.github.jlai403.pocketsimengineer.app.settings.ReplayPreset
+import io.github.jlai403.pocketsimengineer.app.settings.ReplayResolution
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import io.github.jlai403.pocketsimengineer.app.settings.audioCaption
+import io.github.jlai403.pocketsimengineer.app.settings.codecCaption
+import io.github.jlai403.pocketsimengineer.app.settings.keyframesCaption
+import io.github.jlai403.pocketsimengineer.app.settings.presetCaption
+import io.github.jlai403.pocketsimengineer.app.settings.resolutionCaption
 import io.github.jlai403.pocketsimengineer.app.updater.UpdateManager
 import io.github.jlai403.pocketsimengineer.core.network.Ipv4
 
@@ -67,6 +77,11 @@ fun SettingsScreen(
     var speedMenu by remember { mutableStateOf(false) }
     var hud by remember { mutableStateOf(settings.telemetryHud) }
     var previewEmpty by remember { mutableStateOf(settings.previewEmptyLibrary) }
+    var replayPreset by remember { mutableStateOf(settings.replayPreset) }
+    var replayKeyframes by remember { mutableStateOf(settings.replayKeyframes) }
+    var replayAudio by remember { mutableStateOf(settings.replayAudio) }
+    var replayResolution by remember { mutableStateOf(settings.replayResolution) }
+    var replayCodec by remember { mutableStateOf(settings.replayCodec) }
 
     Column(
         modifier = Modifier
@@ -182,6 +197,81 @@ fun SettingsScreen(
             )
         }
 
+        SectionCard(title = "Replay compression") {
+            Text(
+                "Applies to replays imported after this change. Existing laps are left untouched.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SettingChoice(
+                label = "Preset",
+                options = ReplayPreset.entries,
+                selected = replayPreset,
+                optionLabel = { it.label },
+                caption = presetCaption(replayPreset),
+                changed = replayPreset != ReplayPreset.Balanced,
+                modifier = Modifier.testTag("replay-preset"),
+                onSelect = {
+                    replayPreset = it
+                    settings.replayPreset = it
+                },
+            )
+            if (replayPreset != ReplayPreset.Original) {
+                SettingChoice(
+                    label = "Resolution",
+                    options = ReplayResolution.entries,
+                    selected = replayResolution,
+                    optionLabel = { it.label },
+                    caption = resolutionCaption(replayResolution),
+                    changed = replayResolution != ReplayResolution.FullHd,
+                    modifier = Modifier.testTag("replay-resolution"),
+                    onSelect = {
+                        replayResolution = it
+                        settings.replayResolution = it
+                    },
+                )
+                SettingChoice(
+                    label = "Codec",
+                    options = ReplayCodec.entries,
+                    selected = replayCodec,
+                    optionLabel = { it.label },
+                    caption = codecCaption(replayCodec),
+                    changed = replayCodec != ReplayCodec.Hevc,
+                    modifier = Modifier.testTag("replay-codec"),
+                    onSelect = {
+                        replayCodec = it
+                        settings.replayCodec = it
+                    },
+                )
+                SettingChoice(
+                    label = "Keyframes",
+                    options = ReplayKeyframes.entries,
+                    selected = replayKeyframes,
+                    optionLabel = { it.label },
+                    caption = keyframesCaption(replayKeyframes),
+                    changed = replayKeyframes != ReplayKeyframes.Fast,
+                    modifier = Modifier.testTag("replay-keyframes"),
+                    onSelect = {
+                        replayKeyframes = it
+                        settings.replayKeyframes = it
+                    },
+                )
+                SettingChoice(
+                    label = "Audio",
+                    options = ReplayAudio.entries,
+                    selected = replayAudio,
+                    optionLabel = { it.label },
+                    caption = audioCaption(replayAudio),
+                    changed = replayAudio != ReplayAudio.Stereo,
+                    modifier = Modifier.testTag("replay-audio"),
+                    onSelect = {
+                        replayAudio = it
+                        settings.replayAudio = it
+                    },
+                )
+            }
+        }
+
         if (BuildConfig.UPDATE_CHANNEL != "stable") {
             SectionCard(title = "Developer") {
                 SettingToggle(
@@ -294,5 +384,55 @@ private fun SettingToggle(
             style = MaterialTheme.typography.titleMedium,
         )
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun <T> SettingChoice(
+    label: String,
+    options: List<T>,
+    selected: T,
+    optionLabel: (T) -> String,
+    caption: String,
+    changed: Boolean,
+    modifier: Modifier = Modifier,
+    onSelect: (T) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                label,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Box {
+                GhostPill(
+                    text = optionLabel(selected),
+                    onClick = { open = true },
+                    trailingIcon = Icons.Filled.KeyboardArrowDown,
+                )
+                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                    options.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(optionLabel(option)) },
+                            onClick = {
+                                onSelect(option)
+                                open = false
+                            },
+                        )
+                    }
+                }
+            }
+        }
+        Text(
+            if (changed) "Changed: $caption" else caption,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (changed) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
     }
 }

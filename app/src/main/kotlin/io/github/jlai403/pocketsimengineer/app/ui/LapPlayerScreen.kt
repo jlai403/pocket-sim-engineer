@@ -187,7 +187,7 @@ fun LapPlayerScreen(
         }
     }
     scrubSeeker = remember(player) {
-        ScrubSeeker(scope) { target -> seekClip(target, fromScrub = true) }
+        ScrubSeeker(scope, frameWaitMs = 120L) { target -> seekClip(target, fromScrub = true) }
     }
 
     fun shareVideo() {
@@ -582,6 +582,7 @@ fun LapPlayerScreen(
                     scrubBaseUs = displayedUs
                     scrubTargetMs = null
                     scrubbing = true
+                    player.setSeekParameters(SeekParameters.CLOSEST_SYNC)
                 },
                 onScrub = { frames ->
                     scrubTarget(scrubBaseUs, frames)?.let { target ->
@@ -589,7 +590,11 @@ fun LapPlayerScreen(
                         scrubSeeker.submit(target)
                     }
                 },
-                onScrubEnd = { scrubbing = false },
+                onScrubEnd = {
+                    scrubbing = false
+                    player.setSeekParameters(SeekParameters.EXACT)
+                    scrubTargetMs?.let { seekClip(it) }
+                },
                 onSeekFraction = { fraction ->
                     seekLap((fraction * currentLap.lapTimeMs).roundToLong())
                 },

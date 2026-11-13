@@ -77,6 +77,16 @@ class SessionStore(private val rootDir: File) {
     fun summaries(): List<LapSummary> = list().flatMap { session ->
         val dir = sessionDir(session.sessionId)
         session.laps.map { lap ->
+            val replayFile = lap.videoFile
+                .takeIf { it.isNotBlank() && !lap.needsCut && it != session.rawFile }
+                ?.let { File(dir, it) }
+                ?.takeIf { it.isFile }
+            val telemetryFile = File(dir, "laps/lap-%03d.gt7lap".format(lap.index))
+                .takeIf { it.isFile }
+            val pendingFile = lap.sourceFile
+                ?.takeIf { it.isNotBlank() }
+                ?.let { File(dir, it) }
+                ?.takeIf { it.isFile }
             LapSummary(
                 sessionId = session.sessionId,
                 lapIndex = lap.index,
@@ -84,12 +94,12 @@ class SessionStore(private val rootDir: File) {
                 createdAt = session.createdAt,
                 trackLabel = session.trackLabel,
                 carName = session.carName,
-                hasReplay = lap.videoFile.isNotBlank() &&
-                    !lap.needsCut &&
-                    lap.videoFile != session.rawFile &&
-                    File(dir, lap.videoFile).isFile,
+                hasReplay = replayFile != null,
                 replayPending = !lap.sourceFile.isNullOrBlank(),
                 driverPsnId = lap.driverPsnId,
+                videoBytes = replayFile?.length() ?: 0,
+                telemetryBytes = telemetryFile?.length() ?: 0,
+                pendingBytes = pendingFile?.length() ?: 0,
             )
         }
     }.sortedByDescending { parseInstant(it.createdAt) }
