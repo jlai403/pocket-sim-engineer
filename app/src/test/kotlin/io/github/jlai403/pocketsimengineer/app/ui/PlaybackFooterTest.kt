@@ -32,6 +32,7 @@ class PlaybackFooterTest {
                     frameStepMs = 33,
                     enabled = true,
                     playing = false,
+                    looping = false,
                     speed = 1f,
                     events = emptyList(),
                     hapticsEnabled = false,
@@ -42,6 +43,7 @@ class PlaybackFooterTest {
                     onRewind = {},
                     onPlayPause = { plays++ },
                     onForward = {},
+                    onToggleLoop = {},
                     onSpeedChange = {},
                 )
             }
@@ -52,5 +54,6 @@ class PlaybackFooterTest {
         assertEquals(1, plays)
         compose.onNodeWithContentDescription("Previous brake point").assertExists()
         compose.onNodeWithContentDescription("Next brake point").assertExists()
+        compose.onNodeWithText("Loop").assertExists()
     }
 }

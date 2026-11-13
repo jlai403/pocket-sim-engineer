@@ -165,10 +165,14 @@ fun LapPlayerScreen(
     var headerExpanded by remember { mutableStateOf(false) }
     var showGhost by remember { mutableStateOf(true) }
     var followMap by remember { mutableStateOf(false) }
+    var looping by remember { mutableStateOf(false) }
 
     lateinit var scrubSeeker: ScrubSeeker
     LaunchedEffect(playbackSpeed) {
         player.setPlaybackSpeed(playbackSpeed)
+    }
+    LaunchedEffect(looping) {
+        player.repeatMode = if (looping) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
     }
 
     fun seekClip(targetMs: Long, fromScrub: Boolean = false) {
@@ -543,6 +547,11 @@ fun LapPlayerScreen(
                         enabled = ghost != null,
                         label = { Text("Ghost") },
                     )
+                    FilterChip(
+                        selected = false,
+                        onClick = { followMap = false },
+                        label = { Text("Reset") },
+                    )
                 }
                 TrackMapLegend()
                 TrackMap(
@@ -565,6 +574,7 @@ fun LapPlayerScreen(
                 frameStepMs = frameStepMs,
                 enabled = durationMs > 0,
                 playing = playing,
+                looping = looping,
                 speed = playbackSpeed,
                 events = events,
                 hapticsEnabled = settings.hapticsEnabled,
@@ -593,6 +603,7 @@ fun LapPlayerScreen(
                     }
                 },
                 onForward = { seekBrake(1) },
+                onToggleLoop = { looping = !looping },
                 onSpeedChange = { playbackSpeed = it },
             )
         }
