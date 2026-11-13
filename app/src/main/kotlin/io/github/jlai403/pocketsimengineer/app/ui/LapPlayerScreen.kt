@@ -582,9 +582,7 @@ fun LapPlayerScreen(
                 onSeekFraction = { fraction ->
                     seekLap((fraction * currentLap.lapTimeMs).roundToLong())
                 },
-                onPreviousBrake = { seekBrake(-1) },
-                onNextBrake = { seekBrake(1) },
-                onRewind = { seekLap(cursorMs - TRANSPORT_MS) },
+                onRewind = { seekBrake(-1) },
                 onPlayPause = {
                     if (player.isPlaying) {
                         player.pause()
@@ -593,7 +591,7 @@ fun LapPlayerScreen(
                         player.play()
                     }
                 },
-                onForward = { seekLap(cursorMs + TRANSPORT_MS) },
+                onForward = { seekBrake(1) },
                 onSpeedChange = { playbackSpeed = it },
             )
         }

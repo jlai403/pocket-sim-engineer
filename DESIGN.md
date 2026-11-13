@@ -175,7 +175,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden. A telemetry HUD overlays the top centre with the ±2 s throttle/brake traces when enabled in Settings.
 - Replay management lives in the `Edit lap` sheet: track, driver, and add/replace replay or resume a pending sync. The main screen keeps only `Add replay` when no clip exists.
 - Missing video: `Replay` card with a one-sentence explanation and the source pill.
-- Playback footer (sticky): brake prev/next chips, `current / lap` in mono, the frame ruler, then centred compact transport and a speed dropdown (0.5×/1×/1.5×/2×). The ruler is the only scrubber and shows a progress track, event dots, and pinch zoom.
+- Playback footer (sticky): `current / lap` in mono, the frame ruler, then centred compact transport (rewind/forward jump to the previous/next brake point) and a speed dropdown (0.5×/1×/1.5×/2×). The ruler is the only scrubber and shows a progress track, event dots, and pinch zoom.
 - Scrolling content above the footer: video, telemetry card with trace toggles, track-map card. The rendered frame drives the charts and map, including while paused.
 - Speed changes last until you leave the lap screen; the default comes from Settings.
 
@@ -201,7 +201,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Axis: 1 px `outlineVariant`; cursor: 3 px `onSurface`.
 - Trace stroke: 2 px. Chart heights: 52 dp.
 - Map: coloured 3 px segments by pedal state (green throttle, red brake, muted otherwise), 7 px green dot at the cursor, 200 dp tall. A dashed ghost lap overlays the fastest lap on the same track.
-- Turn markers: turn-in (filled circle), apex (diamond), exit (hollow circle) on the map and ruler; derived from steering when available, otherwise track curvature.
+- Turn markers: turn-in (filled circle) on the map; the ruler also marks apex (diamond) and exit (hollow circle). Derived from steering when available, otherwise track curvature.
 - Map chips: `Follow` centres and rotates the map to the driver's heading; `Ghost` toggles the reference lap.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.
 - Readout: three 44 dp bar rows (THR green, BRK red, RPM amber) with labels above and values right, no speed/gear text and no per-bar sparklines; the 2×2 tire heatmap (32 dp tiles, blue cold → green optimal → red hot) sits to the right, vertically centered.

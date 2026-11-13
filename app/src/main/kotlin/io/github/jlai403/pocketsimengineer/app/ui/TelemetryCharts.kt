@@ -255,15 +255,11 @@ internal fun TrackMap(
     val brakeColor = MaterialTheme.colorScheme.error
     val throttleColor = MaterialTheme.colorScheme.primary
     val turnInColor = MaterialTheme.colorScheme.secondary
-    val apexColor = MaterialTheme.colorScheme.tertiary
-    val exitColor = MaterialTheme.colorScheme.onSurfaceVariant
     val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
     val eventColors = mapOf(
         LapEventType.Brake to brakeColor,
         LapEventType.Throttle to throttleColor,
         LapEventType.TurnIn to turnInColor,
-        LapEventType.Apex to apexColor,
-        LapEventType.Exit to exitColor,
     )
     val anchor = if (follow) current else null
     val heading = remember(anchor, window, lap, cursorMs) {
@@ -360,22 +356,6 @@ internal fun TrackMap(
                         radius = 4.dp.toPx(),
                         center = point,
                     )
-                    LapEventType.Apex -> drawPath(
-                        path = Path().apply {
-                            moveTo(point.x, point.y - 4.dp.toPx())
-                            lineTo(point.x + 4.dp.toPx(), point.y)
-                            lineTo(point.x, point.y + 4.dp.toPx())
-                            lineTo(point.x - 4.dp.toPx(), point.y)
-                            close()
-                        },
-                        color = eventColors.getValue(event.type),
-                    )
-                    LapEventType.Exit -> drawCircle(
-                        color = eventColors.getValue(event.type),
-                        radius = 4.dp.toPx(),
-                        center = point,
-                        style = Stroke(width = 2.dp.toPx()),
-                    )
                     else -> Unit
                 }
             }
@@ -390,17 +370,11 @@ internal fun TrackMap(
 
 @Composable
 private fun MarkerLegend(modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            LegendItem("Brake", MaterialTheme.colorScheme.error)
-            LegendItem("Throttle", MaterialTheme.colorScheme.primary)
-            LegendItem("Turn-in", MaterialTheme.colorScheme.secondary)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            LegendItem("Apex", MaterialTheme.colorScheme.tertiary)
-            LegendItem("Exit", MaterialTheme.colorScheme.onSurfaceVariant)
-            LegendItem("Ghost", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f))
-        }
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        LegendItem("Brake", MaterialTheme.colorScheme.error)
+        LegendItem("Throttle", MaterialTheme.colorScheme.primary)
+        LegendItem("Turn-in", MaterialTheme.colorScheme.secondary)
+        LegendItem("Ghost", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f))
     }
 }
 

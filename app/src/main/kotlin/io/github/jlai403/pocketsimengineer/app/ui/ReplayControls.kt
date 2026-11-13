@@ -176,8 +176,6 @@ internal fun PlaybackFooter(
     onScrub: (Int) -> Unit,
     onScrubEnd: () -> Unit,
     onSeekFraction: (Float) -> Unit,
-    onPreviousBrake: () -> Unit,
-    onNextBrake: () -> Unit,
     onRewind: () -> Unit,
     onPlayPause: () -> Unit,
     onForward: () -> Unit,
@@ -193,10 +191,6 @@ internal fun PlaybackFooter(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GhostPill(text = "⏮ Brake", onClick = onPreviousBrake)
-                GhostPill(text = "Brake ⏭", onClick = onNextBrake)
-            }
             NumericText(
                 "%s / %s".format(formatMillis(cursorMs.toLong()), lapTimeLabel(lapTimeMs)),
                 style = MaterialTheme.typography.labelMedium,
@@ -223,7 +217,7 @@ internal fun PlaybackFooter(
                 ) {
                     TransportButton(
                         icon = TransportIcons.Rewind,
-                        description = "Rewind 10 seconds",
+                        description = "Previous brake point",
                         enabled = enabled,
                         onClick = onRewind,
                         size = 36.dp,
@@ -240,7 +234,7 @@ internal fun PlaybackFooter(
                     )
                     TransportButton(
                         icon = TransportIcons.Forward,
-                        description = "Forward 10 seconds",
+                        description = "Next brake point",
                         enabled = enabled,
                         onClick = onForward,
                         size = 36.dp,

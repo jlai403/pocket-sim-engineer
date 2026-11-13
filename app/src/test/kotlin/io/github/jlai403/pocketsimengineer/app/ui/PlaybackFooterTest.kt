@@ -39,8 +39,6 @@ class PlaybackFooterTest {
                     onScrub = {},
                     onScrubEnd = {},
                     onSeekFraction = {},
-                    onPreviousBrake = {},
-                    onNextBrake = {},
                     onRewind = {},
                     onPlayPause = { plays++ },
                     onForward = {},
@@ -52,7 +50,7 @@ class PlaybackFooterTest {
         compose.onNodeWithContentDescription("Play").performClick()
 
         assertEquals(1, plays)
-        compose.onNodeWithText("⏮ Brake").assertExists()
-        compose.onNodeWithText("Brake ⏭").assertExists()
+        compose.onNodeWithContentDescription("Previous brake point").assertExists()
+        compose.onNodeWithContentDescription("Next brake point").assertExists()
     }
 }
