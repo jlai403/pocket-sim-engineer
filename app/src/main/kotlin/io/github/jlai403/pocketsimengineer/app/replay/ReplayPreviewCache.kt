@@ -6,6 +6,8 @@ import android.graphics.BitmapFactory
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
+import android.os.SystemClock
+import android.util.Log
 import android.util.LruCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -26,6 +28,7 @@ private const val INDEX_VERSION = 1
 private const val PREVIEW_WIDTH = 480
 private const val JPEG_QUALITY = 70
 private const val BITMAP_CACHE_BYTES = 8 * 1024 * 1024
+private const val TAG = "ReplayPreview"
 
 /** One cached preview frame per video keyframe, plus the keyframe clock. */
 @Serializable
@@ -66,14 +69,17 @@ internal class ReplayPreviewCache(context: Context) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount
     }
 
+    fun warm(video: File) {
+        if (!video.isFile) return
+        val deferred = job(video)
+        deferred.start()
+    }
+
     suspend fun ensure(video: File): ReplayPreview? {
         if (!video.isFile) return null
         val key = cacheKey(video)
-        val deferred = jobs.computeIfAbsent(key) {
-            scope.async(start = CoroutineStart.LAZY) {
-                loadOrBuild(video, key).also { if (it == null) jobs.remove(key) }
-            }
-        }
+        Log.i(TAG, "ensure ${video.name} key=$key")
+        val deferred = job(video)
         deferred.start()
         val result = try {
             deferred.await()
@@ -86,6 +92,22 @@ internal class ReplayPreviewCache(context: Context) {
         return result
     }
 
+    private fun job(video: File): Deferred<ReplayPreview?> {
+        val key = cacheKey(video)
+        return jobs.computeIfAbsent(key) {
+            scope.async(start = CoroutineStart.LAZY) {
+                loadOrBuild(video, key).also {
+                    if (it == null) {
+                        jobs.remove(key)
+                        Log.w(TAG, "no preview for ${video.name}")
+                    } else {
+                        Log.i(TAG, "preview ready for ${video.name}: ${it.index.timesMs.size} frames")
+                    }
+                }
+            }
+        }
+    }
+
     suspend fun frame(preview: ReplayPreview, index: Int): Bitmap? {
         val key = preview.cacheKey + "#" + index
         bitmaps.get(key)?.let { return it }
@@ -93,6 +115,10 @@ internal class ReplayPreviewCache(context: Context) {
             bitmaps.get(key) ?: run {
                 val file = File(preview.directory, "%05d.jpg".format(index))
                 BitmapFactory.decodeFile(file.absolutePath)?.also { bitmaps.put(key, it) }
+                    ?: run {
+                        Log.w(TAG, "cannot decode ${file.name} (${file.length()} bytes)")
+                        null
+                    }
             }
         }
     }
@@ -108,26 +134,46 @@ internal class ReplayPreviewCache(context: Context) {
     private fun readIndex(directory: File, video: File): PreviewIndex? {
         val file = File(directory, "index.json")
         if (!file.isFile) return null
-        return runCatching { json.decodeFromString<PreviewIndex>(file.readText()) }
-            .getOrNull()
-            ?.takeIf {
-                it.version == INDEX_VERSION &&
-                    it.timesMs.isNotEmpty() &&
-                    it.sourceBytes == video.length() &&
-                    it.sourceModifiedMs == video.lastModified() &&
-                    File(directory, "00000.jpg").isFile
-            }
+        val index = runCatching { json.decodeFromString<PreviewIndex>(file.readText()) }.getOrNull()
+        if (index == null) {
+            Log.w(TAG, "unreadable index in ${directory.name}")
+            return null
+        }
+        val valid = index.version == INDEX_VERSION &&
+            index.timesMs.isNotEmpty() &&
+            index.sourceBytes == video.length() &&
+            index.sourceModifiedMs == video.lastModified() &&
+            File(directory, "00000.jpg").isFile
+        if (!valid) {
+            Log.w(
+                TAG,
+                "stale index ${directory.name}: version=${index.version} " +
+                    "bytes=${index.sourceBytes}/${video.length()} " +
+                    "mtime=${index.sourceModifiedMs}/${video.lastModified()} " +
+                    "frames=${index.timesMs.size}",
+            )
+        }
+        return index.takeIf { valid }
     }
 
     private fun build(video: File, directory: File, cacheKey: String): ReplayPreview? {
         if (!video.isFile) return null
+        val started = SystemClock.elapsedRealtime()
         val timesUs = keyframeTimes(video)
-        if (timesUs.isEmpty()) return null
+        if (timesUs.isEmpty()) {
+            Log.w(TAG, "no video keyframes in ${video.name}")
+            return null
+        }
+        Log.i(TAG, "building ${video.name}: ${timesUs.size} keyframes")
         val temp = tempDirectory(video)
-        if (!temp.mkdirs()) return null
+        if (!temp.mkdirs()) {
+            Log.w(TAG, "cannot create ${temp.absolutePath}")
+            return null
+        }
         val retriever = MediaMetadataRetriever()
         var width = 0
         var height = 0
+        var skipped = 0
         val savedTimes = mutableListOf<Long>()
         return try {
             retriever.setDataSource(video.absolutePath)
@@ -152,7 +198,16 @@ internal class ReplayPreviewCache(context: Context) {
                     MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
                     PREVIEW_WIDTH,
                     previewHeight,
-                ) ?: return@forEach
+                ) ?: retriever.getFrameAtTime(
+                    timeUs,
+                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                )?.let { full ->
+                    Bitmap.createScaledBitmap(full, PREVIEW_WIDTH, previewHeight, true)
+                        .also { full.recycle() }
+                } ?: run {
+                    skipped++
+                    return@forEach
+                }
                 if (width == 0) {
                     width = bitmap.width
                     height = bitmap.height
@@ -172,8 +227,15 @@ internal class ReplayPreviewCache(context: Context) {
             )
             File(temp, "index.json").writeText(json.encodeToString(index))
             if (!temp.renameTo(directory)) return null
+            Log.i(
+                TAG,
+                "built ${directory.name}: ${savedTimes.size} frames" +
+                    (if (skipped > 0) " ($skipped skipped)" else "") +
+                    " in ${SystemClock.elapsedRealtime() - started} ms",
+            )
             ReplayPreview(directory, index, cacheKey)
-        } catch (_: Exception) {
+        } catch (failure: Exception) {
+            Log.w(TAG, "build failed for ${video.name}", failure)
             null
         } finally {
             retriever.release()
@@ -201,7 +263,8 @@ internal class ReplayPreviewCache(context: Context) {
                 if (!extractor.advance()) break
             }
             times.distinct().sorted()
-        } catch (_: Exception) {
+        } catch (failure: Exception) {
+            Log.w(TAG, "cannot read keyframes from ${video.name}", failure)
             emptyList()
         } finally {
             extractor.release()

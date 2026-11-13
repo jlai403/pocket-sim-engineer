@@ -46,7 +46,7 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 - The lap player uses `SeekParameters.CLOSEST_SYNC` for every seek; the sync screen keeps `EXACT`.
   `ScrubSeeker` paces keyframe seeks at 33 ms and keeps exact mode's frame wait at 400 ms.
 - Scrub previews live under `sessions/<id>/laps/lap-NNN.preview/` (480×270 JPEG per keyframe +
-  `index.json`). Generated on first open; deleted by `attachClip` and `deleteLap`.
+  `index.json`). Warmed after import and generated on first open; deleted by `attachClip` and `deleteLap`.
 - Typography: `labelSmall` is defined in `Theme.kt` (Geist Sans 11 sp); `NumericText` is mono with
   zero tracking. Do not use an undefined Material label style on Compose screens.
 
