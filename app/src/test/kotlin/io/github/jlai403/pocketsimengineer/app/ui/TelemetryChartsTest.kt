@@ -70,9 +70,9 @@ class TelemetryChartsTest {
         }
 
         compose.onNodeWithText("Turn-in").assertExists()
-        compose.onNodeWithText("Apex").assertExists()
-        compose.onNodeWithText("Exit").assertExists()
         compose.onNodeWithText("Ghost").assertExists()
+        compose.onNodeWithText("Apex").assertDoesNotExist()
+        compose.onNodeWithText("Exit").assertDoesNotExist()
     }
 
     private val lap = LapMetadata(
