@@ -12,6 +12,7 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -151,6 +152,7 @@ class LibraryArchiveTest {
                 "library.json" to json.encodeToString(LibraryManifest(1, "2026-11-13T10:00:00Z", 1, 0)).toByteArray(),
                 "library/s9/session.json" to SessionJsonCodec.encodeSession(session).toByteArray(),
                 "library/s9/lap.json" to SessionJsonCodec.encodeLap(lap).toByteArray(),
+                "library/s9/laps/lap-001.gt7lap" to byteArrayOf(1),
             ),
         )
 
@@ -224,6 +226,7 @@ class LibraryArchiveTest {
                 "library.json" to json.encodeToString(LibraryManifest(1, "2026-11-13T10:00:00Z", 2, 0)).toByteArray(),
                 "library/good/session.json" to SessionJsonCodec.encodeSession(good).toByteArray(),
                 "library/good/lap.json" to SessionJsonCodec.encodeLap(good.laps.first()).toByteArray(),
+                "library/good/laps/lap-001.gt7lap" to byteArrayOf(1),
                 "library/bad/session.json" to "not json".toByteArray(),
                 "library/bad/lap.json" to "not json".toByteArray(),
             ),
@@ -232,6 +235,122 @@ class LibraryArchiveTest {
         val report = LibraryArchive.import(File(temp, "target").apply { mkdirs() }, zip.inputStream())
 
         assertEquals(ImportReport(laps = 1, skipped = 0, failed = 1), report)
+    }
+
+    @Test
+    fun `clip references that are not media are cleared`() {
+        val zip = File(temp, "sneaky.zip")
+        val lap = LapMetadata(
+            index = 1,
+            lapTimeMs = 91_000,
+            startNanos = 0,
+            endNanos = 0,
+            sampleCount = 0,
+            videoFile = "session.json",
+            leadInMs = 0,
+            sourceFile = "session.json",
+        )
+        val session = SessionMetadata(
+            sessionId = "s9",
+            createdAt = "2026-11-13T10:00:00Z",
+            trackLabel = "Monza",
+            carCode = 3474,
+            carName = "BRZ",
+            rawFile = "session.json",
+            laps = listOf(lap),
+        )
+        writeZip(
+            zip,
+            mapOf(
+                "library.json" to json.encodeToString(LibraryManifest(1, "2026-11-13T10:00:00Z", 1, 0)).toByteArray(),
+                "library/s9/session.json" to SessionJsonCodec.encodeSession(session).toByteArray(),
+                "library/s9/lap.json" to SessionJsonCodec.encodeLap(lap).toByteArray(),
+                "library/s9/laps/lap-001.gt7lap" to byteArrayOf(1),
+            ),
+        )
+
+        val target = File(temp, "target").apply { mkdirs() }
+        LibraryArchive.import(target, zip.inputStream())
+
+        val stored = SessionStore(target).lap("s9", 1)!!
+        assertEquals("", stored.videoFile)
+        assertNull(stored.sourceFile)
+        assertTrue(File(target, "sessions/s9/session.json").isFile)
+    }
+
+    @Test
+    fun `lap without telemetry is counted as failed`() {
+        val zip = File(temp, "no-telemetry.zip")
+        val lap = LapMetadata(
+            index = 1,
+            lapTimeMs = 91_000,
+            startNanos = 0,
+            endNanos = 0,
+            sampleCount = 0,
+            videoFile = "",
+            leadInMs = 0,
+        )
+        val session = SessionMetadata(
+            sessionId = "s8",
+            createdAt = "2026-11-13T10:00:00Z",
+            trackLabel = "Monza",
+            carCode = 3474,
+            carName = "BRZ",
+            rawFile = "",
+            laps = listOf(lap),
+        )
+        writeZip(
+            zip,
+            mapOf(
+                "library.json" to json.encodeToString(LibraryManifest(1, "2026-11-13T10:00:00Z", 1, 0)).toByteArray(),
+                "library/s8/session.json" to SessionJsonCodec.encodeSession(session).toByteArray(),
+                "library/s8/lap.json" to SessionJsonCodec.encodeLap(lap).toByteArray(),
+            ),
+        )
+
+        val target = File(temp, "target").apply { mkdirs() }
+        val report = LibraryArchive.import(target, zip.inputStream())
+
+        assertEquals(ImportReport(laps = 0, skipped = 0, failed = 1), report)
+        assertFalse(File(target, "sessions/s8").exists())
+    }
+
+    @Test
+    fun `ids that look like staging directories are rejected`() {
+        val zip = File(temp, "staging-id.zip")
+        val lap = LapMetadata(
+            index = 1,
+            lapTimeMs = 91_000,
+            startNanos = 0,
+            endNanos = 0,
+            sampleCount = 0,
+            videoFile = "",
+            leadInMs = 0,
+        )
+        val session = SessionMetadata(
+            sessionId = ".import-evil",
+            createdAt = "2026-11-13T10:00:00Z",
+            trackLabel = "Monza",
+            carCode = 3474,
+            carName = "BRZ",
+            rawFile = "",
+            laps = listOf(lap),
+        )
+        writeZip(
+            zip,
+            mapOf(
+                "library.json" to json.encodeToString(LibraryManifest(1, "2026-11-13T10:00:00Z", 1, 0)).toByteArray(),
+                "library/.import-evil/session.json" to SessionJsonCodec.encodeSession(session).toByteArray(),
+                "library/.import-evil/lap.json" to SessionJsonCodec.encodeLap(lap).toByteArray(),
+                "library/.import-evil/laps/lap-001.gt7lap" to byteArrayOf(1),
+            ),
+        )
+
+        val target = File(temp, "target").apply { mkdirs() }
+        val report = LibraryArchive.import(target, zip.inputStream())
+
+        assertEquals(ImportReport(laps = 0, skipped = 0, failed = 1), report)
+        assertFalse(File(target, "sessions/.import-evil").exists())
     }
 
     @Test

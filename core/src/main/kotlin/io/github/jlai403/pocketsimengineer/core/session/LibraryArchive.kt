@@ -42,7 +42,8 @@ object LibraryArchive {
     private const val MANIFEST = "library.json"
     private const val ITEM_ROOT = "library"
     private const val BUFFER = 64 * 1024
-    private val ID_PATTERN = Regex("[A-Za-z0-9._-]{1,64}")
+    private val ID_PATTERN = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
+    private val CLIP_PATH = Regex("[A-Za-z0-9][A-Za-z0-9._/-]{0,127}")
     private val json = Json { encodeDefaults = true }
 
     fun export(
@@ -155,14 +156,18 @@ object LibraryArchive {
     private fun importStaged(dir: File, id: String, sessionsDir: File): Boolean {
         val session = SessionJsonCodec.decodeSession(File(dir, "session.json").readText())
         val incoming = SessionJsonCodec.decodeLap(File(dir, "lap.json").readText())
-        var lap = incoming
-        if (lap.videoFile.isNotBlank() && !File(dir, lap.videoFile).isFile) lap = lap.copy(videoFile = "")
-        val source = lap.sourceFile
-        if (!source.isNullOrBlank() && !File(dir, source).isFile) lap = lap.copy(sourceFile = null)
-        var stored = session.copy(sessionId = id, laps = listOf(lap))
-        if (stored.rawFile.isNotBlank() && !File(dir, stored.rawFile).isFile) {
-            stored = stored.copy(rawFile = "", rawDeleted = true)
+        require(File(dir, "laps/lap-%03d.gt7lap".format(incoming.index)).isFile) {
+            "missing telemetry for lap ${incoming.index}"
         }
+        val lap = incoming.copy(
+            videoFile = incoming.videoFile.takeIf { it.isNotBlank() }
+                ?.let { keepClip(dir, it) }
+                .orEmpty(),
+            sourceFile = incoming.sourceFile?.let { keepClip(dir, it) },
+        )
+        var stored = session.copy(sessionId = id, laps = listOf(lap))
+        val raw = session.rawFile.takeIf { it.isNotBlank() }?.let { keepClip(dir, it) }
+        if (raw == null) stored = stored.copy(rawFile = "", rawDeleted = true)
         AtomicFiles.writeText(File(dir, "session.json"), SessionJsonCodec.encodeSession(stored))
         AtomicFiles.writeText(
             File(dir, "laps/lap-%03d.json".format(lap.index)),
@@ -170,6 +175,13 @@ object LibraryArchive {
         )
         File(dir, "lap.json").delete()
         return dir.renameTo(File(sessionsDir, id))
+    }
+
+    /** Only keeps a reference that names a real MP4 inside the staged session. */
+    private fun keepClip(dir: File, relative: String): String? {
+        if (!CLIP_PATH.matches(relative) || !relative.endsWith(".mp4", ignoreCase = true)) return null
+        if (relative.split('/').any { it == ".." || it == "." }) return null
+        return relative.takeIf { File(dir, it).isFile }
     }
 
     private fun sweepStaging(sessionsDir: File) {
