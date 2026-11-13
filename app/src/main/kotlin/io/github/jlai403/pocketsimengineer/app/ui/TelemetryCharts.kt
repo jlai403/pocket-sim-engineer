@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -60,6 +61,7 @@ fun ChartColumn(
         Text("No telemetry for this lap", modifier = modifier)
         return
     }
+    val hasSteering = remember(window) { window.any { abs(it.steering) > 0.001f } }
     val current = remember(window, lap, cursorMs) { window.sampleAt(lap, cursorMs) }
     val speedColor = MaterialTheme.colorScheme.secondary
     val throttleColor = MaterialTheme.colorScheme.primary
@@ -100,13 +102,26 @@ fun ChartColumn(
                         color = rpmColor,
                     )
                 }
-                TireHeatmap(
-                    fl = sample.tyreTempFL,
-                    fr = sample.tyreTempFR,
-                    rl = sample.tyreTempRL,
-                    rr = sample.tyreTempRR,
-                    imperial = imperial,
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    TireHeatmap(
+                        fl = sample.tyreTempFL,
+                        fr = sample.tyreTempFR,
+                        rl = sample.tyreTempRL,
+                        rr = sample.tyreTempRR,
+                        imperial = imperial,
+                    )
+                    if (hasSteering) {
+                        SteeringWheel(steering = sample.steering)
+                        Text(
+                            "STEER",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
         if (showPedals) {

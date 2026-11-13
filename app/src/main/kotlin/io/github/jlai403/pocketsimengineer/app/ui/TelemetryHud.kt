@@ -16,7 +16,9 @@ import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
 
-/** Throttle and brake overlaid for the ±5 s around the cursor. */
+private const val TRAILING_WINDOW_MS = 2_000
+
+/** Throttle and brake over the last two seconds before the cursor. */
 @Composable
 internal fun TelemetryHud(
     window: List<Sample>,
@@ -24,7 +26,9 @@ internal fun TelemetryHud(
     cursorMs: Int,
     modifier: Modifier = Modifier,
 ) {
-    val context = remember(window, lap, cursorMs) { window.windowAround(lap, cursorMs, 2_000) }
+    val context = remember(window, lap, cursorMs) {
+        window.windowEndingAt(lap, cursorMs, TRAILING_WINDOW_MS)
+    }
     if (context.isEmpty()) return
     val throttleColor = MaterialTheme.colorScheme.primary
     val brakeColor = MaterialTheme.colorScheme.error

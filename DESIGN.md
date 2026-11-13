@@ -172,7 +172,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 ### Player
 
 - Header: `Lap N · M:SS.mmm` with a chevron. Collapsed shows only the title; tapping expands track, driver flag/name, car, lap stats (top/min/avg), and the vs-ghost comparison. One overflow menu: `Share video`, `Share screenshot`, `Export CSV`, `Edit lap`.
-- Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden. A telemetry HUD overlays the top centre with the ±2 s throttle/brake traces when enabled in Settings.
+- Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden. A telemetry HUD overlays the top centre with the last 2 s of throttle/brake traces when enabled in Settings.
 - Replay management lives in the `Edit lap` sheet: track, driver, add/replace replay, resume a pending sync, and the lap's data volume (replay + telemetry). The main screen keeps only `Add replay` when no clip exists.
 - New imports are trimmed and then compacted with the Settings replay profile (default 1080p HEVC, ~5 Mbps, 0.5 s keyframes, stereo). If compaction fails the trimmed clip is kept and a `Compaction failed` toast appears.
 - Missing video: `Replay` card with a one-sentence explanation and the source pill.
@@ -204,7 +204,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Turn markers: turn-in (filled circle) on the map; the ruler also marks apex (diamond) and exit (hollow circle). Derived from steering when available, otherwise track curvature.
 - Map chips: `Follow` centres on the car, puts the heading up, anchors the car near the bottom, squashes the vertical axis 0.35× for a driver's-perspective tilt, and zooms to the next ~2 s; `Ghost` toggles the reference lap; `Reset` returns to fit-all. The legend lists brake, throttle, turn-in, and ghost under the title, above the map.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.
-- Readout: three 44 dp bar rows (THR green, BRK red, RPM amber) with labels above and values right, no speed/gear text and no per-bar sparklines; the 2×2 tire heatmap (32 dp tiles, blue cold → green optimal → red hot) sits to the right, vertically centered.
+- Readout: three 44 dp bar rows (THR green, BRK red, RPM amber) with labels above and values right, no speed/gear text and no per-bar sparklines; the 2×2 tire heatmap (32 dp tiles, blue cold → green optimal → red hot) sits to the right, vertically centered, with a 40 dp F1 steering wheel under it that turns with the recorded wheel angle (laps recorded before steering was parsed show no wheel).
 - Values and the map dot interpolate between the two samples that bracket the cursor time; gear snaps to the nearest sample. The cursor line stays on the video frame.
 
 ## Recording feedback outside the app

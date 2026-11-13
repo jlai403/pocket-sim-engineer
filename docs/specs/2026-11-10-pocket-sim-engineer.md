@@ -144,6 +144,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - `~`: 344 bytes, XOR `0x55FABB4F`.
 - C: 368 bytes, XOR `0xDEADBEEF`.
 - All formats are strict supersets of A; the base fields keep their offsets. Parse the A fields from every format.
+- Packet B and later add the steering wheel angle at `0x128` (radians, positive to the left, held at ±π). Store it normalised to −1..1 in `Sample.steering`; packet A has no steering and stores 0.
 
 ### 8.3 Capture
 
@@ -193,11 +194,11 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - The sync screen's slider and frame ruler span the whole clip.
 - The lap screen's playback controls sit in a sticky footer: one time readout, the frame ruler as the only scrubber, centred play/pause with skip-previous/next jumping to the previous/next brake point, a Loop toggle, and a speed dropdown (0.5×/1×/1.5×/2×). Changes last until the screen closes; the default comes from Settings. While the ruler is held, seeks snap to the nearest keyframe; releasing restores exact seeking and lands on the requested frame.
 - The ruler shows a progress track and turn-in/apex/exit dots; it supports pinch-to-zoom. The track map colours its segments by pedal strength, marks turn-in, shows a dashed grey ghost lap, and offers Follow (driver-perspective tilt zoomed to the next ~2 s), Ghost, and Reset chips; its legend sits under the title, above the map.
-- A setting-controlled telemetry HUD overlays the video's top centre with the ±2 s throttle/brake traces.
+- A setting-controlled telemetry HUD overlays the video's top centre with the last 2 s of throttle/brake traces.
 - The header collapses to the lap time; tapping it reveals track, driver, car, lap stats, and the vs-ghost comparison.
 - Trace chips above the charts show or hide the speed/gear and throttle/brake charts.
 - Charts and track map follow the cursor. Readouts and the map dot interpolate between the two samples bracketing the cursor time; gear snaps to the nearest sample and the cursor line stays on the video frame.
-- The chart stack shows throttle/brake combined first and speed with gear overlaid second; RPM is a value bar only. The readout is three 44 dp bar rows (THR, BRK, RPM) with the four-wheel tire heatmap beside them (blue cold, green optimal, red hot).
+- The chart stack shows throttle/brake combined first and speed with gear overlaid second; RPM is a value bar only. The readout is three 44 dp bar rows (THR, BRK, RPM) with the four-wheel tire heatmap beside them (blue cold, green optimal, red hot) and an F1 steering wheel under the tires that turns with the recorded wheel angle. Laps with no recorded steering show no wheel.
 - Legacy screen-recorded clips keep their stored offsets.
 
 ### 8.8 Library
@@ -236,7 +237,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 ### 9.1 Sample
 
-`timeNanos`, speed m/s, throttle/brake 0–255, gear, RPM, X/Y/Z position, lap count, best/last lap time, flags, car code, fuel, tyre temperatures, packet id, steering, current lap time.
+`timeNanos`, speed m/s, throttle/brake 0–255, gear, RPM, X/Y/Z position, lap count, best/last lap time, flags, car code, fuel, tyre temperatures, packet id, steering (−1..1, positive left), current lap time.
 
 ### 9.2 Session metadata (`session.json`)
 

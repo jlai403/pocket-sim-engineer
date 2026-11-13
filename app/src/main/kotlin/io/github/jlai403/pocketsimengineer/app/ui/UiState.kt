@@ -4,7 +4,6 @@ import io.github.jlai403.pocketsimengineer.app.service.TelemetryEvent
 import io.github.jlai403.pocketsimengineer.core.capture.CaptureState
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
-import kotlin.math.abs
 import kotlin.math.roundToInt
 import java.time.Instant
 import java.time.ZoneId
@@ -66,11 +65,12 @@ fun Sample.lapTimeMs(lap: LapMetadata): Int =
 fun List<Sample>.lapWindow(lap: LapMetadata): List<Sample> =
     filter { it.timeNanos >= lap.startNanos && it.timeNanos <= lap.endNanos }
 
-/** Samples within [radiusMs] of [timeMs] on the lap clock, clamped to the lap. */
-fun List<Sample>.windowAround(lap: LapMetadata, timeMs: Int, radiusMs: Int): List<Sample> =
+/** Samples from [durationMs] before [timeMs] through [timeMs], clamped to the lap. */
+fun List<Sample>.windowEndingAt(lap: LapMetadata, timeMs: Int, durationMs: Int): List<Sample> =
     filter {
         val sampleMs = it.lapTimeMs(lap)
-        sampleMs >= 0 && sampleMs <= lap.lapTimeMs && abs(sampleMs - timeMs) <= radiusMs
+        sampleMs >= 0 && sampleMs <= lap.lapTimeMs &&
+            sampleMs >= timeMs - durationMs && sampleMs <= timeMs
     }
 
 /**
@@ -101,6 +101,7 @@ fun List<Sample>.sampleAt(lap: LapMetadata, timeMs: Int): Sample? {
         positionX = a.positionX + (b.positionX - a.positionX) * t,
         positionY = a.positionY + (b.positionY - a.positionY) * t,
         positionZ = a.positionZ + (b.positionZ - a.positionZ) * t,
+        steering = a.steering + (b.steering - a.steering) * t,
     )
 }
 

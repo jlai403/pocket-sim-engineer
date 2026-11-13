@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.PI
 
 class PacketAParserTest {
     @Test
@@ -51,5 +52,38 @@ class PacketAParserTest {
         assertEquals(10, sample.brake)
         assertEquals(3474, sample.carCode)
         assertEquals(1234L, sample.timeNanos)
+    }
+
+    @Test
+    fun `parses steering from packet B and later`() {
+        listOf(Gt7PacketFormat.B, Gt7PacketFormat.TILDE, Gt7PacketFormat.C).forEach { format ->
+            val packet = ByteArray(format.size)
+            ByteBuffer.wrap(packet).order(ByteOrder.LITTLE_ENDIAN)
+                .putFloat(0x128, (PI / 2).toFloat())
+
+            val sample = PacketAParser.parse(packet, receivedAtNanos = 0)
+
+            assertEquals(0.5f, sample.steering, 0.0001f, "$format")
+        }
+    }
+
+    @Test
+    fun `steering clamps and survives a broken value`() {
+        val overTurn = ByteArray(Gt7PacketFormat.C.size)
+        ByteBuffer.wrap(overTurn).order(ByteOrder.LITTLE_ENDIAN)
+            .putFloat(0x128, (PI * 2).toFloat())
+        assertEquals(1f, PacketAParser.parse(overTurn, 0).steering, 0.0001f)
+
+        val broken = ByteArray(Gt7PacketFormat.C.size)
+        ByteBuffer.wrap(broken).order(ByteOrder.LITTLE_ENDIAN)
+            .putFloat(0x128, Float.NaN)
+        assertEquals(0f, PacketAParser.parse(broken, 0).steering)
+    }
+
+    @Test
+    fun `packet A has no steering field`() {
+        val packet = ByteArray(Gt7Protocol.PACKET_A_SIZE)
+
+        assertEquals(0f, PacketAParser.parse(packet, receivedAtNanos = 0).steering)
     }
 }

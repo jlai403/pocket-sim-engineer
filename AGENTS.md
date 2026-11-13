@@ -26,6 +26,8 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 
 - Telemetry-only: no screen capture, MediaProjection, phone audio, Remote Play, or burned-in overlays.
 - Local-first: no accounts, analytics, or background cloud calls.
+- `PacketAParser` reads the steering wheel angle from packet B/C at `0x128` and stores it in `Sample.steering` as `-1..1` (+ = left); packet A has none.
+- The lap HUD traces the last 2 s before the cursor. The F1 wheel under the tire tiles is hidden for laps with no steering samples.
 - Replay clips live under `sessions/<id>/laps/lap-NNN.mp4`; telemetry is `lap-NNN.gt7lap`.
 - Library is a flat feed: no cards/radii, `Hairline` dividers, `RowPressed` for pressed rows.
 - `DESIGN.md` is the visual/behaviour reference; `docs/specs/2026-11-10-pocket-sim-engineer.md` is the functional spec.
