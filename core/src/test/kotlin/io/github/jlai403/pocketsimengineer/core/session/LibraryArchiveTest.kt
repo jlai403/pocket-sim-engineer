@@ -2,6 +2,8 @@ package io.github.jlai403.pocketsimengineer.core.session
 
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -51,6 +53,42 @@ class LibraryArchiveTest {
         )
 
         assertEquals(0, report.laps)
+    }
+
+    @Test
+    fun `partial selection of a multi-lap session uses a derived id and omits siblings`() {
+        writeSession("s1", laps = listOf(1, 2))
+        val out = ByteArrayOutputStream()
+
+        LibraryArchive.export(temp, listOf(LapRef("s1", 2)), out)
+
+        val names = entryNames(out)
+        assertTrue("library/s1-l002/session.json" in names)
+        assertTrue("library/s1-l002/laps/lap-002.gt7lap" in names)
+        assertFalse(names.any { it.contains("lap-001") })
+        assertEquals(2, SessionJsonCodec.decodeLap(readEntry(out, "library/s1-l002/lap.json")).index)
+    }
+
+    @Test
+    fun `stored clip is not deflated but telemetry is`() {
+        // A compressible clip payload makes the level choice visible: deflate would shrink it,
+        // while level 0 keeps it at (slightly above) its original size.
+        writeSession("s1", laps = listOf(1), videoBytes = ByteArray(256 * 1024) { 7 })
+        writeSessionFile("s1", "laps/lap-001.gt7lap", ByteArray(256 * 1024) { 1 })
+        val file = File(temp, "library.zip")
+        LibraryArchive.export(temp, listOf(LapRef("s1", 1)), file.outputStream())
+
+        ZipFile(file).use { zip ->
+            val clip = zip.getEntry("library/s1/laps/lap-001.mp4")
+            val telemetry = zip.getEntry("library/s1/laps/lap-001.gt7lap")
+            assertEquals(ZipEntry.DEFLATED, clip.method)
+            assertTrue(clip.compressedSize >= clip.size)
+            assertTrue(telemetry.compressedSize < telemetry.size / 2)
+        }
+    }
+
+    private fun writeSessionFile(id: String, relative: String, bytes: ByteArray) {
+        File(temp, "sessions/$id/$relative").writeBytes(bytes)
     }
 
     private fun writeSession(
