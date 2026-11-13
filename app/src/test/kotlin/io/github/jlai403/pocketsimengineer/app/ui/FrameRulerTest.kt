@@ -61,6 +61,68 @@ class FrameRulerTest {
     }
 
     @Test
+    fun `pressing right of the needle jumps forward`() {
+        val totals = mutableListOf<Int>()
+        var pxPerFrame = 0f
+
+        compose.setContent {
+            pxPerFrame = with(LocalDensity.current) { 6.dp.toPx() }
+            PocketSimEngineerTheme {
+                FrameRuler(
+                    valueMs = 5_000,
+                    startMs = 0,
+                    endMs = 10_000,
+                    frameStepMs = 33,
+                    enabled = true,
+                    onScrubStart = {},
+                    onScrub = { totals += it },
+                    hapticsEnabled = false,
+                    modifier = Modifier.testTag("ruler"),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("ruler").performTouchInput {
+            down(Offset(center.x + pxPerFrame * 12f, center.y))
+            up()
+        }
+
+        assertEquals(listOf(12), totals)
+    }
+
+    @Test
+    fun `dragging after a press stacks on the pressed timestamp`() {
+        val totals = mutableListOf<Int>()
+        var pxPerFrame = 0f
+
+        compose.setContent {
+            pxPerFrame = with(LocalDensity.current) { 6.dp.toPx() }
+            PocketSimEngineerTheme {
+                FrameRuler(
+                    valueMs = 5_000,
+                    startMs = 0,
+                    endMs = 10_000,
+                    frameStepMs = 33,
+                    enabled = true,
+                    onScrubStart = {},
+                    onScrub = { totals += it },
+                    hapticsEnabled = false,
+                    modifier = Modifier.testTag("ruler"),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("ruler").performTouchInput {
+            down(Offset(center.x + pxPerFrame * 10f, center.y))
+            moveBy(Offset(pxPerFrame * 5f, 0f))
+            up()
+        }
+
+        assertEquals(10, totals.first())
+        assertEquals(5, totals.last())
+    }
+
+    @Test
     fun `scrub start fires once per drag`() {
         var starts = 0
         var pxPerFrame = 0f

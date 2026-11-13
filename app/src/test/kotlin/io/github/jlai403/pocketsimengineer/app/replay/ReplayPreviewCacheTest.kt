@@ -19,4 +19,14 @@ class ReplayPreviewCacheTest {
     fun `an empty preview has no frame`() {
         assertEquals(-1, nearestPreviewFrame(emptyList(), 1_000))
     }
+
+    @Test
+    fun `a negative time has no frame`() {
+        assertEquals(-1, nearestPreviewFrame(listOf(0L, 500L), -1))
+    }
+
+    @Test
+    fun `before the first keyframe resolves to the first frame`() {
+        assertEquals(0, nearestPreviewFrame(listOf(120L, 620L), 0))
+    }
 }

@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.roundToInt
 
 internal const val TRANSPORT_MS = 10_000L
 
@@ -100,9 +101,9 @@ internal class FrameSteps(private var pxPerFrame: Float) {
         pendingPx = 0f
     }
 
-    fun reset() {
+    fun reset(startFrames: Int = 0) {
         pendingPx = 0f
-        totalFrames = 0
+        totalFrames = startFrames
     }
 }
 
@@ -344,11 +345,12 @@ internal fun FrameStepRow(
 
 /**
  * A fixed needle over a horizontally scrolling ruler. Each 6 dp of travel is one
- * video frame; the slider above handles distance. The strip follows the finger,
- * so dragging right rewinds and dragging left moves forward. The ruler reports
- * how far the drag has travelled in total, so callers can seek from the playhead
- * they held when the drag started, and reports the end of the drag so callers
- * can settle the playhead.
+ * video frame; the slider above handles distance. Pressing jumps to the timestamp
+ * under the finger, then dragging steps frames from there. The strip follows the
+ * finger, so dragging right rewinds and dragging left moves forward. The ruler
+ * reports how far the drag has travelled in total, so callers can seek from the
+ * playhead they held when the drag started, and reports the end of the drag so
+ * callers can settle the playhead.
  */
 @Composable
 internal fun FrameRuler(
@@ -422,9 +424,19 @@ internal fun FrameRuler(
             .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
                 awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    accumulator.reset()
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    // Press selects the timestamp under the finger; the drag then steps frames from it.
+                    val pressedFrames =
+                        ((down.position.x - size.width / 2f) / pxPerFrameState.floatValue)
+                            .roundToInt()
+                    accumulator.reset(pressedFrames)
                     currentOnScrubStart()
+                    if (pressedFrames != 0) {
+                        if (currentHapticsEnabled) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                        currentOnScrub(accumulator.totalFrames)
+                    }
                     var zoomed = false
                     while (true) {
                         val event = awaitPointerEvent()
