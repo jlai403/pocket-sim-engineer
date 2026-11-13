@@ -9,6 +9,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
+import io.github.jlai403.pocketsimengineer.app.settings.ReplayPreset
+import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -126,6 +128,31 @@ class ImportSyncScreenTest {
         }
         compose.onNodeWithText("The playhead starts at the clip's end, so rewind instead of fast-forwarding.")
             .assertExists()
+    }
+
+    @Test
+    fun `import screen offers per-lap quality controls`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+        SettingsStore(context).replayPreset = ReplayPreset.Balanced
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                ImportSyncScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    sourceUri = null,
+                    onDone = {},
+                    onCancel = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("REPLAY QUALITY").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Change").performScrollTo().performClick()
+        compose.onNodeWithText("Preset").assertExists()
+        compose.onNodeWithText("1080p HEVC ~5 Mbps", substring = true).assertExists()
     }
 
     private companion object {

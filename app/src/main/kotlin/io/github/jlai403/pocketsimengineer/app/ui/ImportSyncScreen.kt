@@ -53,6 +53,9 @@ import io.github.jlai403.pocketsimengineer.app.replay.ReplayStore
 import io.github.jlai403.pocketsimengineer.app.replay.VideoTranscoder
 import io.github.jlai403.pocketsimengineer.app.replay.probeClip
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import io.github.jlai403.pocketsimengineer.app.settings.estimateReplayBytes
+import io.github.jlai403.pocketsimengineer.app.settings.estimatedOriginalBytes
+import io.github.jlai403.pocketsimengineer.app.settings.replayProfile
 import io.github.jlai403.pocketsimengineer.core.clip.ClipSync
 import io.github.jlai403.pocketsimengineer.core.clip.SyncCheck
 import io.github.jlai403.pocketsimengineer.core.clip.SyncValidator
@@ -84,7 +87,21 @@ fun ImportSyncScreen(
     val trimmer = remember { ClipTrimmer() }
     val transcoder = remember { VideoTranscoder(context) }
     val settings = remember { SettingsStore(context) }
-    val replayProfile = remember { settings.replayProfile() }
+    var replayPreset by remember { mutableStateOf(settings.replayPreset) }
+    var replayKeyframes by remember { mutableStateOf(settings.replayKeyframes) }
+    var replayAudio by remember { mutableStateOf(settings.replayAudio) }
+    var replayResolution by remember { mutableStateOf(settings.replayResolution) }
+    var replayCodec by remember { mutableStateOf(settings.replayCodec) }
+    var qualityExpanded by remember { mutableStateOf(false) }
+    val effectiveProfile = remember(
+        replayPreset,
+        replayKeyframes,
+        replayAudio,
+        replayResolution,
+        replayCodec,
+    ) {
+        replayProfile(replayPreset, replayKeyframes, replayAudio, replayResolution, replayCodec)
+    }
     val hapticsEnabled = settings.hapticsEnabled
     val player = remember(sessionId, lapIndex) {
         ExoPlayer.Builder(context).build().apply {
@@ -262,6 +279,18 @@ fun ImportSyncScreen(
     }
     val sync = if (currentLap != null && anchor != null) ClipSync(anchor, currentLap.lapTimeMs) else null
     val range = sync?.let { TrimPlan.forSync(it, durationMs) }
+    val estimateMs = range?.let { (it.endMs - it.startMs).coerceAtLeast(1) }
+        ?: currentLap?.lapTimeMs?.toLong()
+        ?: 0L
+    val estimatedBytes = estimateReplayBytes(effectiveProfile, estimateMs)
+    val originalBytes = sourceFile?.length()?.let {
+        estimatedOriginalBytes(it, estimateMs, durationMs)
+    } ?: 0L
+    val savedPercent = if (estimatedBytes > 0 && estimatedBytes < originalBytes) {
+        (100 - estimatedBytes * 100 / originalBytes).toInt()
+    } else {
+        0
+    }
     val check = sync?.let { SyncValidator.check(it, durationMs, startTrackPercent = 0f) }
     val telemetryMs = sync?.telemetryMsAt(displayedMs)
     val trackPercent = if (currentLap != null && telemetryMs != null) {
@@ -500,6 +529,51 @@ fun ImportSyncScreen(
             }
         }
 
+        SectionCard(title = "Replay quality") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        when {
+                            estimateMs <= 0 -> "—"
+                            !effectiveProfile.transcode -> "No re-encode"
+                            else -> "≈ ${formatBytes(estimatedBytes)}"
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        when {
+                            estimateMs <= 0 -> "Set an anchor to estimate the stored size."
+                            !effectiveProfile.transcode -> "Stored as-is at the original size."
+                            savedPercent > 0 ->
+                                "about $savedPercent% smaller than the ≈ ${formatBytes(originalBytes)} clip"
+                            else -> "Estimated stored size."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                GhostPill(
+                    text = if (qualityExpanded) "Hide" else "Change",
+                    onClick = { qualityExpanded = !qualityExpanded },
+                )
+            }
+            if (qualityExpanded) {
+                ReplayCompressionControls(
+                    preset = replayPreset,
+                    keyframes = replayKeyframes,
+                    audio = replayAudio,
+                    resolution = replayResolution,
+                    codec = replayCodec,
+                    highlightChanges = false,
+                    onPresetChange = { replayPreset = it },
+                    onResolutionChange = { replayResolution = it },
+                    onCodecChange = { replayCodec = it },
+                    onKeyframesChange = { replayKeyframes = it },
+                    onAudioChange = { replayAudio = it },
+                )
+            }
+        }
+
         if (hadClip) {
             Text(
                 "Saving replaces the current replay. Discard keeps it.",
@@ -512,7 +586,7 @@ fun ImportSyncScreen(
             PrimaryPill(
                 text = when {
                     !saving -> "Save clip"
-                    replayProfile.transcode -> "Compacting…"
+                    effectiveProfile.transcode -> "Compacting…"
                     else -> "Saving…"
                 },
                 onClick = {
@@ -528,7 +602,7 @@ fun ImportSyncScreen(
                                 )
                                 val trimmed = trimmer.trim(source, output, trimRange)
                                     ?: return@withContext null
-                                val profile = replayProfile
+                                val profile = effectiveProfile
                                 var compactFailed = false
                                 if (profile.transcode) {
                                     val compact = File(output.absolutePath + ".compact.mp4")

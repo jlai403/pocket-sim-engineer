@@ -101,3 +101,16 @@ fun codecCaption(codec: ReplayCodec): String = when (codec) {
     ReplayCodec.Hevc -> "About half the size of H.264 at the same quality."
     ReplayCodec.H264 -> "Larger files, but plays on older devices without HEVC."
 }
+
+/** Rough stored size for a trimmed clip; encoders vary with scene complexity. */
+fun estimateReplayBytes(profile: ReplayProfile, durationMs: Long): Long {
+    if (!profile.transcode || durationMs <= 0) return 0
+    val audioBits = if (profile.audio == ReplayAudio.Remove) 0 else profile.audioBitrate
+    return (profile.videoBitrate.toLong() + audioBits) * durationMs / 8_000L
+}
+
+/** Estimates the trimmed original from the source size and the trim fraction. */
+fun estimatedOriginalBytes(sourceBytes: Long, trimmedMs: Long, sourceDurationMs: Long): Long {
+    if (sourceBytes <= 0 || sourceDurationMs <= 0 || trimmedMs <= 0) return 0
+    return sourceBytes * trimmedMs / sourceDurationMs
+}
