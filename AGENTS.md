@@ -60,6 +60,15 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 - Typography: `labelSmall` is defined in `Theme.kt` (Geist Sans 11 sp); `NumericText` is mono with
   zero tracking. Do not use an undefined Material label style on Compose screens.
 
+## Library transfer
+
+- `LibraryArchive` (`core/.../session/LibraryArchive.kt`) writes a zip: `library.json` with `format`, `exportedAt`, `laps`, `bytes`, then one `library/<id>/` per lap holding `session.json`, `lap.json`, the `.gt7lap`, and any clip or pending source the lap references.
+- Entry id is the session id when that session holds one lap, otherwise `<sessionId>-l<NNN>`; ids must match `[A-Za-z0-9._-]{1,64}`.
+- Import is merge-only: existing ids are skipped, corrupt entries are counted and dropped, unsafe paths throw. Missing clip references are cleared and the lap still imports.
+- `.mp4` entries are written at deflate level 0; telemetry and JSON use the default level.
+- SAF plumbing lives in `app/.../share/LibraryTransfer.kt`; the UI is `LibrarySection` (Settings) and `ExportLapsSheet`; the empty library has its own import action.
+- Changing `applicationId` loses `filesDir`: export from the old package before renaming, then import into the new one.
+
 ## Release
 
 - Work in a branch, merge to `main`, push. Pushing `main` triggers CI and preview publish.

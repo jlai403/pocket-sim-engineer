@@ -33,6 +33,12 @@ pocket-sim-engineer/
 
 The phone records no video and no audio. Telemetry uses UDP 33739/33740; the only other network calls are update checks and the optional profile lookup.
 
+## Backup and restore
+
+Settings → Library exports the laps you select to one `.zip` (`lapcraft-library-<date>.zip`). Each lap is a directory inside the archive holding `session.json`, `lap.json`, its `.gt7lap` telemetry, and any clip or pending source the lap references, so the file is inspectable with any zip tool. Clips are passed through uncompressed; telemetry and JSON are deflated.
+
+Import merges: ids that already exist are skipped, so importing the same file twice is safe. A lap whose clip is missing still imports, without a replay. Settings and the driver profile are not part of the archive. The empty library also offers **Import a backup**.
+
 ## What works
 
 - GT7 packet formats A, B, `~`, and C: Salsa20 decrypt, correct XOR constant per size, ~60 Hz parse.
@@ -48,6 +54,7 @@ The phone records no video and no audio. Telemetry uses UDP 33739/33740; the onl
 - Lossless MP4 trim with keyframe alignment and stored lead-in.
 - Lap player: Media3 video with the same playback controls as sync, a lap-only slider and frame ruler, speed/throttle/brake/RPM/gear charts, and a track map.
 - CSV export and MP4 sharing.
+- Library backup: multi-select lap export to a zip and merge-only import, from Settings or the empty library.
 - In-app preview/stable updater.
 
 ## Update channels
