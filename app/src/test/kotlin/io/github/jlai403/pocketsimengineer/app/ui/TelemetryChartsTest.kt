@@ -55,7 +55,21 @@ class TelemetryChartsTest {
     }
 
     @Test
-    fun `track map shows ghost, follow, and turn legend`() {
+    fun `track legend lists brake, throttle, turn-in, ghost`() {
+        compose.setContent {
+            PocketSimEngineerTheme { TrackMapLegend() }
+        }
+
+        compose.onNodeWithText("Brake").assertExists()
+        compose.onNodeWithText("Throttle").assertExists()
+        compose.onNodeWithText("Turn-in").assertExists()
+        compose.onNodeWithText("Ghost").assertExists()
+        compose.onNodeWithText("Apex").assertDoesNotExist()
+        compose.onNodeWithText("Exit").assertDoesNotExist()
+    }
+
+    @Test
+    fun `track map renders with a ghost and follow`() {
         compose.setContent {
             PocketSimEngineerTheme {
                 TrackMap(
@@ -68,11 +82,6 @@ class TelemetryChartsTest {
                 )
             }
         }
-
-        compose.onNodeWithText("Turn-in").assertExists()
-        compose.onNodeWithText("Ghost").assertExists()
-        compose.onNodeWithText("Apex").assertDoesNotExist()
-        compose.onNodeWithText("Exit").assertDoesNotExist()
     }
 
     private val lap = LapMetadata(

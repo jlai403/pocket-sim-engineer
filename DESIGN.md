@@ -202,7 +202,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Trace stroke: 2 px. Chart heights: 52 dp.
 - Map: coloured 3 px segments by pedal state, intensity lerped from muted grey to green (throttle) or red (brake) by pedal strength; 12 px blue dot at the cursor, 200 dp tall. A dashed grey ghost lap overlays the fastest lap on the same track.
 - Turn markers: turn-in (filled circle) on the map; the ruler also marks apex (diamond) and exit (hollow circle). Derived from steering when available, otherwise track curvature.
-- Map chips: `Follow` centres on the car, puts the heading up, anchors the car near the bottom, squashes the vertical axis 0.5× for a driver's-perspective tilt, and zooms to the next ~2 s; `Ghost` toggles the reference lap.
+- Map chips: `Follow` centres on the car, puts the heading up, anchors the car near the bottom, squashes the vertical axis 0.35× for a driver's-perspective tilt, and zooms to the next ~2 s; `Ghost` toggles the reference lap. The legend lists brake, throttle, turn-in, and ghost under the title, above the map.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.
 - Readout: three 44 dp bar rows (THR green, BRK red, RPM amber) with labels above and values right, no speed/gear text and no per-bar sparklines; the 2×2 tire heatmap (32 dp tiles, blue cold → green optimal → red hot) sits to the right, vertically centered.
 - Values and the map dot interpolate between the two samples that bracket the cursor time; gear snaps to the nearest sample. The cursor line stays on the video frame.

@@ -544,6 +544,7 @@ fun LapPlayerScreen(
                         label = { Text("Ghost") },
                     )
                 }
+                TrackMapLegend()
                 TrackMap(
                     samples = samples,
                     lap = currentLap,
