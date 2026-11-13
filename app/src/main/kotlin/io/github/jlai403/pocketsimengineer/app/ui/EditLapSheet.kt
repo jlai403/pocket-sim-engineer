@@ -44,6 +44,8 @@ internal fun EditLapSheet(
     onAddReplay: () -> Unit,
     onOpenPlayStation: () -> Unit,
     onResumeSync: () -> Unit,
+    developerTools: Boolean = false,
+    onReencode: () -> Unit = {},
 ) {
     var track by remember(lap.trackLabel) {
         mutableStateOf(lap.trackLabel.takeUnless { it == TrackNamer.UNKNOWN }.orEmpty())
@@ -144,6 +146,20 @@ internal fun EditLapSheet(
                         onDismiss()
                         onOpenPlayStation()
                     },
+                )
+            }
+            if (developerTools && lap.hasReplay) {
+                GhostPill(
+                    text = "Re-encode clip",
+                    onClick = {
+                        onDismiss()
+                        onReencode()
+                    },
+                )
+                Text(
+                    "Rebuilds the clip with a 0.1 s keyframe interval so exact frame seeking is cheap.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 

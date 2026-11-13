@@ -1,5 +1,6 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -43,7 +44,9 @@ import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileLinks
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
 import io.github.jlai403.pocketsimengineer.app.profile.countryFlagEmoji
+import io.github.jlai403.pocketsimengineer.app.replay.LapReencoder
 import io.github.jlai403.pocketsimengineer.app.replay.PlayStationApp
+import io.github.jlai403.pocketsimengineer.app.replay.VideoTranscoder
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.track.TrackCatalog
 import io.github.jlai403.pocketsimengineer.app.track.TrackNamer
@@ -89,6 +92,7 @@ fun LibraryScreen(
     var candidates by remember { mutableStateOf<List<TrackCandidate>?>(null) }
     var deleting by remember { mutableStateOf<LapSummary?>(null) }
     var syncTarget by remember { mutableStateOf<LapSummary?>(null) }
+    var reencoding by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var trackMenu by remember { mutableStateOf(false) }
     var sortMenu by remember { mutableStateOf(false) }
@@ -154,6 +158,24 @@ fun LibraryScreen(
             profile?.let {
                 profileStore.save(it)
                 profiles = profileStore.profiles().associateBy { saved -> saved.psnId.lowercase() }
+            }
+            reload++
+        }
+    }
+
+    fun reencode(lap: LapSummary) {
+        if (reencoding) return
+        reencoding = true
+        Toast.makeText(context, "Re-encoding lap ${lap.lapIndex}…", Toast.LENGTH_SHORT).show()
+        scope.launch {
+            val reencoded = runCatching {
+                LapReencoder(store, VideoTranscoder(context)).reencode(lap.sessionId, lap.lapIndex)
+            }.getOrDefault(false)
+            reencoding = false
+            if (reencoded) {
+                Toast.makeText(context, "Lap ${lap.lapIndex} re-encoded", Toast.LENGTH_SHORT).show()
+            } else {
+                message = "Lap ${lap.lapIndex} could not be re-encoded."
             }
             reload++
         }
@@ -394,6 +416,8 @@ fun LibraryScreen(
                 if (!PlayStationApp.open(context)) message = "PlayStation App is not available."
             },
             onResumeSync = { onOpenSync(lap.sessionId, lap.lapIndex, null) },
+            developerTools = settings.developerTools,
+            onReencode = { reencode(lap) },
         )
     }
 

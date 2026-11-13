@@ -58,9 +58,23 @@ class ReplayCompressionTest {
     }
 
     @Test
+    fun `frame keyframes give the shortest GOP`() {
+        val profile = replayProfile(
+            preset = ReplayPreset.Balanced,
+            keyframes = ReplayKeyframes.Frame,
+            audio = ReplayAudio.Stereo,
+            resolution = ReplayResolution.FullHd,
+            codec = ReplayCodec.Hevc,
+        )
+
+        assertEquals(0.1f, profile.iFrameIntervalSeconds)
+    }
+
+    @Test
     fun `captions explain the selection`() {
         assertTrue(presetCaption(ReplayPreset.Compact).contains("75% smaller"))
-        assertTrue(keyframesCaption(ReplayKeyframes.Fast).contains("scrub"))
+        assertTrue(keyframesCaption(ReplayKeyframes.Frame).contains("six frames"))
+        assertTrue(keyframesCaption(ReplayKeyframes.Sparse).contains("steppier"))
         assertTrue(audioCaption(ReplayAudio.Remove).contains("no audio"))
         assertTrue(resolutionCaption(ReplayResolution.Hd).contains("25% smaller"))
         assertTrue(codecCaption(ReplayCodec.H264).contains("older devices"))
@@ -78,6 +92,22 @@ class ReplayCompressionTest {
 
         assertEquals(57_330_000L, estimateReplayBytes(profile, 90_000))
         assertEquals(0L, estimateReplayBytes(profile.copy(transcode = false), 90_000))
+    }
+
+    @Test
+    fun `short GOP estimates carry the keyframe overhead`() {
+        val fast = replayProfile(
+            preset = ReplayPreset.Balanced,
+            keyframes = ReplayKeyframes.Fast,
+            audio = ReplayAudio.Stereo,
+            resolution = ReplayResolution.FullHd,
+            codec = ReplayCodec.Hevc,
+        )
+
+        val frame = fast.copy(iFrameIntervalSeconds = ReplayKeyframes.Frame.seconds)
+
+        assertEquals(57_330_000L, estimateReplayBytes(fast, 90_000))
+        assertEquals(77_395_500L, estimateReplayBytes(frame, 90_000))
     }
 
     @Test

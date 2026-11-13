@@ -49,7 +49,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.ui.PlayerView
 import io.github.jlai403.pocketsimengineer.app.replay.ClipTrimmer
-import io.github.jlai403.pocketsimengineer.app.replay.ReplayPreviewCache
 import io.github.jlai403.pocketsimengineer.app.replay.ReplayStore
 import io.github.jlai403.pocketsimengineer.app.replay.VideoTranscoder
 import io.github.jlai403.pocketsimengineer.app.replay.probeClip
@@ -624,7 +623,6 @@ fun ImportSyncScreen(
                                     videoFile = "laps/lap-%03d.mp4".format(lapIndex),
                                     leadInMs = trimmed.startOffsetMs,
                                 )
-                                ReplayPreviewCache.get(context).warm(output)
                                 trimmed to compactFailed
                             }
                             saving = false

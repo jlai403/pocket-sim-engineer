@@ -10,6 +10,7 @@ enum class ReplayPreset(val label: String) {
 }
 
 enum class ReplayKeyframes(val label: String, val seconds: Float) {
+    Frame("Frame (0.1 s)", 0.1f),
     Fast("Fast (0.5 s)", 0.5f),
     Standard("Standard (1 s)", 1f),
     Sparse("Sparse (2 s)", 2f),
@@ -80,8 +81,15 @@ fun presetCaption(preset: ReplayPreset): String = when (preset) {
         "720p HEVC ~3 Mbps at 60 fps. Replays ~75% smaller, slightly softer, fastest scrubbing."
 }
 
+/** Keyframe intervals at or below this pay the short-GOP size premium. */
+private const val SHORT_GOP_SECONDS = 0.2f
+
+/** Percent of the baseline estimate a short-GOP clip needs for its extra keyframes. */
+private const val SHORT_GOP_PERCENT = 135L
+
 fun keyframesCaption(keyframes: ReplayKeyframes): String = when (keyframes) {
-    ReplayKeyframes.Fast -> "Best scrub responsiveness; about 10% larger than standard."
+    ReplayKeyframes.Frame -> "Smoothest scrubbing: an exact seek decodes at most six frames. About 35% larger than Fast."
+    ReplayKeyframes.Fast -> "About 25% smaller than Frame; an exact seek may decode up to 30 frames."
     ReplayKeyframes.Standard -> "Balanced scrub speed and size."
     ReplayKeyframes.Sparse -> "Smallest files, but dragging feels steppier."
 }
@@ -106,7 +114,13 @@ fun codecCaption(codec: ReplayCodec): String = when (codec) {
 fun estimateReplayBytes(profile: ReplayProfile, durationMs: Long): Long {
     if (!profile.transcode || durationMs <= 0) return 0
     val audioBits = if (profile.audio == ReplayAudio.Remove) 0 else profile.audioBitrate
-    return (profile.videoBitrate.toLong() + audioBits) * durationMs / 8_000L
+    val bytes = (profile.videoBitrate.toLong() + audioBits) * durationMs / 8_000L
+    // Short GOPs spend extra bits on keyframes, which the bitrate alone does not show.
+    return if (profile.iFrameIntervalSeconds <= SHORT_GOP_SECONDS) {
+        bytes * SHORT_GOP_PERCENT / 100
+    } else {
+        bytes
+    }
 }
 
 /** Estimates the trimmed original from the source size and the trim fraction. */

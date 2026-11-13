@@ -1,14 +1,12 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.net.Uri
-import android.graphics.Bitmap
 import android.view.LayoutInflater
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,13 +40,10 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -59,10 +54,9 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.ui.PlayerView
+import io.github.jlai403.pocketsimengineer.app.replay.LapReencoder
 import io.github.jlai403.pocketsimengineer.app.replay.PlayStationApp
-import io.github.jlai403.pocketsimengineer.app.replay.ReplayPreview
-import io.github.jlai403.pocketsimengineer.app.replay.ReplayPreviewCache
-import io.github.jlai403.pocketsimengineer.app.replay.nearestPreviewFrame
+import io.github.jlai403.pocketsimengineer.app.replay.VideoTranscoder
 import io.github.jlai403.pocketsimengineer.app.replay.probeClip
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
 import io.github.jlai403.pocketsimengineer.app.profile.countryFlagEmoji
@@ -79,7 +73,6 @@ import io.github.jlai403.pocketsimengineer.core.session.SessionStore
 import io.github.jlai403.pocketsimengineer.core.track.TrackCandidate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -154,18 +147,12 @@ fun LapPlayerScreen(
         ?.takeIf { it.isFile }
     val player = remember(sessionId, lapIndex) {
         ExoPlayer.Builder(context).build().apply {
-            setSeekParameters(SeekParameters.CLOSEST_SYNC)
+            setSeekParameters(SeekParameters.EXACT)
         }
     }
     val videoVersion = remember(videoFile?.absolutePath, sessionReload) {
         videoFile?.let { "${it.absolutePath}:${it.length()}:${it.lastModified()}" }
     }
-    val previewCache = remember { ReplayPreviewCache.get(context) }
-    var preview by remember(videoVersion) { mutableStateOf<ReplayPreview?>(null) }
-    var previewBuilding by remember(videoVersion) { mutableStateOf(false) }
-    var previewBitmap by remember(videoVersion) { mutableStateOf<Bitmap?>(null) }
-    var previewSettling by remember(videoVersion) { mutableStateOf(false) }
-    var previewSeekMs by remember(videoVersion) { mutableLongStateOf(-1L) }
 
     var positionMs by remember { mutableLongStateOf(0L) }
     var renderedUs by remember { mutableLongStateOf(-1L) }
@@ -187,7 +174,7 @@ fun LapPlayerScreen(
     var followMap by remember { mutableStateOf(true) }
     var looping by remember { mutableStateOf(false) }
 
-    lateinit var scrubSeeker: ScrubSeeker
+    var scrubSeeker: ScrubSeeker? = null
     LaunchedEffect(playbackSpeed) {
         player.setPlaybackSpeed(playbackSpeed)
     }
@@ -203,11 +190,15 @@ fun LapPlayerScreen(
         if (!fromScrub) player.pause()
         if (!fromScrub) {
             scrubTargetMs = null
-            scrubSeeker.clearPending()
+            scrubSeeker?.clearPending()
         }
     }
     scrubSeeker = remember(player) {
-        ScrubSeeker(scope) { target -> seekClip(target, fromScrub = true) }
+        ScrubSeeker(
+            scope = scope,
+            waitForFrame = true,
+            exactWaitMs = SCRUB_EXACT_WAIT_MS,
+        ) { target -> seekClip(target, fromScrub = true) }
     }
 
     fun shareVideo() {
@@ -268,6 +259,7 @@ fun LapPlayerScreen(
         player.addListener(listener)
         player.setVideoFrameMetadataListener { presentationTimeUs, _, _, _ ->
             renderedUs = presentationTimeUs
+            scrubSeeker?.onFrameRendered()
         }
         onDispose {
             player.removeListener(listener)
@@ -294,16 +286,6 @@ fun LapPlayerScreen(
         }
     }
 
-    LaunchedEffect(videoVersion) {
-        val file = videoFile ?: return@LaunchedEffect
-        previewBuilding = true
-        try {
-            preview = previewCache.ensure(file)
-        } finally {
-            previewBuilding = false
-        }
-    }
-
     LaunchedEffect(player) {
         while (true) {
             if (player.duration > 0) durationMs = maxOf(durationMs, player.duration)
@@ -327,40 +309,6 @@ fun LapPlayerScreen(
     val cursorMs = lap?.let {
         PlaybackCursor.telemetryMs(displayedMs, it.leadInMs, it.syncOffsetMs, it.lapTimeMs)
     } ?: 0
-
-    // The playhead stands in until the finger picks a frame, so a press never shows frame 0.
-    LaunchedEffect(scrubbing, preview) {
-        val cached = preview ?: return@LaunchedEffect
-        if (!scrubbing) return@LaunchedEffect
-        var shownIndex = -1
-        snapshotFlow { scrubTargetMs ?: if (renderedUs >= 0) renderedUs / 1_000 else positionMs }
-            .conflate()
-            .collect { timeMs ->
-                val index = nearestPreviewFrame(cached.index.timesMs, timeMs)
-                if (index < 0 || index == shownIndex) return@collect
-                previewCache.frame(cached, index)?.let {
-                    shownIndex = index
-                    previewBitmap = it
-                }
-            }
-    }
-
-    LaunchedEffect(previewSettling, renderedUs, previewSeekMs) {
-        if (!previewSettling) return@LaunchedEffect
-        val renderedMs = renderedUs / 1_000
-        val landed = renderedUs >= 0 && previewSeekMs >= 0 &&
-            abs(renderedMs - previewSeekMs) <= 500
-        if (landed) {
-            previewSettling = false
-            previewBitmap = null
-        } else {
-            delay(500)
-            if (previewSettling) {
-                previewSettling = false
-                previewBitmap = null
-            }
-        }
-    }
 
     LaunchedEffect(scrubbing, renderedUs) {
         val target = scrubTargetMs ?: return@LaunchedEffect
@@ -529,29 +477,6 @@ fun LapPlayerScreen(
                         update = { it.player = player },
                         modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                     )
-                    previewBitmap?.let { bitmap ->
-                        // Reuse the wrapper so an unchanged frame does not re-upload its texture.
-                        val image = remember(bitmap) { bitmap.asImageBitmap() }
-                        Image(
-                            bitmap = image,
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.matchParentSize(),
-                        )
-                    }
-                    if (previewBuilding) {
-                        Text(
-                            "Preparing scrub preview…",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(8.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
-                                .padding(horizontal = 6.dp, vertical = 3.dp),
-                        )
-                    }
                     if (settings.telemetryHud) {
                         TelemetryHud(
                             window = samples,
@@ -669,33 +594,17 @@ fun LapPlayerScreen(
                     scrubBaseUs = displayedUs
                     scrubTargetMs = null
                     scrubbing = true
-                    previewSettling = false
-                    previewSeekMs = -1L
                     player.pause()
                 },
                 onScrub = { frames ->
                     scrubTarget(scrubBaseUs, frames)?.let { target ->
                         scrubTargetMs = target
-                        if (preview == null || previewBitmap == null) scrubSeeker.submit(target)
+                        scrubSeeker?.submit(target)
                     }
                 },
                 onScrubEnd = {
                     scrubbing = false
-                    val target = scrubTargetMs
-                    val cached = preview
-                    val frame = if (cached != null && target != null) {
-                        nearestPreviewFrame(cached.index.timesMs, target)
-                    } else {
-                        -1
-                    }
-                    if (cached != null && frame >= 0) {
-                        previewSettling = true
-                        previewSeekMs = cached.index.timesMs[frame]
-                        seekClip(previewSeekMs)
-                    } else {
-                        previewBitmap = null
-                        target?.let { seekClip(it) }
-                    }
+                    scrubTargetMs?.let { seekClip(it) }
                 },
                 onSeekFraction = { fraction ->
                     seekLap((fraction * currentLap.lapTimeMs).roundToLong())
@@ -761,6 +670,23 @@ fun LapPlayerScreen(
                 onResumeSync = {
                     editing = false
                     onImportSync(null)
+                },
+                developerTools = settings.developerTools,
+                onReencode = {
+                    editing = false
+                    Toast.makeText(context, "Re-encoding lap $lapIndex…", Toast.LENGTH_SHORT).show()
+                    scope.launch {
+                        val reencoded = runCatching {
+                            LapReencoder(store, VideoTranscoder(context))
+                                .reencode(sessionId, lapIndex)
+                        }.getOrDefault(false)
+                        if (reencoded) {
+                            Toast.makeText(context, "Lap re-encoded", Toast.LENGTH_SHORT).show()
+                        } else {
+                            message = "Re-encode failed."
+                        }
+                        sessionReload++
+                    }
                 },
             )
         }

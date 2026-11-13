@@ -42,7 +42,7 @@ class SettingsStore(context: Context) {
         set(value) = prefs.edit().putString(KEY_REPLAY_PRESET, value.name).apply()
 
     var replayKeyframes: ReplayKeyframes
-        get() = enumPref(KEY_REPLAY_KEYFRAMES, ReplayKeyframes.Fast)
+        get() = enumPref(KEY_REPLAY_KEYFRAMES, ReplayKeyframes.Frame)
         set(value) = prefs.edit().putString(KEY_REPLAY_KEYFRAMES, value.name).apply()
 
     var replayAudio: ReplayAudio
@@ -74,6 +74,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_PREVIEW_EMPTY, false)
         set(value) = prefs.edit().putBoolean(KEY_PREVIEW_EMPTY, value).apply()
 
+    /** Developer tools: exposes maintenance actions such as re-encoding a clip. */
+    var developerTools: Boolean
+        get() = prefs.getBoolean(KEY_DEVELOPER_TOOLS, false)
+        set(value) = prefs.edit().putBoolean(KEY_DEVELOPER_TOOLS, value).apply()
+
     /** Last track-identification backfill this install completed. */
     var trackIdentificationVersion: Int
         get() = prefs.getInt(KEY_TRACK_ID_VERSION, 0)
@@ -93,6 +98,7 @@ class SettingsStore(context: Context) {
         const val KEY_REPLAY_RESOLUTION = "replay_resolution"
         const val KEY_REPLAY_CODEC = "replay_codec"
         const val KEY_PREVIEW_EMPTY = "preview_empty_library"
+        const val KEY_DEVELOPER_TOOLS = "developer_tools"
         const val KEY_TRACK_ID_VERSION = "track_id_version"
     }
 }

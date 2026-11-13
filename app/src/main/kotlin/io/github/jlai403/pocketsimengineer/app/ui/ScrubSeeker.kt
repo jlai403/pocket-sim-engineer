@@ -20,16 +20,20 @@ internal const val SCRUB_SEEK_INTERVAL_MS = 33L
  */
 internal const val EXACT_FRAME_WAIT_MS = 400L
 
+/** Exact-seek frame wait while scrubbing a short-GOP lap clip. */
+internal const val SCRUB_EXACT_WAIT_MS = 120L
+
 /**
  * Keeps at most one seek in flight and always seeks to the newest target.
  * A fast drag produces hundreds of targets; with [waitForFrame] the player
- * gets one per rendered frame (or [EXACT_FRAME_WAIT_MS]), otherwise one every
+ * gets one per rendered frame (or [exactWaitMs]), otherwise one every
  * [seekIntervalMs] instead of a seek storm that never finishes.
  */
 internal class ScrubSeeker(
     scope: CoroutineScope,
     private val seekIntervalMs: Long = SCRUB_SEEK_INTERVAL_MS,
     private val waitForFrame: Boolean = false,
+    private val exactWaitMs: Long = EXACT_FRAME_WAIT_MS,
     private val seek: (Long) -> Unit,
 ) {
     private val targets = Channel<Long>(Channel.CONFLATED)
@@ -45,7 +49,7 @@ internal class ScrubSeeker(
                     // A frame queued before this seek would release the wait early.
                     while (rendered.tryReceive().isSuccess) Unit
                     seek(target)
-                    withTimeoutOrNull(EXACT_FRAME_WAIT_MS) { rendered.receive() }
+                    withTimeoutOrNull(exactWaitMs) { rendered.receive() }
                 } else {
                     seek(target)
                     delay(seekIntervalMs)

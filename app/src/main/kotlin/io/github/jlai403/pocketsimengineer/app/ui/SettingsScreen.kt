@@ -67,6 +67,7 @@ fun SettingsScreen(
     var speedMenu by remember { mutableStateOf(false) }
     var hud by remember { mutableStateOf(settings.telemetryHud) }
     var previewEmpty by remember { mutableStateOf(settings.previewEmptyLibrary) }
+    var developerTools by remember { mutableStateOf(settings.developerTools) }
     var replayPreset by remember { mutableStateOf(settings.replayPreset) }
     var replayKeyframes by remember { mutableStateOf(settings.replayKeyframes) }
     var replayAudio by remember { mutableStateOf(settings.replayAudio) }
@@ -225,6 +226,19 @@ fun SettingsScreen(
 
         if (BuildConfig.UPDATE_CHANNEL != "stable") {
             SectionCard(title = "Developer") {
+                SettingToggle(
+                    label = "Developer tools",
+                    checked = developerTools,
+                    modifier = Modifier.testTag("dev-developer-tools"),
+                ) {
+                    developerTools = it
+                    settings.developerTools = it
+                }
+                Text(
+                    "Adds maintenance actions such as re-encoding a lap clip.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 SettingToggle(
                     label = "Preview empty library",
                     checked = previewEmpty,

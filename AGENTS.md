@@ -37,20 +37,26 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 ## Replay storage
 
 - New imports are trimmed, then compacted with the Settings replay profile before `attachClip`.
-- Settings live in `SettingsStore`: `replayPreset` (default `Balanced`), `replayKeyframes` (`Fast`),
-  `replayAudio` (`Stereo`), `replayResolution` (`FullHd`), `replayCodec` (`Hevc`).
+- Settings live in `SettingsStore`: `replayPreset` (default `Balanced`), `replayKeyframes` (`Frame`,
+  0.1 s), `replayAudio` (`Stereo`), `replayResolution` (`FullHd`), `replayCodec` (`Hevc`). The 0.1 s
+  GOP keeps exact seeks to six 60 fps frames at ~35 % larger files; `estimateReplayBytes` includes
+  that premium.
 - `app/.../settings/ReplayCompression.kt` defines the enums, resolved `ReplayProfile`, captions, and size estimates.
 - `ReplayCompressionControls` (`app/.../ui/`) is shared by Settings (defaults) and the sync screen (per-lap override, session-only, with a live `≈ N MB` estimate).
 - `app/.../replay/VideoTranscoder.kt` re-encodes with Media3 Transformer (`media3-transformer:1.5.1`).
   On failure the trimmed original is kept and the save shows a "Compaction failed" toast.
 - `LapSummary` carries `videoBytes`, `telemetryBytes`, and `pendingBytes`, computed in
   `SessionStore.summaries()`. `EditLapSheet` shows them under a `Data` section.
-- The lap player uses `SeekParameters.CLOSEST_SYNC` for every seek; the sync screen keeps `EXACT`.
-  ScrubSeeker paces keyframe seeks at 33 ms and keeps exact mode's frame wait at 400 ms.
+- The lap player and the sync screen both use `SeekParameters.EXACT`. `ScrubSeeker` waits for a
+  rendered frame (`SCRUB_EXACT_WAIT_MS` 120 ms while scrubbing, `EXACT_FRAME_WAIT_MS` 400 ms while
+  anchoring) and keeps at most one seek in flight.
 - The lap player uses a `TextureView`-backed `PlayerView` (`res/layout/view_lap_player.xml`) so the
-  scrub preview and telemetry HUD can draw over the video; a `SurfaceView` hides Compose overlays.
-- Scrub previews live under `sessions/<id>/laps/lap-NNN.preview/` (960×540 JPEG per keyframe +
-  `index.json`). Warmed after import and generated on first open; deleted by `attachClip` and `deleteLap`.
+  telemetry HUD can draw over the video; a `SurfaceView` hides Compose overlays.
+- There is no scrub thumbnail cache; the ruler seeks the clip directly. `SettingsStore.developerTools`
+  exposes `Re-encode clip` in `EditLapSheet`, which rewrites a lap at 0.1 s keyframes
+  (`LapReencoder`, `ReplayKeyframes.Frame`) and deletes the old clip plus any `lap-NNN.preview/` leftovers.
+- `SessionStore.deleteScrubArtifacts` removes a lap's `.tmp`/`.bak`/`.compact.mp4`/`.reencode.mp4`
+  temporaries and preview directories; `deleteReplayArtifacts` also removes the clip.
 - Typography: `labelSmall` is defined in `Theme.kt` (Geist Sans 11 sp); `NumericText` is mono with
   zero tracking. Do not use an undefined Material label style on Compose screens.
 

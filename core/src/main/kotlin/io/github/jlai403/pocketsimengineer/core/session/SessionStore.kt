@@ -143,16 +143,11 @@ class SessionStore(private val rootDir: File) {
         )
         if (updated == null) return null
         source?.delete()
-        deletePreview(dir, videoFile)
+        deleteScrubArtifacts(dir, videoFile)
         previous
             ?.takeIf { it != metadata.rawFile }
             ?.takeIf { old -> metadata.laps.none { other -> other.index != lapIndex && other.videoFile == old } }
-            ?.let { old ->
-                File(dir, old).delete()
-                File(dir, old + ".tmp").delete()
-                File(dir, old + ".bak").delete()
-                deletePreview(dir, old)
-            }
+            ?.let { old -> deleteReplayArtifacts(dir, old) }
         return updated
     }
 
@@ -167,12 +162,11 @@ class SessionStore(private val rootDir: File) {
                 it.index != lapIndex && it.videoFile == lap.videoFile
             }
             if (!shared && lap.videoFile != metadata.rawFile) {
-                File(dir, lap.videoFile).delete()
-                File(dir, lap.videoFile + ".tmp").delete()
-                File(dir, lap.videoFile + ".bak").delete()
+                deleteReplayArtifacts(dir, lap.videoFile)
+            } else {
+                deleteScrubArtifacts(dir, lap.videoFile)
             }
         }
-        deletePreview(dir, lap.videoFile)
         lap.sourceFile?.let { File(dir, it).delete() }
         val remaining = metadata.laps.filterNot { it.index == lapIndex }
         if (remaining.isEmpty()) {
@@ -186,10 +180,25 @@ class SessionStore(private val rootDir: File) {
     private fun parseInstant(value: String): Instant =
         runCatching { Instant.parse(value) }.getOrDefault(Instant.EPOCH)
 
-    private fun deletePreview(dir: File, videoFile: String) {
+    /**
+     * Removes a lap clip with its temporaries and scrub cache. Used when a clip is
+     * replaced or the lap is deleted; the metadata is the caller's responsibility.
+     */
+    fun deleteReplayArtifacts(dir: File, videoFile: String) {
         if (videoFile.isBlank()) return
+        File(dir, videoFile).delete()
+        deleteScrubArtifacts(dir, videoFile)
+    }
+
+    /** Removes a lap's scrub cache and clip temporaries, leaving the clip itself in place. */
+    fun deleteScrubArtifacts(dir: File, videoFile: String) {
+        if (videoFile.isBlank()) return
+        listOf(".tmp", ".bak", ".compact.mp4", ".reencode.mp4").forEach { suffix ->
+            File(dir, videoFile + suffix).delete()
+        }
         val clip = File(dir, videoFile)
-        File(clip.parentFile, clip.nameWithoutExtension + ".preview").deleteRecursively()
-        File(clip.parentFile, clip.nameWithoutExtension + ".preview.tmp").deleteRecursively()
+        val parent = clip.parentFile
+        File(parent, clip.nameWithoutExtension + ".preview").deleteRecursively()
+        File(parent, clip.nameWithoutExtension + ".preview.tmp").deleteRecursively()
     }
 }

@@ -34,4 +34,25 @@ class SettingsStoreTest {
         assertFalse(store.savePs5Ip("999.1.1.1"))
         assertEquals("10.0.0.2", store.ps5Ip)
     }
+
+    @Test
+    fun `developer tools are off until enabled and persist`() {
+        val store = SettingsStore(context)
+        assertFalse(store.developerTools)
+
+        store.developerTools = true
+
+        assertTrue(SettingsStore(context).developerTools)
+    }
+
+    @Test
+    fun `new imports use frame keyframes by default and keep a saved choice`() {
+        val store = SettingsStore(context)
+
+        assertEquals(ReplayKeyframes.Frame, store.replayKeyframes)
+
+        store.replayKeyframes = ReplayKeyframes.Sparse
+
+        assertEquals(ReplayKeyframes.Sparse, SettingsStore(context).replayKeyframes)
+    }
 }

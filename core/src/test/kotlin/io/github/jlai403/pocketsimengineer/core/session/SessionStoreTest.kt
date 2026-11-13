@@ -140,6 +140,62 @@ class SessionStoreTest {
     }
 
     @Test
+    fun `replacing a clip removes the old clip, temporaries and scrub cache`() {
+        val dir = writeSession("s1", "2026-11-10T10:00:00Z")
+        val laps = File(dir, "laps")
+        val clip = File(laps, "lap-001.mp4").apply { writeText("video") }
+        File(laps, "lap-001.mp4.tmp").writeText("tmp")
+        File(laps, "lap-001.mp4.bak").writeText("bak")
+        File(laps, "lap-001.mp4.compact.mp4").writeText("compact")
+        File(laps, "lap-001.mp4.reencode.mp4").writeText("reencode")
+        File(laps, "lap-001.preview").apply {
+            mkdirs()
+            File(this, "00000.jpg").writeText("jpg")
+        }
+        File(laps, "lap-001.preview.tmp").mkdirs()
+
+        val store = SessionStore(temp)
+        store.deleteReplayArtifacts(dir, "laps/lap-001.mp4")
+
+        assertFalse(clip.exists())
+        assertFalse(File(laps, "lap-001.mp4.tmp").exists())
+        assertFalse(File(laps, "lap-001.mp4.bak").exists())
+        assertFalse(File(laps, "lap-001.mp4.compact.mp4").exists())
+        assertFalse(File(laps, "lap-001.mp4.reencode.mp4").exists())
+        assertFalse(File(laps, "lap-001.preview").exists())
+        assertFalse(File(laps, "lap-001.preview.tmp").exists())
+    }
+
+    @Test
+    fun `scrub artifacts are removed without the clip`() {
+        val dir = writeSession("s1", "2026-11-10T10:00:00Z")
+        val laps = File(dir, "laps")
+        val clip = File(laps, "lap-001.mp4").apply { writeText("video") }
+        File(laps, "lap-001.mp4.reencode.mp4").writeText("reencode")
+        File(laps, "lap-001.preview").mkdirs()
+
+        SessionStore(temp).deleteScrubArtifacts(dir, "laps/lap-001.mp4")
+
+        assertTrue(clip.isFile)
+        assertFalse(File(laps, "lap-001.mp4.reencode.mp4").exists())
+        assertFalse(File(laps, "lap-001.preview").exists())
+    }
+
+    @Test
+    fun `deleting a lap removes its clip and scrub cache`() {
+        val dir = writeSession("s1", "2026-11-10T10:00:00Z")
+        val laps = File(dir, "laps")
+        val clip = File(laps, "lap-001.mp4").apply { writeText("video") }
+        File(laps, "lap-001.preview").mkdirs()
+        File(dir, "laps/lap-001.gt7lap").writeText("telemetry")
+
+        assertTrue(SessionStore(temp).deleteLap("s1", 1))
+        assertFalse(clip.exists())
+        assertFalse(File(laps, "lap-001.preview").exists())
+        assertFalse(File(laps, "lap-001.gt7lap").exists())
+    }
+
+    @Test
     fun `reads lap samples from the binary file`() {
         val dir = writeSession("s1", "2026-11-10T10:00:00Z")
         val sample = Sample(

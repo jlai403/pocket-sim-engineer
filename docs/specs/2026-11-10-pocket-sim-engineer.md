@@ -63,7 +63,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - Upload manually: Media Gallery → clip → **Upload to PlayStation App**.
 - PS App: **Download** or **Share via** to Pocket Sim Engineer. The app copies the file into its own storage.
 - PS App limits: videos under 3 minutes, ≤1920×1080, non-4K, available for 14 days. Laps longer than 3 minutes cannot use this path; use a USB capture or a broadcast MP4 through the same importer.
-- The importer accepts any MP4 with a video track; H.264/AAC is the expected format. Imported clips are compacted with the Settings replay profile (default 1080p HEVC, ~5 Mbps, 0.5 s keyframes, stereo AAC). If compaction fails the trimmed clip is stored unchanged.
+- The importer accepts any MP4 with a video track; H.264/AAC is the expected format. Imported clips are compacted with the Settings replay profile (default 1080p HEVC, ~5 Mbps, 0.1 s keyframes, stereo AAC; ~35 % larger than 0.5 s keyframes). If compaction fails the trimmed clip is stored unchanged.
 
 ### Sync
 
@@ -189,11 +189,11 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 ### 8.7 Playback
 
-- Media3 ExoPlayer; the lap player uses nearest-keyframe seeks and the sync screen keeps exact seeks for frame-accurate anchoring. Ruler drags keep at most one seek in flight, always to the newest target, and the readout shows that target until the frame lands.
+- Media3 ExoPlayer; both the lap player and the sync screen use exact seeks, so scrubbing and anchoring land on the requested frame rather than a keyframe. Seeks wait for a rendered frame (budgeted at 120 ms while scrubbing, 400 ms during anchoring), keep at most one in flight, and always target the newest value; the readout shows that target until the frame lands.
 - `PlaybackCursor.telemetryMs(positionMs, leadInMs, syncOffsetMs, lapTimeMs)` maps video to lap time; `clipMs(lapMs, leadInMs, syncOffsetMs)` is its inverse.
 - The sync screen's slider and frame ruler span the whole clip.
 - The lap screen's playback controls sit in a sticky footer: one time readout, the frame ruler as the only scrubber, centred play/pause with skip-previous/next jumping to the previous/next brake point, a Loop toggle, and a `− / +` speed stepper (0.5×/1×/1.5×/2×). Changes last until the screen closes; the default comes from Settings.
-- Each trimmed clip can have `laps/lap-NNN.preview/`: one 960×540 JPEG per keyframe plus an `index.json` of keyframe times (~16–19 MB per 90 s lap). It is warmed after import and generated on first open; a small `Preparing scrub preview…` label shows while it builds. It is deleted when the clip is replaced or the lap is deleted. While the ruler is held or dragged, the nearest cached keyframe is shown over the video and the player is not seeked; releasing seeks to that keyframe. Without a cache, the fallback is a nearest-keyframe seek paced at 33 ms. Preview decodes are collected with `conflate()` so a fast drag only ever drops stale targets, never the frame being decoded.
+- Scrubbing runs against the clip itself: the ruler, HUD and charts follow the requested frame immediately while the decoder catches up. There is no thumbnail cache. New imports use 0.1 s keyframes, so an exact seek decodes at most six 60 fps frames; older clips that still have 0.5 s keyframes decode up to 30, so the Edit lap sheet offers `Re-encode clip` when Developer tools are on. It rebuilds the clip at the same resolution, codec and bitrate with a 0.1 s keyframe interval (about 30–40 % larger), swaps it in atomically and deletes the old clip, its temporaries and any leftover scrub cache.
 - The ruler shows a progress track and brake/throttle/apex/exit dots; it supports pinch-to-zoom. The track map colours its segments by pedal strength, shows a dashed grey ghost lap, and offers Follow (on by default; driver-perspective tilt zoomed to the next ~2 s), Ghost, and Reset chips; its vertical legend sits under the title, above the map.
 - A setting-controlled telemetry HUD overlays the video's top centre with the last 2 s of throttle/brake traces.
 - The header collapses to the lap time; tapping it reveals track, driver, car, lap stats, and the vs-ghost comparison.

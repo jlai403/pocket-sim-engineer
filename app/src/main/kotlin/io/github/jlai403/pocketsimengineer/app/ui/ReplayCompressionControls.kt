@@ -85,7 +85,7 @@ internal fun ReplayCompressionControls(
                 selected = keyframes,
                 optionLabel = { it.label },
                 caption = keyframesCaption(keyframes),
-                changed = highlightChanges && keyframes != ReplayKeyframes.Fast,
+                changed = highlightChanges && keyframes != ReplayKeyframes.Frame,
                 modifier = Modifier.testTag("replay-keyframes"),
                 onSelect = onKeyframesChange,
             )
