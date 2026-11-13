@@ -1,13 +1,19 @@
 package io.github.jlai403.pocketsimengineer.core.session
 
+import io.github.jlai403.pocketsimengineer.core.io.AtomicFiles
+import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
+import java.io.InputStream
 import java.io.OutputStream
 import java.time.Instant
+import java.util.UUID
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -15,6 +21,8 @@ import kotlinx.serialization.json.Json
 data class LapRef(val sessionId: String, val lapIndex: Int)
 
 data class ExportReport(val laps: Int, val bytes: Long)
+
+data class ImportReport(val laps: Int, val skipped: Int, val failed: Int)
 
 /** Root entry naming the archive format. Import refuses anything but [LibraryArchive.FORMAT]. */
 @Serializable
@@ -67,6 +75,105 @@ object LibraryArchive {
             }
         }
         return ExportReport(entries.size, total)
+    }
+
+    /**
+     * Merges laps from an archive, never overwriting. Each lap is staged under
+     * `sessions/.import-<uuid>` and moved into place only once its metadata is valid.
+     */
+    fun import(
+        rootDir: File,
+        input: InputStream,
+        onProgress: (Long, Long) -> Unit = { _, _ -> },
+    ): ImportReport {
+        val sessionsDir = File(rootDir, "sessions").apply { mkdirs() }
+        val staging = File(sessionsDir, ".import-${UUID.randomUUID()}")
+        var manifest: LibraryManifest? = null
+        var readBytes = 0L
+        var imported = 0
+        var skipped = 0
+        var failed = 0
+        try {
+            ZipInputStream(BufferedInputStream(input, BUFFER)).use { zip ->
+                var entry = zip.nextEntry
+                while (entry != null) {
+                    if (!entry.isDirectory) {
+                        if (entry.name == MANIFEST) {
+                            manifest = json.decodeFromString<LibraryManifest>(zip.readBytes().toString(Charsets.UTF_8))
+                            readBytes += entry.size.coerceAtLeast(0)
+                        } else {
+                            val target = File(staging, safeEntryPath(entry.name))
+                            target.parentFile?.mkdirs()
+                            target.outputStream().use { out ->
+                                val buffer = ByteArray(BUFFER)
+                                while (true) {
+                                    val count = zip.read(buffer)
+                                    if (count <= 0) break
+                                    out.write(buffer, 0, count)
+                                    readBytes += count
+                                    onProgress(readBytes, manifest?.bytes ?: 0)
+                                }
+                            }
+                        }
+                    }
+                    zip.closeEntry()
+                    entry = zip.nextEntry
+                }
+            }
+            requireNotNull(manifest) { "Unsupported library format: missing $MANIFEST" }
+
+            staging.listFiles().orEmpty().forEach { dir ->
+                if (!dir.isDirectory) return@forEach
+                val id = dir.name
+                val target = File(sessionsDir, id)
+                if (!ID_PATTERN.matches(id)) {
+                    failed++
+                    dir.deleteRecursively()
+                    return@forEach
+                }
+                if (target.exists()) {
+                    skipped++
+                    dir.deleteRecursively()
+                    return@forEach
+                }
+                val session = SessionJsonCodec.decodeSession(File(dir, "session.json").readText())
+                val incoming = SessionJsonCodec.decodeLap(File(dir, "lap.json").readText())
+                var lap = incoming
+                if (lap.videoFile.isNotBlank() && !File(dir, lap.videoFile).isFile) lap = lap.copy(videoFile = "")
+                val source = lap.sourceFile
+                if (!source.isNullOrBlank() && !File(dir, source).isFile) lap = lap.copy(sourceFile = null)
+                var stored = session.copy(sessionId = id, laps = listOf(lap))
+                if (stored.rawFile.isNotBlank() && !File(dir, stored.rawFile).isFile) {
+                    stored = stored.copy(rawFile = "", rawDeleted = true)
+                }
+                AtomicFiles.writeText(File(dir, "session.json"), SessionJsonCodec.encodeSession(stored))
+                AtomicFiles.writeText(
+                    File(dir, "laps/lap-%03d.json".format(lap.index)),
+                    SessionJsonCodec.encodeLap(lap),
+                )
+                File(dir, "lap.json").delete()
+                if (!dir.renameTo(target)) {
+                    failed++
+                    dir.deleteRecursively()
+                    return@forEach
+                }
+                imported++
+            }
+        } finally {
+            staging.deleteRecursively()
+        }
+        return ImportReport(imported, skipped, failed)
+    }
+
+    /** Entry names are untrusted: keep extraction inside the staging directory. */
+    private fun safeEntryPath(name: String): String {
+        val normalized = name.replace('\\', '/')
+        val parts = normalized.split('/')
+        val unsafe = normalized.startsWith("/") ||
+            !normalized.startsWith("$ITEM_ROOT/") ||
+            parts.any { it.isEmpty() || it == "." || it == ".." }
+        require(!unsafe) { "unsafe archive entry: $name" }
+        return normalized.removePrefix("$ITEM_ROOT/")
     }
 
     private class ArchivedFile(val relative: String, val file: File)

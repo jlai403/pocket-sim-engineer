@@ -5,8 +5,11 @@ import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -84,6 +87,86 @@ class LibraryArchiveTest {
             assertEquals(ZipEntry.DEFLATED, clip.method)
             assertTrue(clip.compressedSize >= clip.size)
             assertTrue(telemetry.compressedSize < telemetry.size / 2)
+        }
+    }
+
+    @Test
+    fun `round trip restores sessions and telemetry`() {
+        writeSession("s1", laps = listOf(1), videoBytes = ByteArray(1024) { 3 })
+        writeSessionFile("s1", "laps/lap-001.gt7lap", byteArrayOf(9, 9, 9))
+        val zip = File(temp, "library.zip")
+        LibraryArchive.export(temp, listOf(LapRef("s1", 1)), zip.outputStream())
+
+        val target = File(temp, "target").apply { mkdirs() }
+        val report = LibraryArchive.import(target, zip.inputStream())
+
+        assertEquals(ImportReport(laps = 1, skipped = 0, failed = 0), report)
+        val restored = File(target, "sessions/s1")
+        assertTrue(File(restored, "session.json").isFile)
+        assertTrue(File(restored, "laps/lap-001.json").isFile)
+        assertArrayEquals(byteArrayOf(9, 9, 9), File(restored, "laps/lap-001.gt7lap").readBytes())
+        assertArrayEquals(ByteArray(1024) { 3 }, File(restored, "laps/lap-001.mp4").readBytes())
+        assertEquals(1, SessionStore(target).summaries().size)
+    }
+
+    @Test
+    fun `importing twice skips existing sessions`() {
+        writeSession("s1", laps = listOf(1))
+        val zip = File(temp, "library.zip")
+        LibraryArchive.export(temp, listOf(LapRef("s1", 1)), zip.outputStream())
+        val target = File(temp, "target").apply { mkdirs() }
+
+        LibraryArchive.import(target, zip.inputStream())
+        val second = LibraryArchive.import(target, zip.inputStream())
+
+        assertEquals(ImportReport(laps = 0, skipped = 1, failed = 0), second)
+        assertEquals(1, SessionStore(target).summaries().size)
+    }
+
+    @Test
+    fun `missing referenced clip imports the lap without a replay`() {
+        val zip = File(temp, "broken.zip")
+        val lap = LapMetadata(
+            index = 1,
+            lapTimeMs = 91_000,
+            startNanos = 0,
+            endNanos = 0,
+            sampleCount = 0,
+            videoFile = "laps/lap-001.mp4",
+            leadInMs = 0,
+        )
+        val session = SessionMetadata(
+            sessionId = "s9",
+            createdAt = "2026-11-13T10:00:00Z",
+            trackLabel = "Monza",
+            carCode = 3474,
+            carName = "BRZ",
+            rawFile = "",
+            laps = listOf(lap),
+        )
+        writeZip(
+            zip,
+            mapOf(
+                "library.json" to json.encodeToString(LibraryManifest(1, "2026-11-13T10:00:00Z", 1, 0)).toByteArray(),
+                "library/s9/session.json" to SessionJsonCodec.encodeSession(session).toByteArray(),
+                "library/s9/lap.json" to SessionJsonCodec.encodeLap(lap).toByteArray(),
+            ),
+        )
+
+        val target = File(temp, "target").apply { mkdirs() }
+        val report = LibraryArchive.import(target, zip.inputStream())
+
+        assertEquals(ImportReport(laps = 1, skipped = 0, failed = 0), report)
+        assertEquals("", SessionStore(target).lap("s9", 1)!!.videoFile)
+    }
+
+    private fun writeZip(file: File, entries: Map<String, ByteArray>) {
+        ZipOutputStream(file.outputStream()).use { zip ->
+            for ((name, bytes) in entries) {
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
         }
     }
 
