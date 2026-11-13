@@ -302,7 +302,7 @@ internal fun TrackMap(
                 val dz = sample.positionZ - anchor.positionZ
                 Offset(
                     size.width / 2f + (dx * cosR - dz * sinR) * scale,
-                    size.height * 0.75f + (dx * sinR + dz * cosR) * scale * 0.5f,
+                    size.height * 0.78f + (dx * sinR + dz * cosR) * scale * 0.35f,
                 )
             }
 
@@ -365,12 +365,11 @@ internal fun TrackMap(
                 drawCircle(color = dotColor, radius = 12f, center = mapPoint(it))
             }
         }
-        MarkerLegend(modifier = Modifier.padding(top = 6.dp))
     }
 }
 
 @Composable
-private fun MarkerLegend(modifier: Modifier = Modifier) {
+internal fun TrackMapLegend(modifier: Modifier = Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         LegendItem("Brake", MaterialTheme.colorScheme.error)
         LegendItem("Throttle", MaterialTheme.colorScheme.primary)
