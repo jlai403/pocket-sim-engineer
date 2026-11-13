@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import io.github.jlai403.pocketsimengineer.core.model.Sample
 import io.github.jlai403.pocketsimengineer.core.session.LapMetadata
@@ -251,11 +252,11 @@ internal fun TrackMap(
         ghost?.let { it.samples.lapWindow(it.lap) } ?: emptyList()
     }
     val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-    val dotColor = MaterialTheme.colorScheme.primary
+    val dotColor = MaterialTheme.colorScheme.secondary
     val brakeColor = MaterialTheme.colorScheme.error
     val throttleColor = MaterialTheme.colorScheme.primary
     val turnInColor = MaterialTheme.colorScheme.secondary
-    val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+    val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
     val eventColors = mapOf(
         LapEventType.Brake to brakeColor,
         LapEventType.Throttle to throttleColor,
@@ -301,7 +302,7 @@ internal fun TrackMap(
                 val dz = sample.positionZ - anchor.positionZ
                 Offset(
                     size.width / 2f + (dx * cosR - dz * sinR) * scale,
-                    size.height / 2f + (dx * sinR + dz * cosR) * scale,
+                    size.height * 0.75f + (dx * sinR + dz * cosR) * scale * 0.5f,
                 )
             }
 
@@ -335,8 +336,8 @@ internal fun TrackMap(
                 val previous = window[index - segmentStep]
                 val sample = window[index]
                 val color = when {
-                    sample.brake > 0 -> brakeColor
-                    sample.throttle >= 60 -> throttleColor
+                    sample.brake > 0 -> lerp(trackColor, brakeColor, sample.brake / 255f)
+                    sample.throttle > 0 -> lerp(trackColor, throttleColor, sample.throttle / 255f)
                     else -> trackColor
                 }
                 drawLine(
@@ -361,7 +362,7 @@ internal fun TrackMap(
             }
 
             current?.let {
-                drawCircle(color = dotColor, radius = 7f, center = mapPoint(it))
+                drawCircle(color = dotColor, radius = 12f, center = mapPoint(it))
             }
         }
         MarkerLegend(modifier = Modifier.padding(top = 6.dp))
@@ -374,7 +375,7 @@ private fun MarkerLegend(modifier: Modifier = Modifier) {
         LegendItem("Brake", MaterialTheme.colorScheme.error)
         LegendItem("Throttle", MaterialTheme.colorScheme.primary)
         LegendItem("Turn-in", MaterialTheme.colorScheme.secondary)
-        LegendItem("Ghost", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f))
+        LegendItem("Ghost", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
     }
 }
 

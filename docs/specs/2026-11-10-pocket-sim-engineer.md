@@ -191,7 +191,7 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 - `PlaybackCursor.telemetryMs(positionMs, leadInMs, syncOffsetMs, lapTimeMs)` maps video to lap time; `clipMs(lapMs, leadInMs, syncOffsetMs)` is its inverse.
 - The sync screen's slider and frame ruler span the whole clip.
 - The lap screen's playback controls sit in a sticky footer: one time readout, the frame ruler as the only scrubber, centred play/pause with rewind/forward jumping to the previous/next brake point, and a speed dropdown (0.5×/1×/1.5×/2×). Changes last until the screen closes; the default comes from Settings.
-- The ruler shows a progress track and turn-in/apex/exit dots; it supports pinch-to-zoom. The track map colours its segments by pedal state, marks turn-in, shows a dashed ghost lap, and offers Follow (driver heading, zoomed to the next ~2 s) and Ghost chips.
+- The ruler shows a progress track and turn-in/apex/exit dots; it supports pinch-to-zoom. The track map colours its segments by pedal strength, marks turn-in, shows a dashed grey ghost lap, and offers Follow (driver-perspective tilt zoomed to the next ~2 s) and Ghost chips.
 - A setting-controlled telemetry HUD overlays the video's top centre with the ±2 s throttle/brake traces.
 - The header collapses to the lap time; tapping it reveals track, driver, car, lap stats, and the vs-ghost comparison.
 - Trace chips above the charts show or hide the speed/gear and throttle/brake charts.
