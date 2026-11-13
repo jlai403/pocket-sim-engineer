@@ -13,6 +13,9 @@ data class LapSummary(
     val hasReplay: Boolean,
     val replayPending: Boolean,
     val driverPsnId: String? = null,
+    val videoBytes: Long = 0,
+    val telemetryBytes: Long = 0,
+    val pendingBytes: Long = 0,
 )
 
 enum class LapSort { Newest, Fastest, Track }

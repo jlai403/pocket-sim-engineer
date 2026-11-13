@@ -79,3 +79,11 @@ internal fun lapStatsComparison(current: LapStats, ghost: LapStats?, imperial: B
 
 private fun percent(partMs: Int, wholeMs: Int): Int =
     if (wholeMs <= 0) 0 else partMs * 100 / wholeMs
+
+/** Human-readable file size for the lap data summary. */
+internal fun formatBytes(bytes: Long): String = when {
+    bytes >= 1_000_000_000 -> "%.2f GB".format(bytes / 1_000_000_000.0)
+    bytes >= 1_000_000 -> "%.1f MB".format(bytes / 1_000_000.0)
+    bytes >= 1_000 -> "%.0f KB".format(bytes / 1_000.0)
+    else -> "$bytes B"
+}

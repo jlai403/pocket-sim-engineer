@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
+import io.github.jlai403.pocketsimengineer.app.settings.ReplayPreset
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.app.updater.UpdateManager
 import io.github.jlai403.pocketsimengineer.core.update.UpdateManifest
@@ -42,6 +43,21 @@ class SettingsScreenTest {
         DriverProfileStore(context).clear()
         SettingsStore(context).previewEmptyLibrary = false
         SettingsStore(context).hapticsEnabled = true
+        SettingsStore(context).replayPreset = ReplayPreset.Balanced
+    }
+
+    @Test
+    fun `replay compression preset updates the caption`() {
+        compose.setContent {
+            PocketSimEngineerTheme { SettingsScreen() }
+        }
+
+        compose.onNodeWithText("REPLAY COMPRESSION").performScrollTo().assertExists()
+        compose.onNodeWithText("Balanced").performScrollTo().performClick()
+        compose.onNodeWithText("Compact").performClick()
+
+        assertEquals(ReplayPreset.Compact, SettingsStore(context).replayPreset)
+        compose.onNodeWithText("Changed: 720p HEVC ~3 Mbps", substring = true).assertExists()
     }
 
     @Test

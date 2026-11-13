@@ -1,6 +1,7 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
@@ -49,6 +50,7 @@ import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.ui.PlayerView
 import io.github.jlai403.pocketsimengineer.app.replay.ClipTrimmer
 import io.github.jlai403.pocketsimengineer.app.replay.ReplayStore
+import io.github.jlai403.pocketsimengineer.app.replay.VideoTranscoder
 import io.github.jlai403.pocketsimengineer.app.replay.probeClip
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
 import io.github.jlai403.pocketsimengineer.core.clip.ClipSync
@@ -80,7 +82,9 @@ fun ImportSyncScreen(
     val scope = rememberCoroutineScope()
     val store = remember { SessionStore(context.filesDir) }
     val trimmer = remember { ClipTrimmer() }
+    val transcoder = remember { VideoTranscoder(context) }
     val settings = remember { SettingsStore(context) }
+    val replayProfile = remember { settings.replayProfile() }
     val hapticsEnabled = settings.hapticsEnabled
     val player = remember(sessionId, lapIndex) {
         ExoPlayer.Builder(context).build().apply {
@@ -506,7 +510,11 @@ fun ImportSyncScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GhostPill("Discard", { confirmCancel = true }, Modifier.weight(1f))
             PrimaryPill(
-                text = if (saving) "Saving…" else "Save clip",
+                text = when {
+                    !saving -> "Save clip"
+                    replayProfile.transcode -> "Compacting…"
+                    else -> "Saving…"
+                },
                 onClick = {
                     val trimRange = range
                     val source = sourceFile
@@ -520,13 +528,28 @@ fun ImportSyncScreen(
                                 )
                                 val trimmed = trimmer.trim(source, output, trimRange)
                                     ?: return@withContext null
+                                val profile = replayProfile
+                                var compactFailed = false
+                                if (profile.transcode) {
+                                    val compact = File(output.absolutePath + ".compact.mp4")
+                                    if (transcoder.transcode(output, compact, profile)) {
+                                        if (output.delete() && compact.renameTo(output)) {
+                                            // Keep the compacted file; fall through to attach.
+                                        } else {
+                                            compact.delete()
+                                            compactFailed = true
+                                        }
+                                    } else {
+                                        compactFailed = true
+                                    }
+                                }
                                 store.attachClip(
                                     sessionId = sessionId,
                                     lapIndex = lapIndex,
                                     videoFile = "laps/lap-%03d.mp4".format(lapIndex),
                                     leadInMs = trimmed.startOffsetMs,
                                 )
-                                trimmed
+                                trimmed to compactFailed
                             }
                             saving = false
                             if (result == null) {
@@ -536,6 +559,13 @@ fun ImportSyncScreen(
                                     "Trim failed. The replay stays attached; try again."
                                 }
                             } else {
+                                if (result.second) {
+                                    Toast.makeText(
+                                        context,
+                                        "Compaction failed; kept the uncompressed clip.",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
                                 onDone()
                             }
                         }

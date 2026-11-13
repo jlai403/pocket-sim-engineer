@@ -147,6 +147,21 @@ internal fun EditLapSheet(
                 )
             }
 
+            SectionLabel("Data")
+            Text(
+                formatBytes(lap.videoBytes + lap.telemetryBytes + lap.pendingBytes) + " total",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                listOfNotNull(
+                    lap.videoBytes.takeIf { it > 0 }?.let { "Replay ${formatBytes(it)}" },
+                    lap.pendingBytes.takeIf { it > 0 }?.let { "Pending clip ${formatBytes(it)}" },
+                    "Telemetry ${formatBytes(lap.telemetryBytes)}",
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
             PrimaryPill(
                 text = "Save",
                 onClick = { onSaveTrack(track.trim().ifBlank { TrackNamer.UNKNOWN }) },
@@ -154,7 +169,6 @@ internal fun EditLapSheet(
             )
         }
     }
-
     if (addingDriver) {
         AddDriverDialog(
             lookupProfile = { GridStatsProfileClient().fetch(it) },
