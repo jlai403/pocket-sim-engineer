@@ -36,15 +36,15 @@ val gitSha = runCatching {
 }.getOrDefault("dev")
 
 android {
-    namespace = "io.github.jlai403.pocketsimengineer"
+    namespace = "io.github.jlai403.lapcraft"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.github.jlai403.pocketsimengineer"
+        applicationId = "io.github.jlai403.lapcraft"
         minSdk = 29
         targetSdk = 36
         versionCode = 1000 + commitCount
-        versionName = "0.1.0"
+        versionName = "0.2.0"
         buildConfigField("String", "BUILD_NUMBER", "\"$buildNumber\"")
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
         buildConfigField("String", "UPDATE_CHANNEL", "\"$updateChannel\"")

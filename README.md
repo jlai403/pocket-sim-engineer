@@ -1,4 +1,4 @@
-# Pocket Sim Engineer
+# LapCraft
 
 Android telemetry and synchronized replay for Gran Turismo 7. Capture one lap of GT7 telemetry, attach a single-lap replay from the PS5, and review the lap with charts, a track map, and a telemetry cursor that follows the replay.
 
@@ -14,7 +14,7 @@ Android telemetry and synchronized replay for Gran Turismo 7. Capture one lap of
 ## Architecture
 
 ```text
-pocket-sim-engineer/
+lapcraft/
 ├── core/   # Kotlin JVM: protocol, lap detection, track ID, clip sync math, session codecs
 └── app/    # Android: Compose UI, foreground telemetry service, replay trim, Media3
 ```
@@ -24,10 +24,10 @@ pocket-sim-engineer/
 ## Workflow
 
 0. Optionally add your GT profile in **Settings → Driver profile**; it becomes the default driver for new laps and the name and flag appear above the lap list.
-1. **PSE → Record**: connect to GT7 and drive.
+1. **LapCraft → Record**: connect to GT7 and drive.
 2. Tap **Capture this lap** after crossing the start line. The app saves exactly one lap at the next crossing.
 3. In GT7, record the single-lap replay with HUD on and the race camera. Use the PS5 Create menu and keep a few seconds of lead-in.
-4. Media Gallery → **Upload to PlayStation App**; in the PS App, **Download** or **Share** to PSE. The lap screen's replay source button opens Files or the PlayStation App (or its store listing).
+4. Media Gallery → **Upload to PlayStation App**; in the PS App, **Download** or **Share** to LapCraft. The lap screen's replay source button opens Files or the PlayStation App (or its store listing).
 5. Open the lap → **Add replay** → **Files**. The playhead starts at the clip's end with a suggested anchor there; drag the timeline or the frame ruler, or frame-step back to the lap-end line, then **Set anchor at this frame**.
 6. **Check start frame**, preview, save, and review. The trimmed clip is one lap; the imported original is deleted.
 
@@ -59,8 +59,8 @@ Import merges: ids that already exist are skipped, so importing the same file tw
 
 ## Update channels
 
-- **Preview** — every push to `main` replaces the `preview-latest` prerelease: `PocketSimEngineer-preview.apk` plus `latest.json`. Preview builds check this channel.
-- **Stable** — a `v*` tag creates the latest release with `PocketSimEngineer-<tag>.apk` plus `latest.json`. Tag builds check `releases/latest`.
+- **Preview** — every push to `main` replaces the `preview-latest` prerelease: `LapCraft-preview.apk` plus `latest.json`. Preview builds check this channel.
+- **Stable** — a `v*` tag creates the latest release with `LapCraft-<tag>.apk` plus `latest.json`. Tag builds check `releases/latest`.
 
 The app checks once a day (or from Settings → Updates), compares `versionCode`, downloads the APK, verifies its SHA-256, and hands it to Android's installer. The user always confirms the install. Checks are skipped when the app was installed by F-Droid or Play.
 
@@ -70,9 +70,9 @@ The app checks once a day (or from Settings → Updates), compares `versionCode`
 
 ```bash
 # preview APK
-gh release download preview-latest -p PocketSimEngineer-preview.apk -D dist --clobber
+gh release download preview-latest -p LapCraft-preview.apk -D dist --clobber
 # stable APK
-gh release download latest -p 'PocketSimEngineer-*.apk' -D dist --clobber
+gh release download latest -p 'LapCraft-*.apk' -D dist --clobber
 ```
 
 ## Build
@@ -119,4 +119,4 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 - Pixel 10, Android 16.
 - `minSdk 29`, `targetSdk 36`, `compileSdk 36`.
-- Package: `io.github.jlai403.pocketsimengineer`.
+- Package: `io.github.jlai403.lapcraft`.

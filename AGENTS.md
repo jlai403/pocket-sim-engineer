@@ -1,7 +1,7 @@
-# AGENTS.md — Pocket Sim Engineer
+# AGENTS.md — LapCraft
 
 Android app for GT7 telemetry-only lap review. Kotlin + Jetpack Compose, `minSdk 29`,
-`targetSdk 36`, package `io.github.jlai403.pocketsimengineer`.
+`targetSdk 36`, package `io.github.jlai403.lapcraft`.
 
 ## Commands
 
