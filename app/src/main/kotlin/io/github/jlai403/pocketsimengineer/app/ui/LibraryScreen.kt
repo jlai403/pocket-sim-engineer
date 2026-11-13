@@ -47,6 +47,7 @@ import io.github.jlai403.pocketsimengineer.app.replay.LapReencoder
 import io.github.jlai403.pocketsimengineer.app.replay.PlayStationApp
 import io.github.jlai403.pocketsimengineer.app.replay.VideoTranscoder
 import io.github.jlai403.pocketsimengineer.app.settings.SettingsStore
+import io.github.jlai403.pocketsimengineer.app.share.LibraryTransfer
 import io.github.jlai403.pocketsimengineer.app.track.TrackCatalog
 import io.github.jlai403.pocketsimengineer.app.track.TrackNamer
 import io.github.jlai403.pocketsimengineer.core.session.LapFilter
@@ -103,6 +104,22 @@ fun LibraryScreen(
         syncTarget = null
         if (uri != null && target != null) {
             onOpenSync(target.sessionId, target.lapIndex, uri.toString())
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            message = "Importing laps…"
+            scope.launch {
+                runCatching {
+                    LibraryTransfer.import(context, uri, context.filesDir) { _, _ -> }
+                }
+                    .onSuccess {
+                        message = importSummary(it)
+                        reload++
+                    }
+                    .onFailure { message = "Import failed: ${it.message ?: "unknown error"}" }
+            }
         }
     }
 
@@ -342,7 +359,14 @@ fun LibraryScreen(
 
                     previewEmpty || all.isEmpty() -> item {
                         Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                            EmptyLibrary(onOpenRecord)
+                            EmptyLibrary(
+                                onOpenRecord = onOpenRecord,
+                                onImport = {
+                                    importLauncher.launch(
+                                        arrayOf("application/zip", "application/octet-stream"),
+                                    )
+                                },
+                            )
                         }
                     }
 
@@ -455,7 +479,7 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun EmptyLibrary(onOpenRecord: () -> Unit) {
+private fun EmptyLibrary(onOpenRecord: () -> Unit, onImport: () -> Unit) {
     SectionCard {
         Text("No laps yet", style = MaterialTheme.typography.titleLarge)
         Text(
@@ -468,6 +492,11 @@ private fun EmptyLibrary(onOpenRecord: () -> Unit) {
             text = "Go to Record",
             onClick = onOpenRecord,
             modifier = Modifier.fillMaxWidth(),
+        )
+        GhostPill(
+            text = "Import a backup",
+            onClick = onImport,
+            modifier = Modifier.fillMaxWidth().testTag("library-import-backup"),
         )
     }
 }
