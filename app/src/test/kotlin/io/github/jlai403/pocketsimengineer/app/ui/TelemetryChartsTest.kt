@@ -84,15 +84,15 @@ class TelemetryChartsTest {
     }
 
     @Test
-    fun `track legend lists brake, throttle, turn-in, ghost`() {
+    fun `track legend lists brake, throttle, and ghost`() {
         compose.setContent {
             PocketSimEngineerTheme { TrackMapLegend() }
         }
 
         compose.onNodeWithText("Brake").assertExists()
         compose.onNodeWithText("Throttle").assertExists()
-        compose.onNodeWithText("Turn-in").assertExists()
         compose.onNodeWithText("Ghost").assertExists()
+        compose.onNodeWithText("Turn-in").assertDoesNotExist()
         compose.onNodeWithText("Apex").assertDoesNotExist()
         compose.onNodeWithText("Exit").assertDoesNotExist()
     }

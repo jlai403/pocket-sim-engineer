@@ -162,11 +162,11 @@ private fun BarRow(label: String, fraction: Float, value: String, color: Color) 
                 label,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelSmall,
-            )
-            Text(
-                value,
-                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            NumericText(
+                text = value,
+                style = MaterialTheme.typography.labelSmall,
             )
         }
         Spacer(Modifier.height(4.dp))
@@ -205,7 +205,11 @@ private fun TraceChart(
     val axisColor = MaterialTheme.colorScheme.outlineVariant
     val cursorColor = MaterialTheme.colorScheme.onSurface
     Column {
-        Text(label, style = MaterialTheme.typography.labelSmall)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -262,7 +266,6 @@ internal fun TrackMap(
     val minZ = points.minOf { it.second }
     val maxZ = points.maxOf { it.second }
     val current = remember(window, lap, cursorMs) { window.sampleAt(lap, cursorMs) }
-    val events = remember(window, lap) { lapEvents(window, lap) }
     val ghostWindow = remember(ghost) {
         ghost?.let { it.samples.lapWindow(it.lap) } ?: emptyList()
     }
@@ -270,13 +273,7 @@ internal fun TrackMap(
     val dotColor = MaterialTheme.colorScheme.secondary
     val brakeColor = MaterialTheme.colorScheme.error
     val throttleColor = MaterialTheme.colorScheme.primary
-    val turnInColor = MaterialTheme.colorScheme.secondary
     val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-    val eventColors = mapOf(
-        LapEventType.Brake to brakeColor,
-        LapEventType.Throttle to throttleColor,
-        LapEventType.TurnIn to turnInColor,
-    )
     val anchor = if (follow) current else null
     val heading = remember(anchor, window, lap, cursorMs) {
         if (anchor == null) {
@@ -363,19 +360,6 @@ internal fun TrackMap(
                 )
             }
 
-            events.forEach { event ->
-                val sample = window.sampleAt(lap, event.timeMs) ?: return@forEach
-                val point = mapPoint(sample)
-                when (event.type) {
-                    LapEventType.TurnIn -> drawCircle(
-                        color = eventColors.getValue(event.type),
-                        radius = 4.dp.toPx(),
-                        center = point,
-                    )
-                    else -> Unit
-                }
-            }
-
             current?.let {
                 drawCircle(color = dotColor, radius = 12f, center = mapPoint(it))
             }
@@ -385,10 +369,9 @@ internal fun TrackMap(
 
 @Composable
 internal fun TrackMapLegend(modifier: Modifier = Modifier) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         LegendItem("Brake", MaterialTheme.colorScheme.error)
         LegendItem("Throttle", MaterialTheme.colorScheme.primary)
-        LegendItem("Turn-in", MaterialTheme.colorScheme.secondary)
         LegendItem("Ghost", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
     }
 }

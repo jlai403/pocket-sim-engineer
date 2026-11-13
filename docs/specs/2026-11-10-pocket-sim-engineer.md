@@ -189,15 +189,16 @@ A GT7 player reviewing their own hotlaps on a Pixel-class Android phone. They ca
 
 ### 8.7 Playback
 
-- Media3 ExoPlayer; exact seeks for frame stepping, and the rendered frame drives the cursor. Ruler drags keep at most one seek in flight, always to the newest target, and the readout shows that target until the frame lands.
+- Media3 ExoPlayer; the lap player uses nearest-keyframe seeks and the sync screen keeps exact seeks for frame-accurate anchoring. Ruler drags keep at most one seek in flight, always to the newest target, and the readout shows that target until the frame lands.
 - `PlaybackCursor.telemetryMs(positionMs, leadInMs, syncOffsetMs, lapTimeMs)` maps video to lap time; `clipMs(lapMs, leadInMs, syncOffsetMs)` is its inverse.
 - The sync screen's slider and frame ruler span the whole clip.
-- The lap screen's playback controls sit in a sticky footer: one time readout, the frame ruler as the only scrubber, centred play/pause with skip-previous/next jumping to the previous/next brake point, a Loop toggle, and a speed dropdown (0.5×/1×/1.5×/2×). Changes last until the screen closes; the default comes from Settings. While the ruler is held, seeks snap to the nearest keyframe; releasing restores exact seeking and lands on the requested frame.
-- The ruler shows a progress track and turn-in/apex/exit dots; it supports pinch-to-zoom. The track map colours its segments by pedal strength, marks turn-in, shows a dashed grey ghost lap, and offers Follow (driver-perspective tilt zoomed to the next ~2 s), Ghost, and Reset chips; its legend sits under the title, above the map.
+- The lap screen's playback controls sit in a sticky footer: one time readout, the frame ruler as the only scrubber, centred play/pause with skip-previous/next jumping to the previous/next brake point, a Loop toggle, and a `− / +` speed stepper (0.5×/1×/1.5×/2×). Changes last until the screen closes; the default comes from Settings.
+- Each trimmed clip can have `laps/lap-NNN.preview/`: one 480×270 JPEG per keyframe plus an `index.json` of keyframe times (~3–4 MB per 90 s lap). It is generated in the background on first open and deleted when the clip is replaced or the lap is deleted. While the ruler is dragged, the nearest cached keyframe is shown over the video and the player is not seeked; releasing seeks to that keyframe. Without a cache, the fallback is a nearest-keyframe seek paced at 33 ms.
+- The ruler shows a progress track and brake/throttle/apex/exit dots; it supports pinch-to-zoom. The track map colours its segments by pedal strength, shows a dashed grey ghost lap, and offers Follow (on by default; driver-perspective tilt zoomed to the next ~2 s), Ghost, and Reset chips; its vertical legend sits under the title, above the map.
 - A setting-controlled telemetry HUD overlays the video's top centre with the last 2 s of throttle/brake traces.
 - The header collapses to the lap time; tapping it reveals track, driver, car, lap stats, and the vs-ghost comparison.
 - Trace chips above the charts show or hide the speed/gear and throttle/brake charts.
-- Charts and track map follow the cursor. Readouts and the map dot interpolate between the two samples bracketing the cursor time; gear snaps to the nearest sample and the cursor line stays on the video frame.
+- Charts and track map follow the cursor. Readouts and the map dot interpolate between the two samples bracketing the cursor time, including tyre temperatures and fuel; gear snaps to the nearest sample and the cursor line stays on the video frame.
 - The chart stack shows throttle/brake combined first and speed with gear overlaid second; RPM is a value bar only. The readout is three 44 dp bar rows (THR, BRK, RPM) with the four-wheel tire heatmap beside them (blue cold, green optimal, red hot) and an F1 steering wheel under the tires that turns with the recorded wheel angle. Laps with no recorded steering show no wheel.
 - Legacy screen-recorded clips keep their stored offsets.
 
@@ -343,7 +344,7 @@ The core is plain Kotlin and the session files are portable. A Rust core or desk
 - The sync screen opens at the clip end with a suggested anchor, and frame-stepping reaches the lap-end frame; the trim is one lap long.
 - A clip shorter than the lap is blocked.
 - After save, the trimmed clip plays with the cursor aligned to the lap.
-- The lap screen's frame ruler moves the playhead one frame and the charts and map follow while paused; the footer's speed dropdown changes playback rate without changing the seek target.
+- The lap screen's frame ruler moves the playhead one frame and the charts and map follow while paused; the footer's speed stepper changes playback rate without changing the seek target.
 - The replay source actions offer Files and the PlayStation App from the `Edit lap` sheet in every lap state.
 - Discard deletes the imported copy and leaves the telemetry.
 - `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` passes.

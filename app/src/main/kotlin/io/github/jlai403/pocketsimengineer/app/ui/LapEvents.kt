@@ -6,7 +6,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 
-enum class LapEventType { Brake, Throttle, TurnIn, Apex, Exit }
+enum class LapEventType { Brake, Throttle, Apex, Exit }
 
 data class LapEvent(val type: LapEventType, val timeMs: Int)
 
@@ -19,9 +19,8 @@ private const val TURN_WINDOW_MS = 250
 
 /**
  * Onset markers for the lap: one brake and throttle marker when the condition
- * first appears, plus turn-in / apex / exit for each corner. Repeated markers
- * of the same type are spaced by at least [MIN_EVENT_GAP_MS] so the ruler and
- * map stay readable.
+ * first appears, plus apex / exit for each corner. Repeated markers of the same
+ * type are spaced by at least [MIN_EVENT_GAP_MS] so the ruler and map stay readable.
  */
 internal fun lapEvents(window: List<Sample>, lap: LapMetadata): List<LapEvent> {
     if (window.isEmpty()) return emptyList()
@@ -61,7 +60,6 @@ internal fun lapEvents(window: List<Sample>, lap: LapMetadata): List<LapEvent> {
         val value = signalAt(index)
         if (!inCorner) {
             if (value >= threshold) {
-                add(LapEventType.TurnIn, window[index].lapTimeMs(lap))
                 inCorner = true
                 apexIndex = index
                 apexValue = value
@@ -85,7 +83,7 @@ internal fun lapEvents(window: List<Sample>, lap: LapMetadata): List<LapEvent> {
     return events.sortedBy { it.timeMs }
 }
 
-/** Heading change over a short window; a fallback while packet C steering is unparsed. */
+/** Heading change over a short window; used for laps recorded before steering was parsed. */
 private fun curvatureAt(window: List<Sample>, lap: LapMetadata): FloatArray {
     val times = IntArray(window.size) { window[it].lapTimeMs(lap) }
     fun heading(from: Int, to: Int): Float = atan2(

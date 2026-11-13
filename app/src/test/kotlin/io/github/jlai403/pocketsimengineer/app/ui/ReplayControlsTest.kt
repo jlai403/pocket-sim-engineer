@@ -83,4 +83,12 @@ class ReplayControlsTest {
         assertEquals("1.5×", playbackSpeedLabel(1.5f))
         assertEquals("2×", playbackSpeedLabel(2f))
     }
+
+    @Test
+    fun `playback speed steps clamp at the ends`() {
+        assertEquals(1.5f, steppedPlaybackSpeed(1f, 1))
+        assertEquals(0.5f, steppedPlaybackSpeed(0.5f, -1))
+        assertEquals(2f, steppedPlaybackSpeed(2f, 1))
+        assertEquals(2f, steppedPlaybackSpeed(1.5f, 1))
+    }
 }

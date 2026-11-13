@@ -2,6 +2,7 @@ package io.github.jlai403.pocketsimengineer.app.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -16,14 +17,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,13 +30,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -61,6 +59,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -71,6 +70,13 @@ internal val PLAYBACK_SPEEDS = listOf(0.5f, 1f, 1.5f, 2f)
 
 internal fun playbackSpeedLabel(speed: Float): String =
     if (speed % 1f == 0f) "%.0f×".format(speed) else "%.1f×".format(speed)
+
+/** The next rate in [PLAYBACK_SPEEDS]; clamps at the ends. */
+internal fun steppedPlaybackSpeed(speed: Float, direction: Int): Float {
+    val current = PLAYBACK_SPEEDS.indexOf(speed).takeIf { it >= 0 }
+        ?: PLAYBACK_SPEEDS.indexOf(1f)
+    return PLAYBACK_SPEEDS[(current + direction).coerceIn(0, PLAYBACK_SPEEDS.lastIndex)]
+}
 
 private val FrameStepWidth = 6.dp
 
@@ -253,7 +259,7 @@ internal fun PlaybackFooter(
                     )
                 }
                 Box(modifier = Modifier.align(Alignment.CenterEnd)) {
-                    SpeedPill(speed = speed, onSpeedChange = onSpeedChange)
+                    SpeedStepper(speed = speed, onSpeedChange = onSpeedChange)
                 }
             }
         }
@@ -261,25 +267,40 @@ internal fun PlaybackFooter(
 }
 
 @Composable
-private fun SpeedPill(speed: Float, onSpeedChange: (Float) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        GhostPill(
-            text = playbackSpeedLabel(speed),
-            onClick = { open = true },
-            modifier = Modifier.testTag("speed-menu"),
-            trailingIcon = Icons.Filled.KeyboardArrowDown,
-        )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            PLAYBACK_SPEEDS.forEach { rate ->
-                DropdownMenuItem(
-                    text = { Text(playbackSpeedLabel(rate)) },
-                    onClick = {
-                        onSpeedChange(rate)
-                        open = false
-                    },
-                )
-            }
+private fun SpeedStepper(speed: Float, onSpeedChange: (Float) -> Unit) {
+    val index = PLAYBACK_SPEEDS.indexOf(speed).takeIf { it >= 0 }
+        ?: PLAYBACK_SPEEDS.indexOf(1f)
+    Row(
+        modifier = Modifier
+            .height(44.dp)
+            .clip(CircleShape)
+            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(
+            onClick = { onSpeedChange(PLAYBACK_SPEEDS[index - 1]) },
+            enabled = index > 0,
+            modifier = Modifier.size(40.dp).testTag("speed-down"),
+            contentPadding = PaddingValues(0.dp),
+        ) {
+            Text("−", style = MaterialTheme.typography.labelLarge)
+        }
+        Box(
+            modifier = Modifier.widthIn(min = 34.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            NumericText(
+                text = playbackSpeedLabel(speed),
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+        TextButton(
+            onClick = { onSpeedChange(PLAYBACK_SPEEDS[index + 1]) },
+            enabled = index < PLAYBACK_SPEEDS.lastIndex,
+            modifier = Modifier.size(40.dp).testTag("speed-up"),
+            contentPadding = PaddingValues(0.dp),
+        ) {
+            Text("+", style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -368,13 +389,13 @@ internal fun FrameRuler(
     val eventColors = mapOf(
         LapEventType.Brake to MaterialTheme.colorScheme.error,
         LapEventType.Throttle to MaterialTheme.colorScheme.primary,
-        LapEventType.TurnIn to MaterialTheme.colorScheme.secondary,
         LapEventType.Apex to MaterialTheme.colorScheme.tertiary,
         LapEventType.Exit to MaterialTheme.colorScheme.onSurfaceVariant,
     )
     val labelStyle = MaterialTheme.typography.labelSmall.copy(
         fontFamily = GeistMonoFamily,
         color = labelColor,
+        letterSpacing = 0.sp,
     )
     val step = frameStepMs.coerceAtLeast(1L)
     val labelEvery = (500L / step).coerceAtLeast(1L)

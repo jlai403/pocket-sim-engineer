@@ -70,6 +70,7 @@ Rules:
 | `bodySmall` | Sans | 12 sp | Normal | metadata, subtitles, hints |
 | `labelLarge` | Sans | 14 sp | SemiBold | buttons, tabs |
 | `labelMedium` | Sans | 12 sp | SemiBold, 0.4 tracking | uppercase section labels, chips |
+| `labelSmall` | Sans | 11 sp | Medium, 0.5 tracking | compact labels, legends, ruler ticks |
 | `NumericText` | Mono | inherits | inherits | lap times, stat values, cursor, telemetry row |
 
 Line heights are set in `Theme.kt` to Geist metrics (for example 25/30 for `headlineMedium`, 20/26 for `titleLarge`). Adjust type sizes and line heights together.
@@ -174,9 +175,10 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Header: `Lap N · M:SS.mmm` with a chevron. Collapsed shows only the title; tapping expands track, driver flag/name, car, lap stats (top/min/avg), and the vs-ghost comparison. One overflow menu: `Share video`, `Share screenshot`, `Export CSV`, `Edit lap`.
 - Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden. A telemetry HUD overlays the top centre with the last 2 s of throttle/brake traces when enabled in Settings.
 - Replay management lives in the `Edit lap` sheet: track, driver, add/replace replay, resume a pending sync, and the lap's data volume (replay + telemetry). The main screen keeps only `Add replay` when no clip exists.
+- Scrub preview: each trimmed clip can have `laps/lap-NNN.preview/` with one 480×270 JPEG per keyframe and an `index.json` of keyframe times (~3–4 MB per 90 s lap). It is generated in the background on first open and deleted when the clip is replaced or the lap is deleted. Missing or half-built caches fall back to keyframe seeks.
 - New imports are trimmed and then compacted with the Settings replay profile (default 1080p HEVC, ~5 Mbps, 0.5 s keyframes, stereo). If compaction fails the trimmed clip is kept and a `Compaction failed` toast appears.
 - Missing video: `Replay` card with a one-sentence explanation and the source pill.
-- Playback footer (sticky): `current / lap` in mono, the frame ruler, then centred compact transport (skip-previous/next jump to the previous/next brake point, with a Loop toggle and speed dropdown at the right). The ruler is the only scrubber and shows a progress track, event dots, and pinch zoom. While the ruler is held, seeks snap to the nearest keyframe for responsiveness; releasing restores exact seeking and lands on the requested frame.
+- Playback footer (sticky): `current / lap` in mono, the frame ruler, then centred compact transport (skip-previous/next jump to the previous/next brake point, with a Loop toggle and a `− / +` speed stepper at the right). The ruler is the only scrubber and shows a progress track, event dots, and pinch zoom. Seeks snap to the nearest keyframe while dragging and on release. While dragging, the cached keyframe image (480×270 JPEG) is shown over the video; release seeks the player to that keyframe.
 - Scrolling content above the footer: video, telemetry card with trace toggles, track-map card. The rendered frame drives the charts and map, including while paused.
 - Speed changes last until you leave the lap screen; the default comes from Settings.
 
@@ -201,11 +203,11 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Axis: 1 px `outlineVariant`; cursor: 3 px `onSurface`.
 - Trace stroke: 2 px. Chart heights: 52 dp.
 - Map: coloured 3 px segments by pedal state, intensity lerped from muted grey to green (throttle) or red (brake) by pedal strength; 12 px blue dot at the cursor, 200 dp tall. A dashed grey ghost lap overlays the fastest lap on the same track.
-- Turn markers: turn-in (filled circle) on the map; the ruler also marks apex (diamond) and exit (hollow circle). Derived from steering when available, otherwise track curvature.
-- Map chips: `Follow` centres on the car, puts the heading up, anchors the car near the bottom, squashes the vertical axis 0.35× for a driver's-perspective tilt, and zooms to the next ~2 s; `Ghost` toggles the reference lap; `Reset` returns to fit-all. The legend lists brake, throttle, turn-in, and ghost under the title, above the map.
+- Turn markers: the ruler marks brake, throttle, apex, and exit events. The map colours segments by pedal strength but draws no turn-in dots.
+- Map chips: `Follow` is on by default and centres on the car, puts the heading up, anchors the car near the bottom, squashes the vertical axis 0.35× for a driver's-perspective tilt, and zooms to the next ~2 s; `Ghost` toggles the reference lap; `Reset` returns to fit-all. The legend is a vertical list of brake, throttle, and ghost under the title, above the map.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.
-- Readout: three 44 dp bar rows (THR green, BRK red, RPM amber) with labels above and values right, no speed/gear text and no per-bar sparklines; the 2×2 tire heatmap (32 dp tiles, blue cold → green optimal → red hot) sits to the right, vertically centered, with a 40 dp F1 steering wheel under it that turns with the recorded wheel angle (laps recorded before steering was parsed show no wheel).
-- Values and the map dot interpolate between the two samples that bracket the cursor time; gear snaps to the nearest sample. The cursor line stays on the video frame.
+- Readout: three 44 dp bar rows (THR green, BRK red, RPM amber) with labels above and values right, no speed/gear text and no per-bar sparklines; the 2×2 tire heatmap (32 dp tiles, blue cold → green optimal → red hot) sits to the right, vertically centered, with a 40 dp F1 steering wheel under it that turns with the recorded wheel angle (laps recorded before steering was parsed show no wheel). Labels use `labelSmall`; values use Geist Mono.
+- Values and the map dot interpolate between the two samples that bracket the cursor time, including tyre temperatures and fuel; gear snaps to the nearest sample. The cursor line stays on the video frame.
 
 ## Recording feedback outside the app
 

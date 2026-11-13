@@ -175,6 +175,32 @@ class LapSummaryTest {
     }
 
     @Test
+    fun `attachClip clears the preview cache`() {
+        val store = install(videoFile = "laps/lap-001.mp4", createFile = true)
+        val preview = File(store.sessionDir("s1"), "laps/lap-001.preview").apply {
+            mkdirs()
+            File(this, "00000.jpg").writeText("x")
+        }
+
+        store.attachClip("s1", 1, "laps/lap-001.mp4", 1_234)
+
+        assertFalse(preview.exists())
+    }
+
+    @Test
+    fun `deleteLap removes the preview cache`() {
+        val store = install(videoFile = "laps/lap-001.mp4", createFile = true)
+        val preview = File(store.sessionDir("s1"), "laps/lap-001.preview").apply {
+            mkdirs()
+            File(this, "00000.jpg").writeText("x")
+        }
+
+        assertTrue(store.deleteLap("s1", 1))
+
+        assertFalse(preview.exists())
+    }
+
+    @Test
     fun `filters by replay and track`() {
         install(id = "s1", trackLabel = "Suzuka")
         install(

@@ -143,6 +143,13 @@ private val SportTypography = Typography(
         lineHeight = 16.sp,
         letterSpacing = 0.4.sp,
     ),
+    labelSmall = TextStyle(
+        fontFamily = GeistSansFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
+        letterSpacing = 0.5.sp,
+    ),
 )
 
 @Composable

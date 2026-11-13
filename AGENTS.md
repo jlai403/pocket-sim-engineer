@@ -32,7 +32,7 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 - Library is a flat feed: no cards/radii, `Hairline` dividers, `RowPressed` for pressed rows.
 - `DESIGN.md` is the visual/behaviour reference; `docs/specs/2026-11-10-pocket-sim-engineer.md` is the functional spec.
 
-## Replay storage (added this session)
+## Replay storage
 
 - New imports are trimmed, then compacted with the Settings replay profile before `attachClip`.
 - Settings live in `SettingsStore`: `replayPreset` (default `Balanced`), `replayKeyframes` (`Fast`),
@@ -43,8 +43,12 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
   On failure the trimmed original is kept and the save shows a "Compaction failed" toast.
 - `LapSummary` carries `videoBytes`, `telemetryBytes`, and `pendingBytes`, computed in
   `SessionStore.summaries()`. `EditLapSheet` shows them under a `Data` section.
-- During ruler scrubbing the lap player uses `SeekParameters.CLOSEST_SYNC`; on release it restores
-  `EXACT` and seeks to the requested frame. `ScrubSeeker` accepts a `frameWaitMs` override.
+- The lap player uses `SeekParameters.CLOSEST_SYNC` for every seek; the sync screen keeps `EXACT`.
+  `ScrubSeeker` paces keyframe seeks at 33 ms and keeps exact mode's frame wait at 400 ms.
+- Scrub previews live under `sessions/<id>/laps/lap-NNN.preview/` (480×270 JPEG per keyframe +
+  `index.json`). Generated on first open; deleted by `attachClip` and `deleteLap`.
+- Typography: `labelSmall` is defined in `Theme.kt` (Geist Sans 11 sp); `NumericText` is mono with
+  zero tracking. Do not use an undefined Material label style on Compose screens.
 
 ## Release
 

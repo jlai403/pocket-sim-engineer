@@ -6,8 +6,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfile
@@ -117,7 +119,7 @@ class LapPlayerScreenTest {
     }
 
     @Test
-    fun `the speed menu offers playback rates`() {
+    fun `the speed stepper moves through the playback rates`() {
         SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
 
         compose.setContent {
@@ -134,8 +136,31 @@ class LapPlayerScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("1×").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("1×").performClick()
-        compose.onNodeWithText("2×").assertExists()
+        compose.onNodeWithTag("speed-up").performClick()
+        compose.onNodeWithText("1.5×").assertExists()
+        compose.onNodeWithTag("speed-down").performClick()
+        compose.onNodeWithText("1×").assertExists()
+    }
+
+    @Test
+    fun `the track map follows by default`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+
+        compose.setContent {
+            PocketSimEngineerTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Follow").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Follow").assertIsSelected()
     }
 
     @Test

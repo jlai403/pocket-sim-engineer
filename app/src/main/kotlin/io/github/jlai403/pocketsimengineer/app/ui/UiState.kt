@@ -102,6 +102,11 @@ fun List<Sample>.sampleAt(lap: LapMetadata, timeMs: Int): Sample? {
         positionY = a.positionY + (b.positionY - a.positionY) * t,
         positionZ = a.positionZ + (b.positionZ - a.positionZ) * t,
         steering = a.steering + (b.steering - a.steering) * t,
+        fuel = a.fuel + (b.fuel - a.fuel) * t,
+        tyreTempFL = a.tyreTempFL + (b.tyreTempFL - a.tyreTempFL) * t,
+        tyreTempFR = a.tyreTempFR + (b.tyreTempFR - a.tyreTempFR) * t,
+        tyreTempRL = a.tyreTempRL + (b.tyreTempRL - a.tyreTempRL) * t,
+        tyreTempRR = a.tyreTempRR + (b.tyreTempRR - a.tyreTempRR) * t,
     )
 }
 
