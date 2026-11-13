@@ -158,6 +158,7 @@ fun LapPlayerScreen(
     }
     val previewCache = remember { ReplayPreviewCache.get(context) }
     var preview by remember(videoVersion) { mutableStateOf<ReplayPreview?>(null) }
+    var previewBuilding by remember(videoVersion) { mutableStateOf(false) }
     var previewBitmap by remember(videoVersion) { mutableStateOf<Bitmap?>(null) }
     var previewSettling by remember(videoVersion) { mutableStateOf(false) }
     var previewSeekMs by remember(videoVersion) { mutableLongStateOf(-1L) }
@@ -291,7 +292,12 @@ fun LapPlayerScreen(
 
     LaunchedEffect(videoVersion) {
         val file = videoFile ?: return@LaunchedEffect
-        preview = previewCache.ensure(file)
+        previewBuilding = true
+        try {
+            preview = previewCache.ensure(file)
+        } finally {
+            previewBuilding = false
+        }
     }
 
     LaunchedEffect(player) {
@@ -518,6 +524,19 @@ fun LapPlayerScreen(
                             modifier = Modifier.matchParentSize(),
                         )
                     }
+                    if (previewBuilding) {
+                        Text(
+                            "Preparing scrub preview…",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(8.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+                                .padding(horizontal = 6.dp, vertical = 3.dp),
+                        )
+                    }
                     if (settings.telemetryHud) {
                         TelemetryHud(
                             window = samples,
@@ -643,7 +662,7 @@ fun LapPlayerScreen(
                 onScrub = { frames ->
                     scrubTarget(scrubBaseUs, frames)?.let { target ->
                         scrubTargetMs = target
-                        if (preview == null) scrubSeeker.submit(target)
+                        if (preview == null || previewBitmap == null) scrubSeeker.submit(target)
                     }
                 },
                 onScrubEnd = {
