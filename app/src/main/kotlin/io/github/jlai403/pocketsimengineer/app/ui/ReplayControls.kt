@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -169,6 +170,7 @@ internal fun PlaybackFooter(
     frameStepMs: Long,
     enabled: Boolean,
     playing: Boolean,
+    looping: Boolean,
     speed: Float,
     events: List<LapEvent>,
     hapticsEnabled: Boolean,
@@ -179,6 +181,7 @@ internal fun PlaybackFooter(
     onRewind: () -> Unit,
     onPlayPause: () -> Unit,
     onForward: () -> Unit,
+    onToggleLoop: () -> Unit,
     onSpeedChange: (Float) -> Unit,
 ) {
     Column(
@@ -191,10 +194,18 @@ internal fun PlaybackFooter(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            NumericText(
-                "%s / %s".format(formatMillis(cursorMs.toLong()), lapTimeLabel(lapTimeMs)),
-                style = MaterialTheme.typography.labelMedium,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                NumericText(
+                    "%s / %s".format(formatMillis(cursorMs.toLong()), lapTimeLabel(lapTimeMs)),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                FilterChip(
+                    selected = looping,
+                    onClick = onToggleLoop,
+                    label = { Text("Loop") },
+                )
+            }
             FrameRuler(
                 valueMs = cursorMs.toLong(),
                 startMs = 0,
@@ -216,7 +227,7 @@ internal fun PlaybackFooter(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     TransportButton(
-                        icon = TransportIcons.Rewind,
+                        icon = TransportIcons.SkipPrevious,
                         description = "Previous brake point",
                         enabled = enabled,
                         onClick = onRewind,
@@ -233,7 +244,7 @@ internal fun PlaybackFooter(
                         iconSize = 24.dp,
                     )
                     TransportButton(
-                        icon = TransportIcons.Forward,
+                        icon = TransportIcons.SkipNext,
                         description = "Next brake point",
                         enabled = enabled,
                         onClick = onForward,
