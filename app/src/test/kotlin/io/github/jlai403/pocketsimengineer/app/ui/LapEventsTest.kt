@@ -26,7 +26,7 @@ class LapEventsTest {
     }
 
     @Test
-    fun `a steering corner marks turn-in, apex, and exit`() {
+    fun `a steering corner marks apex and exit`() {
         val window = steeringSamples(
             1_000 to 0f,
             1_100 to 0.2f,
@@ -48,7 +48,6 @@ class LapEventsTest {
     @Test
     fun `a curved path marks turns without steering`() {
         val turns = lapEvents(arcSamples(), lap).filter { it.type in TURN_TYPES }
-        assertTrue(turns.any { it.type == LapEventType.TurnIn })
         assertTrue(turns.any { it.type == LapEventType.Apex })
         assertTrue(turns.any { it.type == LapEventType.Exit })
     }
@@ -102,7 +101,6 @@ class LapEventsTest {
 
     private companion object {
         val TURN_TYPES = setOf(
-            LapEventType.TurnIn,
             LapEventType.Apex,
             LapEventType.Exit,
         )

@@ -36,6 +36,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun ScreenHeader(
@@ -254,7 +255,10 @@ fun NumericText(
         text,
         modifier = modifier,
         color = color,
-        style = style.copy(fontFamily = GeistMonoFamily),
+        style = style.copy(
+            fontFamily = GeistMonoFamily,
+            letterSpacing = 0.sp,
+        ),
     )
 }
 

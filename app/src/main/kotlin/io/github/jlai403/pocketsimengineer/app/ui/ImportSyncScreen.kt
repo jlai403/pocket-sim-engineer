@@ -146,7 +146,7 @@ fun ImportSyncScreen(
         }
     }
     scrubSeeker = remember(player) {
-        ScrubSeeker(scope) { target -> seekTo(target, fromScrub = true) }
+        ScrubSeeker(scope, waitForFrame = true) { target -> seekTo(target, fromScrub = true) }
     }
 
     BackHandler { confirmCancel = true }

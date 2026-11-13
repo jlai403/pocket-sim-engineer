@@ -1,11 +1,13 @@
 package io.github.jlai403.pocketsimengineer.app.ui
 
 import android.net.Uri
+import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -54,6 +58,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.ui.PlayerView
 import io.github.jlai403.pocketsimengineer.app.replay.PlayStationApp
+import io.github.jlai403.pocketsimengineer.app.replay.ReplayPreview
+import io.github.jlai403.pocketsimengineer.app.replay.ReplayPreviewCache
+import io.github.jlai403.pocketsimengineer.app.replay.nearestPreviewFrame
 import io.github.jlai403.pocketsimengineer.app.replay.probeClip
 import io.github.jlai403.pocketsimengineer.app.profile.DriverProfileStore
 import io.github.jlai403.pocketsimengineer.app.profile.countryFlagEmoji
@@ -143,9 +150,17 @@ fun LapPlayerScreen(
         ?.takeIf { it.isFile }
     val player = remember(sessionId, lapIndex) {
         ExoPlayer.Builder(context).build().apply {
-            setSeekParameters(SeekParameters.EXACT)
+            setSeekParameters(SeekParameters.CLOSEST_SYNC)
         }
     }
+    val videoVersion = remember(videoFile?.absolutePath, sessionReload) {
+        videoFile?.let { "${it.absolutePath}:${it.length()}:${it.lastModified()}" }
+    }
+    val previewCache = remember { ReplayPreviewCache.get(context) }
+    var preview by remember(videoVersion) { mutableStateOf<ReplayPreview?>(null) }
+    var previewBitmap by remember(videoVersion) { mutableStateOf<Bitmap?>(null) }
+    var previewSettling by remember(videoVersion) { mutableStateOf(false) }
+    var previewSeekMs by remember(videoVersion) { mutableLongStateOf(-1L) }
 
     var positionMs by remember { mutableLongStateOf(0L) }
     var renderedUs by remember { mutableLongStateOf(-1L) }
@@ -164,7 +179,7 @@ fun LapPlayerScreen(
     var candidates by remember { mutableStateOf<List<TrackCandidate>?>(null) }
     var headerExpanded by remember { mutableStateOf(false) }
     var showGhost by remember { mutableStateOf(true) }
-    var followMap by remember { mutableStateOf(false) }
+    var followMap by remember { mutableStateOf(true) }
     var looping by remember { mutableStateOf(false) }
 
     lateinit var scrubSeeker: ScrubSeeker
@@ -180,14 +195,14 @@ fun LapPlayerScreen(
         player.seekTo(clamped)
         positionMs = clamped
         renderedUs = -1L
-        player.pause()
+        if (!fromScrub) player.pause()
         if (!fromScrub) {
             scrubTargetMs = null
             scrubSeeker.clearPending()
         }
     }
     scrubSeeker = remember(player) {
-        ScrubSeeker(scope, frameWaitMs = 120L) { target -> seekClip(target, fromScrub = true) }
+        ScrubSeeker(scope) { target -> seekClip(target, fromScrub = true) }
     }
 
     fun shareVideo() {
@@ -248,7 +263,6 @@ fun LapPlayerScreen(
         player.addListener(listener)
         player.setVideoFrameMetadataListener { presentationTimeUs, _, _, _ ->
             renderedUs = presentationTimeUs
-            scrubSeeker.onFrameRendered()
         }
         onDispose {
             player.removeListener(listener)
@@ -256,7 +270,7 @@ fun LapPlayerScreen(
         }
     }
 
-    LaunchedEffect(videoFile?.absolutePath) {
+    LaunchedEffect(videoVersion) {
         val file = videoFile ?: return@LaunchedEffect
         val probe = withContext(Dispatchers.IO) { probeClip(file) }
         durationMs = probe.durationMs
@@ -273,6 +287,11 @@ fun LapPlayerScreen(
             player.playWhenReady = true
             positionMs = ready
         }
+    }
+
+    LaunchedEffect(videoVersion) {
+        val file = videoFile ?: return@LaunchedEffect
+        preview = previewCache.ensure(file)
     }
 
     LaunchedEffect(player) {
@@ -298,6 +317,32 @@ fun LapPlayerScreen(
     val cursorMs = lap?.let {
         PlaybackCursor.telemetryMs(displayedMs, it.leadInMs, it.syncOffsetMs, it.lapTimeMs)
     } ?: 0
+    val previewFrame = preview?.let {
+        nearestPreviewFrame(it.index.timesMs, scrubTargetMs ?: -1L)
+    } ?: -1
+
+    LaunchedEffect(scrubbing, previewFrame, preview) {
+        val cached = preview
+        if (!scrubbing || cached == null || previewFrame < 0) return@LaunchedEffect
+        previewCache.frame(cached, previewFrame)?.let { previewBitmap = it }
+    }
+
+    LaunchedEffect(previewSettling, renderedUs, previewSeekMs) {
+        if (!previewSettling) return@LaunchedEffect
+        val renderedMs = renderedUs / 1_000
+        val landed = renderedUs >= 0 && previewSeekMs >= 0 &&
+            abs(renderedMs - previewSeekMs) <= 500
+        if (landed) {
+            previewSettling = false
+            previewBitmap = null
+        } else {
+            delay(500)
+            if (previewSettling) {
+                previewSettling = false
+                previewBitmap = null
+            }
+        }
+    }
 
     LaunchedEffect(scrubbing, renderedUs) {
         val target = scrubTargetMs ?: return@LaunchedEffect
@@ -465,6 +510,14 @@ fun LapPlayerScreen(
                         },
                         modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                     )
+                    previewBitmap?.let { bitmap ->
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.matchParentSize(),
+                        )
+                    }
                     if (settings.telemetryHud) {
                         TelemetryHud(
                             window = samples,
@@ -582,18 +635,34 @@ fun LapPlayerScreen(
                     scrubBaseUs = displayedUs
                     scrubTargetMs = null
                     scrubbing = true
-                    player.setSeekParameters(SeekParameters.CLOSEST_SYNC)
+                    previewSettling = false
+                    previewBitmap = null
+                    previewSeekMs = -1L
+                    player.pause()
                 },
                 onScrub = { frames ->
                     scrubTarget(scrubBaseUs, frames)?.let { target ->
                         scrubTargetMs = target
-                        scrubSeeker.submit(target)
+                        if (preview == null) scrubSeeker.submit(target)
                     }
                 },
                 onScrubEnd = {
                     scrubbing = false
-                    player.setSeekParameters(SeekParameters.EXACT)
-                    scrubTargetMs?.let { seekClip(it) }
+                    val target = scrubTargetMs
+                    val cached = preview
+                    val frame = if (cached != null && target != null) {
+                        nearestPreviewFrame(cached.index.timesMs, target)
+                    } else {
+                        -1
+                    }
+                    if (cached != null && frame >= 0) {
+                        previewSettling = true
+                        previewSeekMs = cached.index.timesMs[frame]
+                        seekClip(previewSeekMs)
+                    } else {
+                        previewBitmap = null
+                        target?.let { seekClip(it) }
+                    }
                 },
                 onSeekFraction = { fraction ->
                     seekLap((fraction * currentLap.lapTimeMs).roundToLong())

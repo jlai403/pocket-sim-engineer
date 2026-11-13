@@ -143,6 +143,7 @@ class SessionStore(private val rootDir: File) {
         )
         if (updated == null) return null
         source?.delete()
+        deletePreview(dir, videoFile)
         previous
             ?.takeIf { it != metadata.rawFile }
             ?.takeIf { old -> metadata.laps.none { other -> other.index != lapIndex && other.videoFile == old } }
@@ -150,6 +151,7 @@ class SessionStore(private val rootDir: File) {
                 File(dir, old).delete()
                 File(dir, old + ".tmp").delete()
                 File(dir, old + ".bak").delete()
+                deletePreview(dir, old)
             }
         return updated
     }
@@ -170,6 +172,7 @@ class SessionStore(private val rootDir: File) {
                 File(dir, lap.videoFile + ".bak").delete()
             }
         }
+        deletePreview(dir, lap.videoFile)
         lap.sourceFile?.let { File(dir, it).delete() }
         val remaining = metadata.laps.filterNot { it.index == lapIndex }
         if (remaining.isEmpty()) {
@@ -182,4 +185,11 @@ class SessionStore(private val rootDir: File) {
 
     private fun parseInstant(value: String): Instant =
         runCatching { Instant.parse(value) }.getOrDefault(Instant.EPOCH)
+
+    private fun deletePreview(dir: File, videoFile: String) {
+        if (videoFile.isBlank()) return
+        val clip = File(dir, videoFile)
+        File(clip.parentFile, clip.nameWithoutExtension + ".preview").deleteRecursively()
+        File(clip.parentFile, clip.nameWithoutExtension + ".preview.tmp").deleteRecursively()
+    }
 }

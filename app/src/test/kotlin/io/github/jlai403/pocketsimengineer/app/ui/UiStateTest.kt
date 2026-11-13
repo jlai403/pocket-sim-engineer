@@ -56,6 +56,34 @@ class UiStateTest {
     }
 
     @Test
+    fun `sample between samples lerps tyres and fuel`() {
+        val window = listOf(
+            SessionFixtures.sample(0).copy(
+                fuel = 10f,
+                tyreTempFL = 60f,
+                tyreTempFR = 61f,
+                tyreTempRL = 62f,
+                tyreTempRR = 63f,
+            ),
+            SessionFixtures.sample(1_000_000_000).copy(
+                fuel = 30f,
+                tyreTempFL = 80f,
+                tyreTempFR = 81f,
+                tyreTempRL = 82f,
+                tyreTempRR = 83f,
+            ),
+        )
+
+        val sample = window.sampleAt(lap, 250)!!
+
+        assertEquals(15f, sample.fuel, 0.001f)
+        assertEquals(65f, sample.tyreTempFL, 0.001f)
+        assertEquals(66f, sample.tyreTempFR, 0.001f)
+        assertEquals(67f, sample.tyreTempRL, 0.001f)
+        assertEquals(68f, sample.tyreTempRR, 0.001f)
+    }
+
+    @Test
     fun `gear comes from the nearest sample`() {
         assertEquals(3, samples().sampleAt(lap, 250)!!.gear)
         assertEquals(4, samples().sampleAt(lap, 750)!!.gear)

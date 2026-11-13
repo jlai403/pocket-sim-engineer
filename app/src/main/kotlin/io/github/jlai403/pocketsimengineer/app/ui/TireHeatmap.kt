@@ -64,8 +64,8 @@ private fun TireTile(label: String, celsius: Float, imperial: Boolean) {
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.Black.copy(alpha = 0.7f),
             )
-            Text(
-                "%.0f°".format(shown),
+            NumericText(
+                text = "%.0f°".format(shown),
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.Black.copy(alpha = 0.75f),
             )
