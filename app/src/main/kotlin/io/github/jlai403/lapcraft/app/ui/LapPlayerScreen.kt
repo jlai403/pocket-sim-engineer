@@ -317,6 +317,13 @@ fun LapPlayerScreen(
         PlaybackCursor.telemetryMs(displayedMs, it.leadInMs, it.syncOffsetMs, it.lapTimeMs)
     } ?: 0
 
+    fun stepFrames(frames: Int) {
+        val target = frameStepTargetMs(displayedUs, frames, frameDurationUs)
+            .coerceIn(0L, durationMs.coerceAtLeast(0L))
+        scrubTargetMs = target / 1_000
+        scrubSeeker.submit(target)
+    }
+
     LaunchedEffect(scrubbing, renderedUs) {
         val target = scrubTargetMs ?: return@LaunchedEffect
         if (scrubbing) return@LaunchedEffect
@@ -628,6 +635,7 @@ fun LapPlayerScreen(
                 onForward = { seekBrake(1) },
                 onToggleLoop = { looping = !looping },
                 onSpeedChange = { playbackSpeed = it },
+                onStep = { stepFrames(it) },
             )
         }
     }

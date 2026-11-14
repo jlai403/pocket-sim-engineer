@@ -113,8 +113,6 @@ class LapPlayerScreenTest {
         }
         compose.onNodeWithText("Add replay").assertDoesNotExist()
         compose.onNodeWithContentDescription("Frame ruler").assertExists()
-        compose.onNodeWithText("−1 frame").assertDoesNotExist()
-        compose.onNodeWithText("+1 frame").assertDoesNotExist()
         compose.onNodeWithText("1×").assertExists()
     }
 
