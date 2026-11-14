@@ -84,8 +84,13 @@ _Avoid_: playhead, marker
 
 **Track progress**:
 Cumulative distance along the racing line, normalised to 0–100 % of the lap; the
-charts' x axis and the compare alignment.
+charts' x axis.
 _Avoid_: position, lap percentage, distance axis
+
+**Place alignment**:
+Matching two laps by position along lap 1's driven path instead of by distance
+covered, so a corner is compared with the same corner when the lines differ.
+_Avoid_: distance alignment, track position, sync
 
 **Ghost**:
 The fastest lap on the same track, drawn as a dashed grey line on the track map and

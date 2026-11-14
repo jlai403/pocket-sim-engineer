@@ -48,6 +48,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -287,11 +290,15 @@ fun LapCompareScreen(
     val referenceTable = remember(referenceWindow, reference) {
         reference?.let { TrackProgress.table(referenceWindow, it.lap.startNanos) }
     }
+    val alignment = remember(primaryWindow, referenceWindow, reference) {
+        reference?.let { TrackProgress.align(primaryWindow, referenceWindow, it.lap.startNanos) }
+    }
     val referenceCursorMs = referenceCursor(
         primaryTable = primaryTable,
         primaryCursorMs = primaryCursorMs,
         referenceTable = referenceTable,
         referenceLapTimeMs = reference?.lap?.lapTimeMs ?: 0,
+        alignment = alignment,
     )
     val referenceClipMs = reference?.let { loaded ->
         PlaybackCursor.clipMs(referenceCursorMs, loaded.lap.leadInMs, loaded.lap.syncOffsetMs)
@@ -454,6 +461,7 @@ fun LapCompareScreen(
                         reference = reference?.let { GhostLap(it.lap, it.samples) },
                         cursorMs = primaryCursorMs,
                         imperial = settings.imperialUnits,
+                        alignment = alignment,
                         modifier = Modifier.weight(0.6f).fillMaxHeight(),
                     )
                 }
@@ -609,7 +617,18 @@ private fun ComparePane(
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(18.dp))
-                .background(Color.Black),
+                .background(Color.Black)
+                .then(
+                    lap?.let { loaded ->
+                        Modifier
+                            .testTag("compare-cursor-$tag")
+                            .semantics {
+                                contentDescription =
+                                    "$title replay, ${lapTimeLabel(loaded.lap.lapTimeMs)}"
+                                stateDescription = formatMillis(cursorMs.toLong())
+                            }
+                    } ?: Modifier,
+                ),
             contentAlignment = Alignment.Center,
         ) {
             when {
@@ -653,28 +672,6 @@ private fun ComparePane(
                         modifier = Modifier.align(Alignment.TopCenter).padding(8.dp),
                     )
                 }
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "$title · ${lapTimeLabel(loaded.lap.lapTimeMs)}",
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.9f),
-                        maxLines = 1,
-                    )
-                    NumericText(
-                        formatMillis(cursorMs.toLong()),
-                        modifier = Modifier.testTag("compare-cursor-$tag"),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.9f),
-                    )
-                }
             }
         }
         lap?.let {
@@ -688,16 +685,19 @@ private fun ComparePane(
     }
 }
 
-/** Lap time on the reference lap at the primary lap's track progress. */
+/** Lap time on the reference lap at the primary lap's place on track. */
 internal fun referenceCursor(
     primaryTable: TrackProgress.Table?,
     primaryCursorMs: Int,
     referenceTable: TrackProgress.Table?,
     referenceLapTimeMs: Int,
-): Int = referenceTable?.timeAtPercent(
-    primaryTable?.percentAt(primaryCursorMs) ?: 0f,
-    referenceLapTimeMs,
-) ?: 0
+    alignment: TrackProgress.Alignment? = null,
+): Int {
+    val percent = primaryTable?.percentAt(primaryCursorMs) ?: 0f
+    return alignment?.referenceTimeAt(percent, referenceLapTimeMs)
+        ?: referenceTable?.timeAtPercent(percent, referenceLapTimeMs)
+        ?: 0
+}
 
 private fun deltaLabel(deltaMs: Int): String =
     if (deltaMs == 0) "Δ 0.000 s" else "Δ %+.3f s".format(deltaMs / 1000.0)

@@ -15,6 +15,7 @@ import io.github.jlai403.lapcraft.core.clip.TrackProgress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -72,14 +73,15 @@ class LapCompareScreenTest {
         installLaps()
         setCompareScreen()
 
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithText("Ref · Lap 1 · 1:32.000").assertExists()
+        waitForPanes()
+        compose.onNodeWithTag("compare-cursor-primary").assertExists()
+        compose.onNodeWithTag("compare-cursor-reference").assertExists()
         assertEquals(2, compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().size)
         assertEquals(2, compose.onAllNodesWithTag("compare-readout").fetchSemanticsNodes().size)
         compose.onNodeWithText("Track %").assertDoesNotExist()
         compose.onNodeWithTag("compare-delta").assertExists()
+        compose.onNodeWithText("1:30.000").assertDoesNotExist()
+        compose.onNodeWithText("1:32.000").assertDoesNotExist()
     }
 
     @Test
@@ -88,9 +90,7 @@ class LapCompareScreenTest {
         installLaps()
         setCompareScreen()
 
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
-        }
+        waitForPanes()
         assertEquals(0, compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().size)
         assertEquals(2, compose.onAllNodesWithTag("compare-readout").fetchSemanticsNodes().size)
     }
@@ -100,9 +100,7 @@ class LapCompareScreenTest {
         installLaps()
         setCompareScreen()
 
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
-        }
+        waitForPanes()
         compose.onNodeWithTag("compare-tab-telemetry").performClick()
 
         compose.waitUntil(TIMEOUT) {
@@ -145,9 +143,7 @@ class LapCompareScreenTest {
         installLaps()
         setCompareScreen()
 
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
-        }
+        waitForPanes()
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithTag("frame-forward").fetchSemanticsNodes()
                 .any { !it.config.contains(SemanticsProperties.Disabled) }
@@ -171,11 +167,41 @@ class LapCompareScreenTest {
         assertEquals(2_000, referenceCursor(primary, 1_000, reference, 2_000))
     }
 
+    @Test
+    fun `the reference cursor follows the place on track, not its own distance`() {
+        val primary = lineSamples(lapTimeMs = 1_000)
+        val detour = listOf(0f to 0f, 5f to 20f, 10f to 0f)
+        val straight = (2..10).map { it * 10f to 0f }
+        val reference = (detour + straight).mapIndexed { index, (x, z) ->
+            SessionFixtures.sample(timeNanos = index * 100_000_000L, x = x, z = z)
+        }
+        val primaryTable = TrackProgress.table(primary, 0)
+        val referenceTable = TrackProgress.table(reference, 0)
+        assertNotNull(primaryTable)
+        assertNotNull(referenceTable)
+        val alignment = TrackProgress.align(primary, reference, 0)
+        assertNotNull(alignment)
+
+        val aligned = referenceCursor(primaryTable, 500, referenceTable, 1_000, alignment)
+        val ownDistance = referenceCursor(primaryTable, 500, referenceTable, 1_000)
+
+        assertEquals(600f, aligned.toFloat(), 60f)
+        assertTrue(
+            "ownDistance=$ownDistance aligned=$aligned",
+            kotlin.math.abs(ownDistance - aligned) >= 30,
+        )
+    }
+
+    private fun waitForPanes() {
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithTag("compare-readout").fetchSemanticsNodes().size == 2
+        }
+    }
+
     private fun referenceCursorText(): String =
         compose.onNodeWithTag("compare-cursor-reference")
             .fetchSemanticsNode()
-            .config[SemanticsProperties.Text]
-            .joinToString(" ") { it.text }
+            .config[SemanticsProperties.StateDescription]
 
     private fun lineSamples(lapTimeMs: Int): List<io.github.jlai403.lapcraft.core.model.Sample> =
         (0..10).map { step ->
