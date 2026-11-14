@@ -24,7 +24,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -329,6 +331,7 @@ internal fun TrackMap(
     ghost: GhostLap? = null,
     showGhost: Boolean = true,
     follow: Boolean = false,
+    centeredFollow: Boolean = false,
     reference: GhostLap? = null,
     referenceCursorMs: Int = 0,
     fillHeight: Boolean = false,
@@ -375,6 +378,7 @@ internal fun TrackMap(
     Column(modifier) {
         Canvas(
             modifier = Modifier
+                .clipToBounds()
                 .fillMaxWidth()
                 .then(if (fillHeight) Modifier.weight(1f) else Modifier.height(200.dp)),
         ) {
@@ -393,6 +397,7 @@ internal fun TrackMap(
             val rotation = -heading - PI.toFloat() / 2f
             val cosR = cos(rotation)
             val sinR = sin(rotation)
+            val anchorPx = if (anchor != null) followAnchor(size, centeredFollow) else Offset.Zero
 
             fun mapPoint(sample: Sample): Offset = if (anchor == null) {
                 Offset(
@@ -403,8 +408,8 @@ internal fun TrackMap(
                 val dx = sample.positionX - anchor.positionX
                 val dz = sample.positionZ - anchor.positionZ
                 Offset(
-                    size.width / 2f + (dx * cosR - dz * sinR) * scale,
-                    size.height * 0.78f + (dx * sinR + dz * cosR) * scale * 0.35f,
+                    anchorPx.x + (dx * cosR - dz * sinR) * scale,
+                    anchorPx.y + (dx * sinR + dz * cosR) * scale * 0.35f,
                 )
             }
 
@@ -696,3 +701,6 @@ private fun MetricChart(
 
 internal fun timeToX(timeMs: Int, lapTimeMs: Int, width: Float): Float =
     (timeMs.toFloat() / lapTimeMs.coerceAtLeast(1)).coerceIn(0f, 1f) * width
+
+internal fun followAnchor(size: Size, centred: Boolean): Offset =
+    Offset(size.width / 2f, size.height * if (centred) 0.5f else 0.78f)

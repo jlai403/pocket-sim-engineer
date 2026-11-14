@@ -6,6 +6,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -111,6 +112,8 @@ class LapCompareScreenTest {
         }
         compose.onNodeWithText("lap 1").assertExists()
         compose.onNodeWithText("lap 2 (reference)").assertExists()
+        compose.onNodeWithTag("compare-map-pane").assertWidthIsEqualTo(COMPARE_MAP_PANE_WIDTH)
+        compose.onNodeWithTag("compare-charts").assertExists()
         assertEquals(0, compose.onAllNodesWithTag("compare-readout").fetchSemanticsNodes().size)
     }
 

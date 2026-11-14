@@ -5,8 +5,11 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import io.github.jlai403.lapcraft.core.clip.TrackProgress
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import io.github.jlai403.lapcraft.core.session.LapMetadata
 import org.junit.Rule
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -225,4 +228,11 @@ class TelemetryChartsTest {
         SessionFixtures.sample(0, brake = 0, throttle = 200, x = 0f, z = 0f),
         SessionFixtures.sample(90_000_000_000L, brake = 200, throttle = 0, x = 100f, z = 100f),
     )
+
+    @Test
+    fun `followAnchor centres the driver when requested`() {
+        val size = Size(320f, 230f)
+        assertEquals(Offset(160f, 115f), followAnchor(size, centred = true))
+        assertEquals(Offset(160f, 230f * 0.78f), followAnchor(size, centred = false))
+    }
 }
