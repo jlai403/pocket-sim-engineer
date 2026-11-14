@@ -15,22 +15,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.jlai403.lapcraft.R
 
-val AccentGreen = Color(0xFF3DDC84)
-val AccentBlue = Color(0xFF5AC8FA)
-val AccentAmber = Color(0xFFFFC857)
+val AccentMint = Color(0xFF34D399)
+val AccentCyan = Color(0xFF38BDF8)
+val AccentAmber = Color(0xFFFBBF24)
+val AccentRed = Color(0xFFF43F5E)
 
-/** Reference lap in a comparison (charts and track map). */
-val AccentYellow = Color(0xFFFFD54F)
-val Ink = Color(0xFF080C11)
-val Panel = Color(0xFF111821)
-val PanelRaised = Color(0xFF1A2431)
-val MutedText = Color(0xFF93A4B5)
+/** Reference lap in a comparison (charts and track map); also muted text. */
+val GhostSlate = Color(0xFF94A3B8)
+val CrispWhite = Color(0xFFF8FAFC)
+val Ink = Color(0xFF0D1114)
+val Panel = Color(0xFF12181C)
+val PanelRaised = Color(0xFF1A2226)
 
 /** Library feed hairline: visible on Ink without reading as a border. */
-val Hairline = Color(0xFF33414F)
+val Hairline = Color(0xFF2C3944)
 
 /** Pressed lap row, one step above the background. */
-val RowPressed = Color(0xFF10171F)
+val RowPressed = Color(0xFF12191E)
 
 /** Geist Sans for interface text. OFL-1.1; see licenses/Geist-OFL.txt. */
 val GeistSansFamily = FontFamily(
@@ -49,28 +50,28 @@ val GeistMonoFamily = FontFamily(
 )
 
 private val SportColors = darkColorScheme(
-    primary = AccentGreen,
-    onPrimary = Color(0xFF03130A),
-    primaryContainer = Color(0xFF123A24),
-    onPrimaryContainer = Color(0xFFB9F6D3),
-    secondary = AccentBlue,
-    onSecondary = Color(0xFF00131C),
-    secondaryContainer = Color(0xFF102B36),
-    onSecondaryContainer = Color(0xFFC3ECFA),
+    primary = AccentMint,
+    onPrimary = Color(0xFF04130D),
+    primaryContainer = Color(0xFF0B3B2C),
+    onPrimaryContainer = Color(0xFFA7F3D0),
+    secondary = AccentCyan,
+    onSecondary = Color(0xFF04131C),
+    secondaryContainer = Color(0xFF082F49),
+    onSecondaryContainer = Color(0xFFBAE6FD),
     tertiary = AccentAmber,
     onTertiary = Color(0xFF241800),
     background = Ink,
-    onBackground = Color(0xFFF4F7FA),
+    onBackground = CrispWhite,
     surface = Panel,
-    onSurface = Color(0xFFEAF0F5),
+    onSurface = CrispWhite,
     surfaceVariant = PanelRaised,
-    onSurfaceVariant = MutedText,
-    outline = Color(0xFF2B3846),
-    outlineVariant = Color(0xFF1F2A35),
-    error = Color(0xFFFF6B6B),
+    onSurfaceVariant = GhostSlate,
+    outline = Color(0xFF2B3540),
+    outlineVariant = Color(0xFF1E262B),
+    error = AccentRed,
     onError = Color(0xFF240505),
-    errorContainer = Color(0xFF3A1414),
-    onErrorContainer = Color(0xFFFFD5D5),
+    errorContainer = Color(0xFF3B0E1B),
+    onErrorContainer = Color(0xFFFFD7E0),
 )
 
 private val SportShapes = Shapes(
