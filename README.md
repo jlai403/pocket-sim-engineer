@@ -37,7 +37,7 @@ The phone records no video and no audio. Telemetry uses UDP 33739/33740; the onl
 
 Settings → Library exports the laps you select to one `.zip` (`lapcraft-library-<date>.zip`). Each lap is a directory inside the archive holding `session.json`, `lap.json`, its `.gt7lap` telemetry, and any clip or pending source the lap references, so the file is inspectable with any zip tool. Clips are passed through uncompressed; telemetry and JSON are deflated.
 
-Import merges: ids that already exist are skipped, so importing the same file twice is safe. A lap whose clip is missing still imports, without a replay. Settings and the driver profile are not part of the archive. The empty library also offers **Import a backup**.
+Import merges: ids that already exist are skipped, so importing the same file twice is safe. A lap whose clip is missing still imports, without a replay. Cached driver profiles travel with the laps; settings and the owner stay on this device. The empty library also offers **Import a backup**.
 
 ## What works
 

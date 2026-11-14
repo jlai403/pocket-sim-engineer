@@ -1,6 +1,7 @@
 package io.github.jlai403.lapcraft.core.session
 
 import io.github.jlai403.lapcraft.core.io.AtomicFiles
+import io.github.jlai403.lapcraft.core.profile.DriverProfile
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
@@ -22,7 +23,7 @@ data class LapRef(val sessionId: String, val lapIndex: Int)
 
 data class ExportReport(val laps: Int, val bytes: Long)
 
-data class ImportReport(val laps: Int, val skipped: Int, val failed: Int)
+data class ImportReport(val laps: Int, val skipped: Int, val failed: Int, val profiles: List<DriverProfile> = emptyList())
 
 /** Root entry naming the archive format. Import refuses anything but [LibraryArchive.FORMAT]. */
 @Serializable
@@ -49,16 +50,23 @@ object LibraryArchive {
     fun export(
         rootDir: File,
         laps: List<LapRef>,
+        profiles: List<DriverProfile>,
         out: OutputStream,
         onProgress: (Long, Long) -> Unit = { _, _ -> },
     ): ExportReport {
         val entries = laps.mapNotNull { resolve(rootDir, it) }
-        val total = entries.sumOf { it.bytes }
+        val profilesJson = if (profiles.isEmpty()) null else json.encodeToString(profiles)
+        val total = entries.sumOf { it.bytes } + (profilesJson?.length?.toLong() ?: 0L)
         val manifest = LibraryManifest(FORMAT, Instant.now().toString(), entries.size, total)
 
         ZipOutputStream(BufferedOutputStream(out, BUFFER)).use { zip ->
             zip.writeText(MANIFEST, json.encodeToString(manifest))
             var written = 0L
+            if (profilesJson != null) {
+                zip.writeText("profiles.json", profilesJson)
+                written += profilesJson.length.toLong()
+                onProgress(written, total)
+            }
             for (entry in entries) {
                 val prefix = "$ITEM_ROOT/${entry.id}"
                 zip.writeText("$prefix/session.json", entry.sessionJson)
@@ -91,6 +99,7 @@ object LibraryArchive {
         sweepStaging(sessionsDir)
         val staging = File(sessionsDir, ".import-${UUID.randomUUID()}")
         var manifest: LibraryManifest? = null
+        var profiles: List<DriverProfile> = emptyList()
         var readBytes = 0L
         var imported = 0
         var skipped = 0
@@ -100,20 +109,29 @@ object LibraryArchive {
                 var entry = zip.nextEntry
                 while (entry != null) {
                     if (!entry.isDirectory) {
-                        if (entry.name == MANIFEST) {
-                            manifest = json.decodeFromString<LibraryManifest>(zip.readBytes().toString(Charsets.UTF_8))
-                            readBytes += entry.size.coerceAtLeast(0)
-                        } else {
-                            val target = File(staging, safeEntryPath(entry.name))
-                            target.parentFile?.mkdirs()
-                            target.outputStream().use { out ->
-                                val buffer = ByteArray(BUFFER)
-                                while (true) {
-                                    val count = zip.read(buffer)
-                                    if (count <= 0) break
-                                    out.write(buffer, 0, count)
-                                    readBytes += count
-                                    onProgress(readBytes, manifest?.bytes ?: 0)
+                        when (entry.name) {
+                            MANIFEST -> {
+                                manifest = json.decodeFromString<LibraryManifest>(zip.readBytes().toString(Charsets.UTF_8))
+                                readBytes += entry.size.coerceAtLeast(0)
+                            }
+                            "profiles.json" -> {
+                                profiles = runCatching {
+                                    json.decodeFromString<List<DriverProfile>>(zip.readBytes().toString(Charsets.UTF_8))
+                                }.getOrDefault(emptyList())
+                                readBytes += entry.size.coerceAtLeast(0)
+                            }
+                            else -> {
+                                val target = File(staging, safeEntryPath(entry.name))
+                                target.parentFile?.mkdirs()
+                                target.outputStream().use { out ->
+                                    val buffer = ByteArray(BUFFER)
+                                    while (true) {
+                                        val count = zip.read(buffer)
+                                        if (count <= 0) break
+                                        out.write(buffer, 0, count)
+                                        readBytes += count
+                                        onProgress(readBytes, manifest?.bytes ?: 0)
+                                    }
                                 }
                             }
                         }
@@ -150,7 +168,7 @@ object LibraryArchive {
         } finally {
             staging.deleteRecursively()
         }
-        return ImportReport(imported, skipped, failed)
+        return ImportReport(imported, skipped, failed, profiles)
     }
 
     private fun importStaged(dir: File, id: String, sessionsDir: File): Boolean {
