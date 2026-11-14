@@ -48,6 +48,7 @@ import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 internal const val CHART_WINDOW_MS = 10_000
@@ -377,7 +378,7 @@ internal fun TrackMap(
     reference: GhostLap? = null,
     referenceCursorMs: Int = 0,
     fillHeight: Boolean = false,
-    view: MapViewState = remember { MapViewState() },
+    view: MapViewState = remember(follow) { MapViewState(if (follow) MAX_MAP_ZOOM else 1f) },
     modifier: Modifier = Modifier,
 ) {
     val window = remember(samples, lap) { samples.lapWindow(lap) }
@@ -433,7 +434,7 @@ internal fun TrackMap(
             val spanX = (maxX - minX).coerceAtLeast(0.001f)
             val spanZ = (maxZ - minZ).coerceAtLeast(0.001f)
             val fitScale = minOf(size.width / spanX, size.height / spanZ) * 0.9f
-            val userZoom = view.zoom.coerceIn(0.6f, 4f)
+            val userZoom = view.zoom.coerceIn(MIN_MAP_ZOOM, MAX_MAP_ZOOM)
             val scale = if (anchor != null) {
                 val distance = anchor.speedMps.coerceAtLeast(0f) * 2f + 10f
                 (minOf(size.width, size.height) / distance * 0.9f)
@@ -616,6 +617,13 @@ internal fun SpeedGearRow(
                     style = MaterialTheme.typography.labelSmall,
                     color = AccentYellow,
                 )
+                NumericText(
+                    text = speedDeltaText(primary.speedMps, reference.speedMps, imperial),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = speedDeltaColor(
+                        speedDelta(primary.speedMps, reference.speedMps, imperial),
+                    ),
+                )
             }
             Text(
                 if (imperial) "mph" else "km/h",
@@ -649,6 +657,11 @@ internal fun SpeedGearRow(
                     style = MaterialTheme.typography.labelSmall,
                     color = AccentYellow,
                 )
+                NumericText(
+                    text = gearDeltaText(primary.gear, reference.gear),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = gearDeltaColor(primary.gear - reference.gear),
+                )
             }
         }
     }
@@ -657,6 +670,35 @@ internal fun SpeedGearRow(
 internal fun speedText(speedMps: Float, imperial: Boolean): String {
     val factor = if (imperial) 2.23694f else 3.6f
     return "%.0f".format(speedMps * factor)
+}
+
+internal fun speedDelta(primaryMps: Float, referenceMps: Float, imperial: Boolean): Int {
+    val factor = if (imperial) 2.23694f else 3.6f
+    return ((primaryMps - referenceMps) * factor).roundToInt()
+}
+
+internal fun speedDeltaText(primaryMps: Float, referenceMps: Float, imperial: Boolean): String {
+    val d = speedDelta(primaryMps, referenceMps, imperial)
+    return if (d == 0) "0" else "%+d".format(d)
+}
+
+internal fun gearDeltaText(primaryGear: Int, referenceGear: Int): String {
+    val d = primaryGear - referenceGear
+    return if (d == 0) "0" else "%+d".format(d)
+}
+
+@Composable
+internal fun speedDeltaColor(delta: Int): Color = when {
+    delta > 0 -> AccentGreen
+    delta < 0 -> MaterialTheme.colorScheme.error
+    else -> MaterialTheme.colorScheme.onSurfaceVariant
+}
+
+@Composable
+internal fun gearDeltaColor(delta: Int): Color = when {
+    delta > 0 -> AccentGreen
+    delta < 0 -> MaterialTheme.colorScheme.error
+    else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 private data class CompareMetric(
@@ -838,10 +880,14 @@ private fun MetricChart(
 internal fun followAnchor(size: Size, centred: Boolean): Offset =
     Offset(size.width / 2f, size.height * if (centred) 0.5f else 0.78f)
 
-internal class MapViewState {
-    var zoom: Float by mutableStateOf(1f)
+internal const val MIN_MAP_ZOOM = 0.6f
+internal const val MAX_MAP_ZOOM = 8f
+
+internal class MapViewState(defaultZoom: Float = MAX_MAP_ZOOM) {
+    private val default = defaultZoom.coerceIn(MIN_MAP_ZOOM, MAX_MAP_ZOOM)
+    var zoom: Float by mutableStateOf(default)
     var pan: Offset by mutableStateOf(Offset.Zero)
-    fun zoom(factor: Float) { zoom = (zoom * factor).coerceIn(0.6f, 4f) }
+    fun zoom(factor: Float) { zoom = (zoom * factor).coerceIn(MIN_MAP_ZOOM, MAX_MAP_ZOOM) }
     fun pan(delta: Offset) { pan = pan + delta }
-    fun reset() { zoom = 1f; pan = Offset.Zero }
+    fun reset() { zoom = default; pan = Offset.Zero }
 }

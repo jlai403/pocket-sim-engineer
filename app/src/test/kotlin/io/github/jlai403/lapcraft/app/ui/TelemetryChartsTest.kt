@@ -236,17 +236,51 @@ class TelemetryChartsTest {
     }
 
     @Test
+    fun `speedDeltaText formats signed deltas`() {
+        assertEquals("+4", speedDeltaText(12.5f, 11.388889f, imperial = false))
+        assertEquals("-4", speedDeltaText(11.388889f, 12.5f, imperial = false))
+        assertEquals("0", speedDeltaText(12.5f, 12.5f, imperial = false))
+    }
+
+    @Test
+    fun `gearDeltaText formats signed deltas`() {
+        assertEquals("+1", gearDeltaText(5, 4))
+        assertEquals("-1", gearDeltaText(3, 4))
+        assertEquals("0", gearDeltaText(4, 4))
+    }
+
+    @Test
     fun `MapViewState zooms, pans and resets`() {
-        val view = MapViewState()
+        val view = MapViewState(defaultZoom = 1f)
+        assertEquals(1f, view.zoom, 0.001f)
         view.zoom(2f)
         assertEquals(2f, view.zoom, 0.001f)
-        view.zoom(10f)
-        assertEquals(4f, view.zoom, 0.001f)
+        view.zoom(0.5f)
+        assertEquals(1f, view.zoom, 0.001f)
+        view.zoom(100f)
+        assertEquals(MAX_MAP_ZOOM, view.zoom, 0.001f)
         view.pan(Offset(5f, 3f))
         assertEquals(Offset(5f, 3f), view.pan)
         view.reset()
         assertEquals(1f, view.zoom, 0.001f)
         assertEquals(Offset.Zero, view.pan)
+    }
+
+    @Test
+    fun `MapViewState defaults to the most zoom`() {
+        val view = MapViewState()
+        assertEquals(MAX_MAP_ZOOM, view.zoom, 0.001f)
+        view.reset()
+        assertEquals(MAX_MAP_ZOOM, view.zoom, 0.001f)
+    }
+
+    @Test
+    fun `MapViewState with a one times default resets to one`() {
+        val view = MapViewState(defaultZoom = 1f)
+        assertEquals(1f, view.zoom, 0.001f)
+        view.zoom(2f)
+        view.reset()
+        assertEquals(1f, view.zoom, 0.001f)
     }
 
     @Test
