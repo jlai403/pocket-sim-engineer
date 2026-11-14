@@ -185,11 +185,11 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 
 - Landscape only. Entering the screen requests landscape; leaving restores the previous orientation. Portrait hides the content behind a `Rotate to landscape` prompt and pauses playback.
 - Chrome: one 44 dp row, no title — back button left, `Video` / `Telemetry` tabs centre, `Δ ±0.342 s` right (green ahead, red behind). Primary = the lap that was open or picked first.
-- **Video tab:** two panes side by side, black, clipped to 18 dp. Each pane overlays `Lap N · time` and the cursor time along its bottom edge, shows the 2 s throttle/brake HUD at the top centre when `Telemetry HUD` is on, and puts a 44 dp readout strip underneath: `THR`/`BRK`/`RPM` mini bars, a compact 2×2 tyre heatmap, and a 32 dp steering wheel. A pane without a replay shows `No clip yet` and an `Add clip` pill.
+- **Video tab:** two panes side by side, black, clipped to 18 dp, filling their 16:9 boxes (445 × 250 dp on a Pixel 10). Each pane overlays `Lap N · time` and the cursor time along its bottom edge, shows the 2 s throttle/brake HUD at the top centre when `Telemetry HUD` is on, and puts a 30 dp readout strip underneath: `THR`/`BRK`/`RPM` mini bars, a 13 dp 2×2 tyre heatmap (corner letters in the content descriptions), and a 26 dp steering wheel. A pane without a replay shows `No clip yet` and an `Add clip` pill.
 - **Telemetry tab:** no readout strip. The consolidated track map takes 40 % (follow mode, pedal-coloured primary, dashed yellow reference, both cursors, horizontal legend) and five charts take 60 %.
 - Charts: `BRK`, `THR`, `SPD`, `RPM`, `GEAR`, each with the primary in blue and the reference dashed yellow, a shared `Track %` axis and one cursor line. The legend sits above the charts; the column scrolls if it overflows.
 - Lap 1 owns the clock. Lap 2 is muted, never plays, and is seeked frame-exactly to the primary's track progress on every rendered frame.
-- Both tabs use the primary's compact playback footer; switching tabs never pauses or seeks.
+- Footer: one 48 dp row — `⏮ −1 ▶ +1 ⏭`, a compact frame ruler, a `1×` button that cycles the rate, and a loop icon. No cursor/lap text; the panes carry the times. Switching tabs never pauses or seeks.
 
 ### Settings
 

@@ -84,7 +84,7 @@ internal fun CompareReadoutRow(
             compact = true,
         )
         if (hasSteering) {
-            SteeringWheel(steering = sample.steering, wheelSize = 32.dp)
+            SteeringWheel(steering = sample.steering, wheelSize = 26.dp)
         }
     }
 }
@@ -120,4 +120,4 @@ private fun MiniBar(
     }
 }
 
-private val ReadoutHeight = 44.dp
+private val ReadoutHeight = 30.dp

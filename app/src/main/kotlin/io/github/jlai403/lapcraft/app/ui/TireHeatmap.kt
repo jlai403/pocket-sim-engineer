@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 private val TireHot = Color(0xFFFF6B6B)
@@ -55,19 +57,15 @@ private fun TireTile(label: String, celsius: Float, imperial: Boolean, compact: 
     val shown = if (imperial) celsius * 9f / 5f + 32f else celsius
     Box(
         modifier = Modifier
-            .size(if (compact) 18.dp else 32.dp)
-            .clip(RoundedCornerShape(if (compact) 5.dp else 8.dp))
-            .background(tireTemperatureColor(celsius)),
+            .size(if (compact) 13.dp else 32.dp)
+            .clip(RoundedCornerShape(if (compact) 4.dp else 8.dp))
+            .background(tireTemperatureColor(celsius))
+            .semantics {
+                if (compact) contentDescription = "%s tyre %.0f degrees".format(label, shown)
+            },
         contentAlignment = Alignment.Center,
     ) {
-        if (compact) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.Black.copy(alpha = 0.7f),
-                maxLines = 1,
-            )
-        } else {
+        if (!compact) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     label,

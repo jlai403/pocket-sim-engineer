@@ -13,6 +13,10 @@ internal object TransportIcons {
     val Forward: ImageVector = icon("Forward", "M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z")
     val SkipPrevious: ImageVector = icon("SkipPrevious", "M6 6h2v12H6zm3.5 6l8.5 6V6z")
     val SkipNext: ImageVector = icon("SkipNext", "M6 18l8.5-6L6 6v12zM16 6v12h2V6z")
+    val Loop: ImageVector = icon(
+        "Loop",
+        "M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z",
+    )
 
     private fun icon(name: String, pathData: String): ImageVector =
         ImageVector.Builder(

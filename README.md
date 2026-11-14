@@ -53,8 +53,8 @@ Import merges: ids that already exist are skipped, so importing the same file tw
 - Sync screen: end-of-clip start with a suggested anchor, timeline scrubber, frame ruler (6 dp per frame, optional haptics), play/±10 s, ±1 frame, track %, preview, hard block for short clips.
 - Lossless MP4 trim with keyframe alignment and stored lead-in.
 - Lap player: Media3 video with the same playback controls as sync, a lap-only slider and frame ruler, speed/throttle/brake/RPM/gear charts on a track-progress axis, and a track map.
-- Compare (landscape): two same-track laps under one playback control, split into a `Video` tab (both replays, HUDs, and a pedal/tyre/steering readout) and a `Telemetry` tab (shared track map plus brake/throttle/speed/RPM/gear charts, primary blue and reference yellow). The reference lap follows the primary by track progress, frame-exactly and muted; a running delta sits in the chrome. The library offers a compare mode (the first pick is the primary) and the lap player's `Compare` pill picks the reference.
-- Compact playback footer everywhere: frame steps sit beside play and repeat while held, no separate step row.
+- Compare (landscape): two same-track laps under one playback control, split into a `Video` tab (both replays filling 16:9, HUDs, and a 30 dp pedal/tyre/steering strip) and a `Telemetry` tab (shared track map plus brake/throttle/speed/RPM/gear charts, primary blue and reference yellow). The reference lap follows the primary by track progress, frame-exactly and muted; a running delta sits in the chrome. The library offers a compare mode (the first pick is the primary) and the lap player's `Compare` pill picks the reference.
+- Compact playback footer: one row in compare (`⏮ −1 ▶ +1 ⏭` + ruler + `1×` cycle + loop), and the taller time/ruler/transport layout in the single-lap player.
 - CSV export and MP4 sharing.
 - Library backup: multi-select lap export to a zip and merge-only import, from Settings or the empty library.
 - In-app preview/stable updater.

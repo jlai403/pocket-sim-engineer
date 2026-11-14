@@ -84,8 +84,9 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 - Compare charts are one per metric (`BRK/THR/SPD/RPM/GEAR`) with the primary in `AccentBlue` and the
   reference dashed `AccentYellow`; the map keeps pedal colouring on the primary and uses yellow for
   the reference. Blue/yellow are Telemetry-tab only.
-- `PlaybackFooter` is compact everywhere (compare and the single-lap player): frame steps sit beside
-  Play in the transport row and repeat while held; `FrameStepRow` remains only on the sync screen.
+- `PlaybackFooter(compact = true)` is the compare footer: one 48 dp row with the frame steps beside
+  Play, a 40 dp ruler, a `1×` rate cycle, and a loop icon. The single-lap player keeps the taller
+  layout (time/speed row, ruler, transport); `FrameStepRow` remains only on the sync screen.
 - Library compare mode lives in `LibraryScreen`: header pill, row checkboxes, the first pick labelled
   `Primary`, same-track picks only, and a third pick replaces the reference.
 - Entry points are `Screen.Compare(...)`; the player's `Compare` pill and the library's compare action
