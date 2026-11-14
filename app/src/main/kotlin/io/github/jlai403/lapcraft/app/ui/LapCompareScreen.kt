@@ -9,6 +9,7 @@ import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -76,6 +77,8 @@ import kotlin.math.abs
 import kotlin.math.roundToLong
 
 /** One side of the comparison: its metadata, telemetry window, and clip when one is attached. */
+internal val COMPARE_MAP_PANE_WIDTH = 320.dp
+
 private data class CompareLap(
     val sessionId: String,
     val lapIndex: Int,
@@ -432,38 +435,50 @@ fun LapCompareScreen(
                     )
                 }
             } else {
-                Row(
+                BoxWithConstraints(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Column(
-                        modifier = Modifier.weight(0.4f).fillMaxHeight(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    val mapPaneWidth = minOf(COMPARE_MAP_PANE_WIDTH, maxWidth * 0.42f)
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        TrackMap(
+                        Column(
+                            modifier = Modifier
+                                .width(mapPaneWidth)
+                                .fillMaxHeight()
+                                .testTag("compare-map-pane"),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            TrackMap(
+                                samples = active.samples,
+                                lap = active.lap,
+                                cursorMs = primaryCursorMs,
+                                follow = true,
+                                centeredFollow = true,
+                                reference = reference?.let { GhostLap(it.lap, it.samples) },
+                                referenceCursorMs = referenceCursorMs,
+                                fillHeight = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TrackMapLegend(showReference = true, horizontal = true)
+                        }
+                        CompareCharts(
                             samples = active.samples,
                             lap = active.lap,
-                            cursorMs = primaryCursorMs,
-                            follow = true,
                             reference = reference?.let { GhostLap(it.lap, it.samples) },
-                            referenceCursorMs = referenceCursorMs,
-                            fillHeight = true,
-                            modifier = Modifier.weight(1f),
+                            cursorMs = primaryCursorMs,
+                            imperial = settings.imperialUnits,
+                            alignment = alignment,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .testTag("compare-charts"),
                         )
-                        TrackMapLegend(showReference = true, horizontal = true)
                     }
-                    CompareCharts(
-                        samples = active.samples,
-                        lap = active.lap,
-                        reference = reference?.let { GhostLap(it.lap, it.samples) },
-                        cursorMs = primaryCursorMs,
-                        imperial = settings.imperialUnits,
-                        alignment = alignment,
-                        modifier = Modifier.weight(0.6f).fillMaxHeight(),
-                    )
                 }
             }
 
