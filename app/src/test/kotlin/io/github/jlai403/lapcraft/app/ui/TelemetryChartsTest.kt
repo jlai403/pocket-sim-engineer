@@ -142,6 +142,27 @@ class TelemetryChartsTest {
     }
 
     @Test
+    fun `compare charts render every metric and the legend`() {
+        compose.setContent {
+            LapCraftTheme {
+                CompareCharts(
+                    samples = samples,
+                    lap = lap,
+                    reference = GhostLap(lap, samples),
+                    cursorMs = 1_000,
+                    imperial = false,
+                )
+            }
+        }
+
+        listOf("BRK", "THR", "SPD", "RPM", "GEAR", "Track %").forEach { label ->
+            compose.onNodeWithText(label).assertExists()
+        }
+        compose.onNodeWithText("lap 1").assertExists()
+        compose.onNodeWithText("lap 2 (reference)").assertExists()
+    }
+
+    @Test
     fun `track legend lists reference in compare mode`() {
         compose.setContent {
             LapCraftTheme { TrackMapLegend(showReference = true) }

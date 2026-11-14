@@ -218,6 +218,7 @@ internal fun PlaybackFooter(
                     onClick = onToggleLoop,
                     label = { Text("Loop") },
                 )
+                SpeedStepper(speed = speed, onSpeedChange = onSpeedChange)
             }
             FrameRuler(
                 valueMs = cursorMs.toLong(),
@@ -233,16 +234,11 @@ internal fun PlaybackFooter(
                 onSeekFraction = onSeekFraction,
                 hapticsEnabled = hapticsEnabled,
             )
-            FrameStepRow(
-                enabled = enabled,
-                onStep = onStep,
-                hapticsEnabled = hapticsEnabled,
-            )
             Box(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.align(Alignment.Center),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     TransportButton(
                         icon = TransportIcons.SkipPrevious,
@@ -251,6 +247,15 @@ internal fun PlaybackFooter(
                         onClick = onRewind,
                         size = 36.dp,
                         iconSize = 20.dp,
+                    )
+                    StepButton(
+                        text = "−1",
+                        onClick = { onStep(-1) },
+                        enabled = enabled,
+                        hapticsEnabled = hapticsEnabled,
+                        compact = true,
+                        description = "Step back one frame",
+                        modifier = Modifier.testTag("frame-back"),
                     )
                     TransportButton(
                         icon = if (playing) TransportIcons.Pause else Icons.Filled.PlayArrow,
@@ -261,6 +266,15 @@ internal fun PlaybackFooter(
                         size = 44.dp,
                         iconSize = 24.dp,
                     )
+                    StepButton(
+                        text = "+1",
+                        onClick = { onStep(1) },
+                        enabled = enabled,
+                        hapticsEnabled = hapticsEnabled,
+                        compact = true,
+                        description = "Step forward one frame",
+                        modifier = Modifier.testTag("frame-forward"),
+                    )
                     TransportButton(
                         icon = TransportIcons.SkipNext,
                         description = "Next brake point",
@@ -269,9 +283,6 @@ internal fun PlaybackFooter(
                         size = 36.dp,
                         iconSize = 20.dp,
                     )
-                }
-                Box(modifier = Modifier.align(Alignment.CenterEnd)) {
-                    SpeedStepper(speed = speed, onSpeedChange = onSpeedChange)
                 }
             }
         }
@@ -325,6 +336,8 @@ internal fun StepButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     hapticsEnabled: Boolean = true,
+    compact: Boolean = false,
+    description: String = text,
 ) {
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
@@ -332,8 +345,14 @@ internal fun StepButton(
         onClick = {},
         enabled = enabled,
         modifier = modifier
-            .height(42.dp)
-            .semantics { onClick(label = text) { onClick(); true } }
+            .then(if (compact) Modifier.size(36.dp) else Modifier.height(42.dp))
+            .semantics {
+                contentDescription = description
+                onClick(label = description) {
+                    onClick()
+                    true
+                }
+            }
             .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
                 awaitEachGesture {
@@ -363,7 +382,7 @@ internal fun StepButton(
                 }
             },
         shape = CircleShape,
-        contentPadding = PaddingValues(horizontal = 6.dp),
+        contentPadding = if (compact) PaddingValues(0.dp) else PaddingValues(horizontal = 6.dp),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = MaterialTheme.colorScheme.onSurface,
         ),

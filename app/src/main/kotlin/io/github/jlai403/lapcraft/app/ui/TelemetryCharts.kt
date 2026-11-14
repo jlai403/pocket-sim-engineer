@@ -12,8 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -281,6 +284,7 @@ private fun DrawScope.drawTrace(
     lap: LapMetadata,
     line: TraceSeries,
     dashed: Boolean,
+    muted: Boolean = dashed,
 ) {
     if (points.isEmpty()) return
     val step = ceil(points.size / size.width.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
@@ -304,7 +308,7 @@ private fun DrawScope.drawTrace(
     }
     drawPath(
         path = path,
-        color = if (dashed) line.color.copy(alpha = 0.45f) else line.color,
+        color = if (muted) line.color.copy(alpha = 0.45f) else line.color,
         style = Stroke(
             width = if (dashed) 1.5f else 2f,
             pathEffect = if (dashed) {
@@ -326,6 +330,7 @@ internal fun TrackMap(
     follow: Boolean = false,
     reference: GhostLap? = null,
     referenceCursorMs: Int = 0,
+    fillHeight: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val window = remember(samples, lap) { samples.lapWindow(lap) }
@@ -353,7 +358,7 @@ internal fun TrackMap(
     val brakeColor = MaterialTheme.colorScheme.error
     val throttleColor = MaterialTheme.colorScheme.primary
     val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-    val referenceColor = MaterialTheme.colorScheme.tertiary
+    val referenceColor = AccentYellow
     val anchor = if (follow) current else null
     val heading = remember(anchor, window, lap, cursorMs) {
         if (anchor == null) {
@@ -367,7 +372,11 @@ internal fun TrackMap(
     }
 
     Column(modifier) {
-        Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (fillHeight) Modifier.weight(1f) else Modifier.height(200.dp)),
+        ) {
             val spanX = (maxX - minX).coerceAtLeast(0.001f)
             val spanZ = (maxZ - minZ).coerceAtLeast(0.001f)
             val fitScale = minOf(size.width / spanX, size.height / spanZ) * 0.9f
@@ -473,15 +482,24 @@ internal fun TrackMap(
 }
 
 @Composable
-internal fun TrackMapLegend(showReference: Boolean = false, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+internal fun TrackMapLegend(
+    showReference: Boolean = false,
+    modifier: Modifier = Modifier,
+    horizontal: Boolean = false,
+) {
+    val items: @Composable () -> Unit = {
         LegendItem("Brake", MaterialTheme.colorScheme.error)
         LegendItem("Throttle", MaterialTheme.colorScheme.primary)
         if (showReference) {
-            LegendItem("Reference", MaterialTheme.colorScheme.tertiary)
+            LegendItem("Reference", AccentYellow)
         } else {
             LegendItem("Ghost", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
         }
+    }
+    if (horizontal) {
+        Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) { items() }
+    } else {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) { items() }
     }
 }
 
@@ -502,6 +520,165 @@ private fun LegendItem(label: String, color: Color) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+private data class CompareMetric(
+    val label: String,
+    val valueOf: (Sample) -> Float,
+    val maxValue: Float,
+)
+
+/** Five per-metric traces for a comparison: primary blue, reference yellow. */
+@Composable
+internal fun CompareCharts(
+    samples: List<Sample>,
+    lap: LapMetadata,
+    reference: GhostLap?,
+    cursorMs: Int,
+    imperial: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val window = remember(samples, lap) { samples.lapWindow(lap) }
+    if (window.isEmpty()) {
+        Text("No telemetry for this lap", modifier = modifier)
+        return
+    }
+    val referenceWindow = remember(reference) {
+        reference?.let { it.samples.lapWindow(it.lap) } ?: emptyList()
+    }
+    val table = remember(window, lap) { TrackProgress.table(window, lap.startNanos) }
+    val referenceTable = remember(referenceWindow, reference) {
+        reference?.let { TrackProgress.table(referenceWindow, it.lap.startNanos) }
+    }
+    val speedFactor = if (imperial) 2.23694f else 3.6f
+    val all = window + referenceWindow
+    val speedMax = remember(all, speedFactor) {
+        all.maxOf { it.speedMps * speedFactor }.coerceAtLeast(1f)
+    }
+    val rpmMax = remember(all) { all.maxOf { it.rpm }.coerceAtLeast(1f) }
+    val gearMax = remember(all) { all.maxOf { it.gear }.coerceAtLeast(1) }.toFloat()
+    val metrics = listOf(
+        CompareMetric("BRK", { it.brake.toFloat() }, 255f),
+        CompareMetric("THR", { it.throttle.toFloat() }, 255f),
+        CompareMetric("SPD", { it.speedMps * speedFactor }, speedMax),
+        CompareMetric("RPM", { it.rpm }, rpmMax),
+        CompareMetric("GEAR", { it.gear.toFloat() }, gearMax),
+    )
+    val progress = table?.percentAt(cursorMs) ?: 0f
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        CompareLegend()
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            metrics.forEach { metric ->
+                MetricChart(
+                    metric = metric,
+                    window = window,
+                    lap = lap,
+                    table = table,
+                    referenceWindow = referenceWindow,
+                    referenceLap = reference?.lap,
+                    referenceTable = referenceTable,
+                    progress = progress,
+                )
+            }
+            Text(
+                "Track %",
+                modifier = Modifier.align(Alignment.End),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompareLegend() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        LegendLine("lap 1", AccentBlue, dashed = false)
+        LegendLine("lap 2 (reference)", AccentYellow, dashed = true)
+    }
+}
+
+@Composable
+private fun LegendLine(label: String, color: Color, dashed: Boolean) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Canvas(modifier = Modifier.size(18.dp, 2.dp)) {
+            drawLine(
+                color = color,
+                start = Offset(0f, size.height / 2f),
+                end = Offset(size.width, size.height / 2f),
+                strokeWidth = size.height,
+                pathEffect = if (dashed) {
+                    PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))
+                } else {
+                    null
+                },
+            )
+        }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun MetricChart(
+    metric: CompareMetric,
+    window: List<Sample>,
+    lap: LapMetadata,
+    table: TrackProgress.Table?,
+    referenceWindow: List<Sample>,
+    referenceLap: LapMetadata?,
+    referenceTable: TrackProgress.Table?,
+    progress: Float,
+) {
+    val axisColor = MaterialTheme.colorScheme.outlineVariant
+    val cursorColor = MaterialTheme.colorScheme.onSurface
+    val primary = remember(metric) { TraceSeries(AccentBlue, metric.valueOf, metric.maxValue) }
+    val reference = remember(metric) { TraceSeries(AccentYellow, metric.valueOf, metric.maxValue) }
+    Row(
+        modifier = Modifier.fillMaxWidth().height(40.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            metric.label,
+            modifier = Modifier.width(30.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Canvas(modifier = Modifier.weight(1f).fillMaxHeight().padding(vertical = 2.dp)) {
+            drawLine(
+                color = axisColor,
+                start = Offset(0f, size.height),
+                end = Offset(size.width, size.height),
+                strokeWidth = 1f,
+            )
+            if (referenceLap != null) {
+                drawTrace(referenceWindow, referenceTable, referenceLap, reference, dashed = true, muted = false)
+            }
+            drawTrace(window, table, lap, primary, dashed = false)
+            val cursorX = size.width * progress.coerceIn(0f, 100f) / 100f
+            drawLine(
+                color = cursorColor,
+                start = Offset(cursorX, 0f),
+                end = Offset(cursorX, size.height),
+                strokeWidth = 2f,
+            )
+        }
     }
 }
 

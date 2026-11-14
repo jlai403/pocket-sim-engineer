@@ -4,15 +4,18 @@ import android.app.Application
 import android.content.Context
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
+import io.github.jlai403.lapcraft.app.settings.SettingsStore
 import io.github.jlai403.lapcraft.core.clip.TrackProgress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +31,11 @@ class LapCompareScreenTest {
     val compose = createComposeRule()
 
     private val context: Context get() = ApplicationProvider.getApplicationContext()
+
+    @Before
+    fun resetSettings() {
+        SettingsStore(context).telemetryHud = true
+    }
 
     private fun installLaps(referenceClip: Boolean = true) {
         SessionFixtures.install(
@@ -60,18 +68,52 @@ class LapCompareScreenTest {
     }
 
     @Test
-    fun `both laps get a pane, charts, and a shared track map`() {
+    fun `the video tab shows both panes with a hud and a readout`() {
         installLaps()
         setCompareScreen()
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Primary · Lap 1").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Reference · Lap 1").assertExists()
-        compose.onNodeWithText("Track map").assertExists()
-        compose.onNodeWithText("Track %").assertExists()
-        compose.onNodeWithText("Reference").assertExists()
-        compose.onNodeWithTag("compare-reference-time").assertExists()
+        compose.onNodeWithText("Ref · Lap 1 · 1:32.000").assertExists()
+        assertEquals(2, compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().size)
+        assertEquals(2, compose.onAllNodesWithTag("compare-readout").fetchSemanticsNodes().size)
+        compose.onNodeWithText("Track %").assertDoesNotExist()
+        compose.onNodeWithTag("compare-delta").assertExists()
+    }
+
+    @Test
+    fun `the HUD switch hides only the hud`() {
+        SettingsStore(context).telemetryHud = false
+        installLaps()
+        setCompareScreen()
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(0, compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().size)
+        assertEquals(2, compose.onAllNodesWithTag("compare-readout").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `the telemetry tab shows the per-metric charts`() {
+        installLaps()
+        setCompareScreen()
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("compare-tab-telemetry").performClick()
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("Track %").fetchSemanticsNodes().isNotEmpty()
+        }
+        listOf("BRK", "THR", "SPD", "RPM", "GEAR").forEach { label ->
+            compose.onNodeWithText(label).assertExists()
+        }
+        compose.onNodeWithText("lap 1").assertExists()
+        compose.onNodeWithText("lap 2 (reference)").assertExists()
+        assertEquals(0, compose.onAllNodesWithTag("compare-readout").fetchSemanticsNodes().size)
     }
 
     @Test
@@ -83,7 +125,7 @@ class LapCompareScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("No clip yet").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithTag("compare-add-clip-Reference").performClick()
+        compose.onNodeWithTag("compare-add-clip-reference").performClick()
 
         assertEquals("reference" to 1, added)
     }
@@ -103,14 +145,14 @@ class LapCompareScreenTest {
         setCompareScreen()
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Primary · Lap 1").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
         }
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("+1 frame").fetchSemanticsNodes()
+            compose.onAllNodesWithTag("frame-forward").fetchSemanticsNodes()
                 .any { !it.config.contains(SemanticsProperties.Disabled) }
         }
         val before = referenceCursorText()
-        compose.onNodeWithText("+1 frame").performClick()
+        compose.onNodeWithTag("frame-forward").performClick()
 
         compose.waitUntil(TIMEOUT) { referenceCursorText() != before }
         assertNotEquals(before, referenceCursorText())
@@ -129,7 +171,7 @@ class LapCompareScreenTest {
     }
 
     private fun referenceCursorText(): String =
-        compose.onNodeWithTag("compare-reference-time")
+        compose.onNodeWithTag("compare-cursor-reference")
             .fetchSemanticsNode()
             .config[SemanticsProperties.Text]
             .joinToString(" ") { it.text }

@@ -177,19 +177,19 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Replay management lives in the `Edit lap` sheet: track, driver, add/replace replay, resume a pending sync, and the lap's data volume (replay + telemetry). The main screen keeps only `Add replay` when no clip exists. With Developer tools on, the sheet adds `Re-encode clip`, which rebuilds the clip with a 0.1 s keyframe interval for frame-exact scrubbing and deletes the old clip, its temporaries and any scrub cache. The sheet stays open while the transcode runs, showing a spinner and `Re-encoding…`, then `Re-encoded with 0.1 s keyframes.` (or a failure line, with the clip unchanged).
 - New imports are trimmed and then compacted with the Settings replay profile (default 1080p HEVC, ~5 Mbps, 0.1 s keyframes, stereo; ~35% larger than 0.5 s keyframes). If compaction fails the trimmed clip is kept and a `Compaction failed` toast appears.
 - Missing video: `Replay` card with a one-sentence explanation and the source pill.
-- Playback footer (sticky): `current / lap` in mono, the frame ruler, then centred compact transport (skip-previous/next jump to the previous/next brake point, with a Loop toggle and a `− / +` speed stepper at the right). The ruler is the only scrubber and shows a progress track, event dots, and pinch zoom. A press jumps to the timestamp under the finger; drags and the release seek the exact frame, with at most one seek in flight. The readout and telemetry follow the requested frame immediately.
+- Playback footer (sticky): `current / lap` in mono with the Loop toggle and the `− / +` speed stepper on the right, the frame ruler, then one centred transport row: skip to the previous brake point, `−1` frame, play/pause, `+1` frame, skip to the next brake point. Frame steps repeat while held. The ruler is the only scrubber and shows a progress track, event dots, and pinch zoom. A press jumps to the timestamp under the finger; drags and the release seek the exact frame, with at most one seek in flight. The readout and telemetry follow the requested frame immediately.
 - Scrolling content above the footer: video, telemetry card with trace toggles, track-map card. The rendered frame drives the charts and map, including while paused.
 - Speed changes last until you leave the lap screen; the default comes from Settings.
 
 ### Compare
 
 - Landscape only. Entering the screen requests landscape; leaving restores the previous orientation. Portrait hides the content behind a `Rotate to landscape` prompt and pauses playback.
-- Header: `Compare`, subtitle `track · primary time vs reference time`, back button. Primary = the lap that was open or picked first.
-- Two panes side by side, 16:9, black, clipped to 18 dp, each headed `Primary · Lap N` / `Reference · Lap N` with its current time in mono. A pane without a replay shows `No clip yet` (or `No track data`) and an `Add clip` primary pill.
+- Chrome: one 44 dp row, no title — back button left, `Video` / `Telemetry` tabs centre, `Δ ±0.342 s` right (green ahead, red behind). Primary = the lap that was open or picked first.
+- **Video tab:** two panes side by side, black, clipped to 18 dp. Each pane overlays `Lap N · time` and the cursor time along its bottom edge, shows the 2 s throttle/brake HUD at the top centre when `Telemetry HUD` is on, and puts a 44 dp readout strip underneath: `THR`/`BRK`/`RPM` mini bars, a compact 2×2 tyre heatmap, and a 32 dp steering wheel. A pane without a replay shows `No clip yet` and an `Add clip` pill.
+- **Telemetry tab:** no readout strip. The consolidated track map takes 40 % (follow mode, pedal-coloured primary, dashed yellow reference, both cursors, horizontal legend) and five charts take 60 %.
+- Charts: `BRK`, `THR`, `SPD`, `RPM`, `GEAR`, each with the primary in blue and the reference dashed yellow, a shared `Track %` axis and one cursor line. The legend sits above the charts; the column scrolls if it overflows.
 - Lap 1 owns the clock. Lap 2 is muted, never plays, and is seeked frame-exactly to the primary's track progress on every rendered frame.
-- One delta line: `Δ −0.342 s ahead` (or `behind`) with the progress and the reference time at that point, plus the one-liner comparison (`vs reference: top … · avg … · brake … · full … · lap …`).
-- One consolidated track map in follow mode: both lines (reference dashed, tertiary; primary coloured by pedal state) and both cursors (primary filled, reference ring).
-- One telemetry card with both laps on a track-progress axis, then the primary's playback footer (ruler, frame steps, transport, loop, speed).
+- Both tabs use the primary's compact playback footer; switching tabs never pauses or seeks.
 
 ### Settings
 
@@ -211,9 +211,10 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - RPM chart removed; RPM remains a value bar.
 - X axis: cumulative distance along the lap normalised to 0–100%, labelled `Track %`; time and progress interpolate between samples, so a corner sits at the same x on every lap. Laps with no track positions fall back to lap time.
 - A reference lap overlays the same traces as dashed, muted lines; maxima cover both laps.
+- Compare charts (`CompareCharts`) use one chart per metric (`BRK`, `THR`, `SPD`, `RPM`, `GEAR`): primary solid blue (`AccentBlue`), reference dashed yellow (`AccentYellow`), shared cursor.
 - Axis: 1 px `outlineVariant`; cursor: 3 px `onSurface`.
 - Trace stroke: 2 px. Chart heights: 52 dp.
-- Map: coloured 3 px segments by pedal state, intensity lerped from muted grey to green (throttle) or red (brake) by pedal strength; 12 px blue dot at the cursor, 200 dp tall. A dashed grey ghost lap overlays the fastest lap on the same track; compare replaces it with a dashed tertiary reference line and an open ring at its cursor.
+- Map: coloured 3 px segments by pedal state, intensity lerped from muted grey to green (throttle) or red (brake) by pedal strength; 12 px blue dot at the cursor, 200 dp tall. A dashed grey ghost lap overlays the fastest lap on the same track; compare replaces it with a dashed yellow (`AccentYellow`) reference line and an open ring at its cursor.
 - Turn markers: the ruler marks brake, throttle, apex, and exit events. The map colours segments by pedal strength but draws no turn-in dots.
 - Map chips: `Follow` is on by default and centres on the car, puts the heading up, anchors the car near the bottom, squashes the vertical axis 0.35× for a driver's-perspective tilt, and zooms to the next ~2 s; `Ghost` toggles the reference lap; `Reset` returns to fit-all. The legend is a vertical list of brake, throttle, and ghost under the title, above the map.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.

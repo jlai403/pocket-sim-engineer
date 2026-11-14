@@ -35,40 +35,51 @@ internal fun TireHeatmap(
     rr: Float,
     imperial: Boolean,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            TireTile("FL", fl, imperial)
-            TireTile("FR", fr, imperial)
+    val gap = if (compact) 2.dp else 3.dp
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(gap)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+            TireTile("FL", fl, imperial, compact)
+            TireTile("FR", fr, imperial, compact)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            TireTile("RL", rl, imperial)
-            TireTile("RR", rr, imperial)
+        Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+            TireTile("RL", rl, imperial, compact)
+            TireTile("RR", rr, imperial, compact)
         }
     }
 }
 
 @Composable
-private fun TireTile(label: String, celsius: Float, imperial: Boolean) {
+private fun TireTile(label: String, celsius: Float, imperial: Boolean, compact: Boolean) {
     val shown = if (imperial) celsius * 9f / 5f + 32f else celsius
     Box(
         modifier = Modifier
-            .size(32.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .size(if (compact) 18.dp else 32.dp)
+            .clip(RoundedCornerShape(if (compact) 5.dp else 8.dp))
             .background(tireTemperatureColor(celsius)),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (compact) {
             Text(
                 label,
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.Black.copy(alpha = 0.7f),
+                maxLines = 1,
             )
-            NumericText(
-                text = "%.0f°".format(shown),
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.Black.copy(alpha = 0.75f),
-            )
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Black.copy(alpha = 0.7f),
+                )
+                NumericText(
+                    text = "%.0f°".format(shown),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Black.copy(alpha = 0.75f),
+                )
+            }
         }
     }
 }

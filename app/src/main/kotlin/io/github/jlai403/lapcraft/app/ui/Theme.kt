@@ -18,6 +18,9 @@ import io.github.jlai403.lapcraft.R
 val AccentGreen = Color(0xFF3DDC84)
 val AccentBlue = Color(0xFF5AC8FA)
 val AccentAmber = Color(0xFFFFC857)
+
+/** Reference lap in a comparison (charts and track map). */
+val AccentYellow = Color(0xFFFFD54F)
 val Ink = Color(0xFF080C11)
 val Panel = Color(0xFF111821)
 val PanelRaised = Color(0xFF1A2431)
