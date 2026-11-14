@@ -82,6 +82,29 @@ _Avoid_: race time
 The lap-time position drawn on the charts and track map.
 _Avoid_: playhead, marker
 
+**Track progress**:
+Cumulative distance along the racing line, normalised to 0–100 % of the lap; the
+charts' x axis and the compare alignment.
+_Avoid_: position, lap percentage, distance axis
+
+**Ghost**:
+The fastest lap on the same track, drawn as a dashed grey line on the track map and
+summarised in the expanded header.
+_Avoid_: reference lap, compare
+
+**Primary lap**:
+The first lap opened or picked for a comparison; it owns the clock and the cursor.
+_Avoid_: main lap, base lap
+
+**Reference lap**:
+The second lap in a comparison. It is seeked to the primary's track progress, frame
+exactly, and never plays.
+_Avoid_: ghost, comparison lap, secondary lap
+
+**Compare**:
+Reviewing two same-track laps side by side under one playback control.
+_Avoid_: versus screen, split view
+
 **Frame step**:
 Moving the playhead by exactly one video frame.
 _Avoid_: scrub, nudge

@@ -52,7 +52,8 @@ Import merges: ids that already exist are skipped, so importing the same file tw
 - Replay import through the Android share sheet and SAF file picker; one source button opens Files or the PlayStation App, and a clip can be replaced on an existing lap.
 - Sync screen: end-of-clip start with a suggested anchor, timeline scrubber, frame ruler (6 dp per frame, optional haptics), play/±10 s, ±1 frame, track %, preview, hard block for short clips.
 - Lossless MP4 trim with keyframe alignment and stored lead-in.
-- Lap player: Media3 video with the same playback controls as sync, a lap-only slider and frame ruler, speed/throttle/brake/RPM/gear charts, and a track map.
+- Lap player: Media3 video with the same playback controls as sync, a lap-only slider and frame ruler, speed/throttle/brake/RPM/gear charts on a track-progress axis, and a track map.
+- Compare (landscape): two same-track laps side by side under one playback control; the reference lap follows the primary by track progress, frame-exactly and muted, with both lines on one track map and a running delta. The library offers a compare mode (the first pick is the primary) and the lap player's `Compare` pill picks the reference.
 - CSV export and MP4 sharing.
 - Library backup: multi-select lap export to a zip and merge-only import, from Settings or the empty library.
 - In-app preview/stable updater.
