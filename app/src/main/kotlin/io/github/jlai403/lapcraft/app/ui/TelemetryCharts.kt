@@ -285,6 +285,7 @@ private fun DrawScope.drawTrace(
     line: TraceSeries,
     dashed: Boolean,
     muted: Boolean = dashed,
+    axisOfSample: ((Int) -> Float)? = null,
 ) {
     if (points.isEmpty()) return
     val step = ceil(points.size / size.width.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
@@ -292,10 +293,10 @@ private fun DrawScope.drawTrace(
     var first = true
     for (index in points.indices step step) {
         val sample = points[index]
-        val x = if (table != null) {
-            size.width * table.percentOfSample(index) / 100f
-        } else {
-            timeToX(sample.lapTimeMs(lap), lap.lapTimeMs, size.width)
+        val x = when {
+            axisOfSample != null -> size.width * axisOfSample(index).coerceIn(0f, 100f) / 100f
+            table != null -> size.width * table.percentOfSample(index) / 100f
+            else -> timeToX(sample.lapTimeMs(lap), lap.lapTimeMs, size.width)
         }
         val y = size.height -
             (line.valueOf(sample) / line.maxValue).coerceIn(0f, 1f) * size.height
@@ -537,6 +538,7 @@ internal fun CompareCharts(
     reference: GhostLap?,
     cursorMs: Int,
     imperial: Boolean,
+    alignment: TrackProgress.Alignment? = null,
     modifier: Modifier = Modifier,
 ) {
     val window = remember(samples, lap) { samples.lapWindow(lap) }
@@ -583,6 +585,7 @@ internal fun CompareCharts(
                     referenceWindow = referenceWindow,
                     referenceLap = reference?.lap,
                     referenceTable = referenceTable,
+                    referenceAxis = alignment?.let { aligned -> { index: Int -> aligned.axisPercentOfSample(index) } },
                     progress = progress,
                 )
             }
@@ -643,6 +646,7 @@ private fun MetricChart(
     referenceWindow: List<Sample>,
     referenceLap: LapMetadata?,
     referenceTable: TrackProgress.Table?,
+    referenceAxis: ((Int) -> Float)?,
     progress: Float,
 ) {
     val axisColor = MaterialTheme.colorScheme.outlineVariant
@@ -668,7 +672,15 @@ private fun MetricChart(
                 strokeWidth = 1f,
             )
             if (referenceLap != null) {
-                drawTrace(referenceWindow, referenceTable, referenceLap, reference, dashed = true, muted = false)
+                drawTrace(
+                    points = referenceWindow,
+                    table = referenceTable,
+                    lap = referenceLap,
+                    line = reference,
+                    dashed = true,
+                    muted = false,
+                    axisOfSample = referenceAxis,
+                )
             }
             drawTrace(window, table, lap, primary, dashed = false)
             val cursorX = size.width * progress.coerceIn(0f, 100f) / 100f

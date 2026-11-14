@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import io.github.jlai403.lapcraft.core.clip.TrackProgress
 import io.github.jlai403.lapcraft.core.session.LapMetadata
 import org.junit.Rule
 import org.junit.Test
@@ -160,6 +161,28 @@ class TelemetryChartsTest {
         }
         compose.onNodeWithText("lap 1").assertExists()
         compose.onNodeWithText("lap 2 (reference)").assertExists()
+    }
+
+    @Test
+    fun `compare charts plot the reference on an aligned axis`() {
+        val alignment = TrackProgress.align(samples, samples, 0)
+
+        compose.setContent {
+            LapCraftTheme {
+                CompareCharts(
+                    samples = samples,
+                    lap = lap,
+                    reference = GhostLap(lap, samples),
+                    cursorMs = 1_000,
+                    imperial = false,
+                    alignment = alignment,
+                )
+            }
+        }
+
+        listOf("BRK", "THR", "SPD", "RPM", "GEAR", "Track %").forEach { label ->
+            compose.onNodeWithText(label).assertExists()
+        }
     }
 
     @Test

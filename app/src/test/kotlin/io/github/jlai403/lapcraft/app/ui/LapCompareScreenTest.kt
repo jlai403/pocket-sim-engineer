@@ -15,6 +15,7 @@ import io.github.jlai403.lapcraft.core.clip.TrackProgress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -164,6 +165,31 @@ class LapCompareScreenTest {
         assertEquals(0, referenceCursor(primary, 0, reference, 2_000))
         assertEquals(1_000, referenceCursor(primary, 500, reference, 2_000))
         assertEquals(2_000, referenceCursor(primary, 1_000, reference, 2_000))
+    }
+
+    @Test
+    fun `the reference cursor follows the place on track, not its own distance`() {
+        val primary = lineSamples(lapTimeMs = 1_000)
+        val detour = listOf(0f to 0f, 5f to 20f, 10f to 0f)
+        val straight = (2..10).map { it * 10f to 0f }
+        val reference = (detour + straight).mapIndexed { index, (x, z) ->
+            SessionFixtures.sample(timeNanos = index * 100_000_000L, x = x, z = z)
+        }
+        val primaryTable = TrackProgress.table(primary, 0)
+        val referenceTable = TrackProgress.table(reference, 0)
+        assertNotNull(primaryTable)
+        assertNotNull(referenceTable)
+        val alignment = TrackProgress.align(primary, reference, 0)
+        assertNotNull(alignment)
+
+        val aligned = referenceCursor(primaryTable, 500, referenceTable, 1_000, alignment)
+        val ownDistance = referenceCursor(primaryTable, 500, referenceTable, 1_000)
+
+        assertEquals(600f, aligned.toFloat(), 60f)
+        assertTrue(
+            "ownDistance=$ownDistance aligned=$aligned",
+            kotlin.math.abs(ownDistance - aligned) >= 30,
+        )
     }
 
     private fun waitForPanes() {

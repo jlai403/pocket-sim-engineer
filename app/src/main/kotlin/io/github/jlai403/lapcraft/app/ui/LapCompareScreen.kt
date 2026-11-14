@@ -290,11 +290,15 @@ fun LapCompareScreen(
     val referenceTable = remember(referenceWindow, reference) {
         reference?.let { TrackProgress.table(referenceWindow, it.lap.startNanos) }
     }
+    val alignment = remember(primaryWindow, referenceWindow, reference) {
+        reference?.let { TrackProgress.align(primaryWindow, referenceWindow, it.lap.startNanos) }
+    }
     val referenceCursorMs = referenceCursor(
         primaryTable = primaryTable,
         primaryCursorMs = primaryCursorMs,
         referenceTable = referenceTable,
         referenceLapTimeMs = reference?.lap?.lapTimeMs ?: 0,
+        alignment = alignment,
     )
     val referenceClipMs = reference?.let { loaded ->
         PlaybackCursor.clipMs(referenceCursorMs, loaded.lap.leadInMs, loaded.lap.syncOffsetMs)
@@ -457,6 +461,7 @@ fun LapCompareScreen(
                         reference = reference?.let { GhostLap(it.lap, it.samples) },
                         cursorMs = primaryCursorMs,
                         imperial = settings.imperialUnits,
+                        alignment = alignment,
                         modifier = Modifier.weight(0.6f).fillMaxHeight(),
                     )
                 }
@@ -680,16 +685,19 @@ private fun ComparePane(
     }
 }
 
-/** Lap time on the reference lap at the primary lap's track progress. */
+/** Lap time on the reference lap at the primary lap's place on track. */
 internal fun referenceCursor(
     primaryTable: TrackProgress.Table?,
     primaryCursorMs: Int,
     referenceTable: TrackProgress.Table?,
     referenceLapTimeMs: Int,
-): Int = referenceTable?.timeAtPercent(
-    primaryTable?.percentAt(primaryCursorMs) ?: 0f,
-    referenceLapTimeMs,
-) ?: 0
+    alignment: TrackProgress.Alignment? = null,
+): Int {
+    val percent = primaryTable?.percentAt(primaryCursorMs) ?: 0f
+    return alignment?.referenceTimeAt(percent, referenceLapTimeMs)
+        ?: referenceTable?.timeAtPercent(percent, referenceLapTimeMs)
+        ?: 0
+}
 
 private fun deltaLabel(deltaMs: Int): String =
     if (deltaMs == 0) "Δ 0.000 s" else "Δ %+.3f s".format(deltaMs / 1000.0)

@@ -74,7 +74,7 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 - `LapCompareScreen` is landscape-only: it requests `SCREEN_ORIENTATION_LANDSCAPE` on entry and
   restores the previous value in `onDispose`; portrait pauses playback behind a rotate prompt.
 - The primary lap (first opened or first picked) owns the clock. Only its player calls `play()`;
-  the reference is muted and seeked frame-exactly to the primary's track progress via `ScrubSeeker`.
+  the reference is muted and seeked frame-exactly to the primary's place on track via `ScrubSeeker`.
 - The screen is two tabs under a 44 dp chrome row (back, `Video`/`Telemetry`, delta). `Video` shows
   both panes, each with `TelemetryHud` at the top centre and `CompareReadoutRow` underneath; the
   panes carry no text overlay — GT7's own HUD is in the frame, so the lap and cursor times live in
@@ -83,6 +83,10 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 - `TrackProgress.Table` caches cumulative distance per lap and interpolates both ways:
   `percentAt(timeMs)` brackets by time, `timeAtPercent(percent, lapTimeMs)` brackets by distance.
   Never snap to the nearest sample.
+- `TrackProgress.align` puts the reference on lap 1's driven path (2.5 m polyline, 5 m behind to
+  10 m ahead of the previous answer, monotone, full-path search past 50 m). It returns null on a
+  path broken by a GT7 reset, and the screen then falls back to `timeAtPercent`. The video seek, the
+  reference chart axis, the map dot and `Δ` all read this one alignment.
 - Compare charts are one per metric (`BRK/THR/SPD/RPM/GEAR`) with the primary in `AccentBlue` and the
   reference dashed `AccentYellow`; the map keeps pedal colouring on the primary and uses yellow for
   the reference. Blue/yellow are Telemetry-tab only.
