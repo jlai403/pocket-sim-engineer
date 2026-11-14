@@ -6,6 +6,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performSemanticsAction
@@ -61,8 +62,10 @@ class FrameRulerTest {
     }
 
     @Test
-    fun `pressing right of the needle jumps forward`() {
+    fun `a tap does not move frames`() {
         val totals = mutableListOf<Int>()
+        var starts = 0
+        var ends = 0
         var pxPerFrame = 0f
 
         compose.setContent {
@@ -74,7 +77,38 @@ class FrameRulerTest {
                     endMs = 10_000,
                     frameStepMs = 33,
                     enabled = true,
-                    onScrubStart = {},
+                    onScrubStart = { starts++ },
+                    onScrub = { totals += it },
+                    onScrubEnd = { ends++ },
+                    hapticsEnabled = false,
+                    modifier = Modifier.testTag("ruler"),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("ruler").performTouchInput {
+            click(Offset(center.x + pxPerFrame * 12f, center.y))
+        }
+
+        assertTrue("expected no scrub, got $totals", totals.isEmpty())
+        assertEquals(0, starts)
+        assertEquals(0, ends)
+    }
+
+    @Test
+    fun `a move under the touch slop does nothing`() {
+        val totals = mutableListOf<Int>()
+        var starts = 0
+
+        compose.setContent {
+            LapCraftTheme {
+                FrameRuler(
+                    valueMs = 5_000,
+                    startMs = 0,
+                    endMs = 10_000,
+                    frameStepMs = 33,
+                    enabled = true,
+                    onScrubStart = { starts++ },
                     onScrub = { totals += it },
                     hapticsEnabled = false,
                     modifier = Modifier.testTag("ruler"),
@@ -83,15 +117,17 @@ class FrameRulerTest {
         }
 
         compose.onNodeWithTag("ruler").performTouchInput {
-            down(Offset(center.x + pxPerFrame * 12f, center.y))
+            down(center)
+            moveBy(Offset(2f, 0f))
             up()
         }
 
-        assertEquals(listOf(12), totals)
+        assertTrue("expected no scrub, got $totals", totals.isEmpty())
+        assertEquals(0, starts)
     }
 
     @Test
-    fun `dragging after a press stacks on the pressed timestamp`() {
+    fun `a drag steps frames by its whole length`() {
         val totals = mutableListOf<Int>()
         var pxPerFrame = 0f
 
@@ -114,12 +150,11 @@ class FrameRulerTest {
 
         compose.onNodeWithTag("ruler").performTouchInput {
             down(Offset(center.x + pxPerFrame * 10f, center.y))
-            moveBy(Offset(pxPerFrame * 5f, 0f))
+            moveBy(Offset(pxPerFrame * 20f, 0f))
             up()
         }
 
-        assertEquals(10, totals.first())
-        assertEquals(5, totals.last())
+        assertTrue("expected the whole drag, got $totals", totals.single() <= -19)
     }
 
     @Test
