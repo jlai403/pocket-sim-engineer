@@ -381,7 +381,7 @@ fun LapCompareScreen(
                         player = primaryPlayer,
                         title = "Primary",
                         cursorMs = primaryCursorMs,
-                        onAddClip = null,
+                        onAddClip = { onAddClip(primarySessionId, primaryLapIndex) },
                         modifier = Modifier.weight(1f),
                     )
                     ComparePane(
@@ -597,7 +597,7 @@ private fun ComparePane(
                         PrimaryPill(
                             text = "Add clip",
                             onClick = it,
-                            modifier = Modifier.testTag("compare-add-clip"),
+                            modifier = Modifier.testTag("compare-add-clip-$title"),
                         )
                     }
                 }

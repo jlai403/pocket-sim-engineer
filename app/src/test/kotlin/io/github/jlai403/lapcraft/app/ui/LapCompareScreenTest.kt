@@ -83,7 +83,7 @@ class LapCompareScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("No clip yet").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithTag("compare-add-clip").performClick()
+        compose.onNodeWithTag("compare-add-clip-Reference").performClick()
 
         assertEquals("reference" to 1, added)
     }

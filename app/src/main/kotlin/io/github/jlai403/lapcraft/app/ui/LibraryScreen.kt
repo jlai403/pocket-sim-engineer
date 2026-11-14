@@ -247,6 +247,7 @@ fun LibraryScreen(
                     GhostPill(
                         text = "Compare",
                         onClick = { compareMode = true },
+                        enabled = (all?.size ?: 0) >= 2,
                         modifier = Modifier.testTag("library-compare"),
                     )
                     DriverChip(
