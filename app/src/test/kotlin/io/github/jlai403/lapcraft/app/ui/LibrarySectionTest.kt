@@ -3,6 +3,7 @@ package io.github.jlai403.lapcraft.app.ui
 import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import io.github.jlai403.lapcraft.core.profile.DriverProfile
 import io.github.jlai403.lapcraft.core.session.ExportReport
 import io.github.jlai403.lapcraft.core.session.ImportReport
 import org.junit.Assert.assertEquals
@@ -36,6 +37,7 @@ class LibrarySectionTest {
         assertEquals("Imported 3 laps, skipped 2 already here.", importSummary(ImportReport(3, 2, 0)))
         assertEquals("Imported 1 lap.", importSummary(ImportReport(1, 0, 0)))
         assertEquals("Imported 3 laps, 1 could not be read.", importSummary(ImportReport(3, 0, 1)))
+        assertEquals("Imported 1 lap, fetched 1 profile.", importSummary(ImportReport(1, 0, 0, listOf(DriverProfile("x", "X", "GB")))))
         assertEquals("Exported 3 laps.", exportSummary(ExportReport(3, 1_048_576)))
         assertEquals("Nothing to export.", exportSummary(ExportReport(0, 0)))
     }

@@ -19,10 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import io.github.jlai403.lapcraft.app.profile.DriverProfile
+import io.github.jlai403.lapcraft.core.profile.DriverProfile
 import io.github.jlai403.lapcraft.app.profile.DriverProfileStore
 import io.github.jlai403.lapcraft.app.profile.GridStatsProfileClient
 import io.github.jlai403.lapcraft.app.profile.countryFlagEmoji
+import io.github.jlai403.lapcraft.core.session.SessionStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -32,11 +33,57 @@ internal fun DriverProfileSection(
 ) {
     val context = LocalContext.current
     val store = remember { DriverProfileStore(context) }
+    val sessionStore = remember { SessionStore(context.filesDir) }
     val scope = rememberCoroutineScope()
     var profile by remember { mutableStateOf(store.owner()) }
     var psnId by remember { mutableStateOf(profile?.psnId.orEmpty()) }
     var fetching by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var missingCount by remember {
+        mutableStateOf(missingProfileCount(store, sessionStore))
+    }
+    var fetchingMissing by remember { mutableStateOf(false) }
+    var missingProgress by remember { mutableStateOf("") }
+    var missingError by remember { mutableStateOf<String?>(null) }
+
+    fun refreshMissing() {
+        missingCount = sessionStore.summaries()
+            .mapNotNull { it.driverPsnId }
+            .distinct()
+            .count { store.profile(it) == null }
+    }
+
+    fun fetchMissing() {
+        if (fetchingMissing) return
+        val targets = sessionStore.summaries()
+            .mapNotNull { it.driverPsnId }
+            .distinct()
+            .filter { store.profile(it) == null }
+        if (targets.isEmpty()) {
+            refreshMissing()
+            return
+        }
+        fetchingMissing = true
+        missingError = null
+        scope.launch {
+            var done = 0
+            for (psn in targets) {
+                missingProgress = "${done + 1} of ${targets.size}"
+                try {
+                    val fetched = lookupProfile(psn)
+                    store.save(fetched)
+                    done++
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    missingError = e.message ?: "Profile lookup failed."
+                }
+            }
+            missingProgress = ""
+            fetchingMissing = false
+            refreshMissing()
+        }
+    }
 
     fun fetch() {
         val target = psnId.trim()
@@ -136,6 +183,32 @@ internal fun DriverProfileSection(
                 color = MaterialTheme.colorScheme.error,
             )
         }
+        if (missingCount > 0 || fetchingMissing) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GhostPill(
+                    text = if (fetchingMissing) {
+                        "Fetching $missingProgress…"
+                    } else {
+                        "Fetch missing profiles ($missingCount)"
+                    },
+                    onClick = { fetchMissing() },
+                    enabled = !fetchingMissing,
+                    modifier = Modifier.testTag("settings-profile-fetch-missing"),
+                )
+                missingError?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            Text(
+                "Laps imported without a cached profile need a one-time fetch.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Text(
             "Fetching sends only your PSN ID to gt-gridstats.com.",
             style = MaterialTheme.typography.labelSmall,
@@ -143,3 +216,9 @@ internal fun DriverProfileSection(
         )
     }
 }
+
+private fun missingProfileCount(store: DriverProfileStore, sessionStore: SessionStore): Int =
+    sessionStore.summaries()
+        .mapNotNull { it.driverPsnId }
+        .distinct()
+        .count { store.profile(it) == null }

@@ -1,5 +1,7 @@
 package io.github.jlai403.lapcraft.app.profile
 
+import io.github.jlai403.lapcraft.core.profile.DriverProfile
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows

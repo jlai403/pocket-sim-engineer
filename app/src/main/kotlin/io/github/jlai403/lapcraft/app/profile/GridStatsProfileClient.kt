@@ -1,5 +1,7 @@
 package io.github.jlai403.lapcraft.app.profile
 
+import io.github.jlai403.lapcraft.core.profile.DriverProfile
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException

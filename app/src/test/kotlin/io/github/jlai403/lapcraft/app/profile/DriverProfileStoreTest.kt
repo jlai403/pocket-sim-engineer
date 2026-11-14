@@ -1,5 +1,7 @@
 package io.github.jlai403.lapcraft.app.profile
 
+import io.github.jlai403.lapcraft.core.profile.DriverProfile
+
 import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider

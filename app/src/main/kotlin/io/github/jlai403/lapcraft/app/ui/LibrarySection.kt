@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import io.github.jlai403.lapcraft.app.profile.DriverProfileStore
+import io.github.jlai403.lapcraft.core.profile.DriverProfile
 import io.github.jlai403.lapcraft.app.share.LibraryTransfer
 import io.github.jlai403.lapcraft.core.session.ExportReport
 import io.github.jlai403.lapcraft.core.session.ImportReport
@@ -49,10 +51,16 @@ internal fun LibrarySection() {
     val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) {
             val refs = pending
+            val profileStore = DriverProfileStore(context)
+            val profiles = refs.mapNotNull { ref ->
+                laps.firstOrNull { it.sessionId == ref.sessionId && it.lapIndex == ref.lapIndex }
+                    ?.driverPsnId
+                    ?.let { psn -> profileStore.profile(psn) ?: DriverProfile(psn, psn, null) }
+            }.distinctBy { it.psnId }
             transfer = Transfer.Busy("Exporting", 0, 0)
             scope.launch {
                 runCatching {
-                    LibraryTransfer.export(context, uri, root, refs) { done, total ->
+                    LibraryTransfer.export(context, uri, root, refs, profiles) { done, total ->
                         transfer = Transfer.Busy("Exporting", done, total)
                     }
                 }
@@ -155,6 +163,7 @@ internal fun importSummary(report: ImportReport): String = buildString {
     append("Imported ${report.laps} lap${if (report.laps == 1) "" else "s"}")
     if (report.skipped > 0) append(", skipped ${report.skipped} already here")
     if (report.failed > 0) append(", ${report.failed} could not be read")
+    if (report.profiles.isNotEmpty()) append(", fetched ${report.profiles.size} profile${if (report.profiles.size == 1) "" else "s"}")
     append(".")
 }
 

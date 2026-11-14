@@ -1,5 +1,7 @@
 package io.github.jlai403.lapcraft.app.profile
 
+import io.github.jlai403.lapcraft.core.profile.DriverProfile
+
 import android.content.Context
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
