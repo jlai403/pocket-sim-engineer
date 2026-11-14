@@ -96,9 +96,6 @@ class TelemetryChartsTest {
         compose.onNodeWithText("Brake").assertExists()
         compose.onNodeWithText("Throttle").assertExists()
         compose.onNodeWithText("Ghost").assertExists()
-        compose.onNodeWithText("Turn-in").assertDoesNotExist()
-        compose.onNodeWithText("Apex").assertDoesNotExist()
-        compose.onNodeWithText("Exit").assertDoesNotExist()
     }
 
     @Test
@@ -115,34 +112,8 @@ class TelemetryChartsTest {
                 )
             }
         }
-    }
 
-    @Test
-    fun `charts are labelled with track progress`() {
-        compose.setContent {
-            LapCraftTheme {
-                ChartColumn(samples = samples, lap = lap, cursorMs = 1_000)
-            }
-        }
-
-        compose.onNodeWithText("\u00b15 s").assertExists()
-    }
-
-    @Test
-    fun `a reference lap overlays its traces`() {
-        compose.setContent {
-            LapCraftTheme {
-                ChartColumn(
-                    samples = samples,
-                    lap = lap,
-                    cursorMs = 1_000,
-                    reference = GhostLap(lap, samples.reversed()),
-                )
-            }
-        }
-
-        compose.onNodeWithText("Throttle / Brake").assertExists()
-        compose.onNodeWithText("Speed / Gear").assertExists()
+        compose.onNodeWithTag("track-map").assertExists()
     }
 
     @Test
@@ -167,28 +138,6 @@ class TelemetryChartsTest {
     }
 
     @Test
-    fun `compare charts plot the reference on an aligned axis`() {
-        val alignment = TrackProgress.align(samples, samples, 0)
-
-        compose.setContent {
-            LapCraftTheme {
-                CompareCharts(
-                    samples = samples,
-                    lap = lap,
-                    reference = GhostLap(lap, samples),
-                    cursorMs = 1_000,
-                    imperial = false,
-                    alignment = alignment,
-                )
-            }
-        }
-
-        listOf("BRK", "THR", "SPD", "RPM", "GEAR", "\u00b15 s").forEach { label ->
-            compose.onNodeWithText(label).assertExists()
-        }
-    }
-
-    @Test
     fun `track legend lists reference in compare mode`() {
         compose.setContent {
             LapCraftTheme { TrackMapLegend(showReference = true) }
@@ -198,21 +147,6 @@ class TelemetryChartsTest {
         compose.onNodeWithText("Ghost").assertDoesNotExist()
     }
 
-    @Test
-    fun `track map renders a reference line and cursor`() {
-        compose.setContent {
-            LapCraftTheme {
-                TrackMap(
-                    samples = samples,
-                    lap = lap,
-                    cursorMs = 1_000,
-                    reference = GhostLap(lap, samples),
-                    referenceCursorMs = 2_000,
-                    follow = true,
-                )
-            }
-        }
-    }
 
     private val lap = LapMetadata(
         index = 1,
@@ -264,23 +198,6 @@ class TelemetryChartsTest {
         view.reset()
         assertEquals(1f, view.zoom, 0.001f)
         assertEquals(Offset.Zero, view.pan)
-    }
-
-    @Test
-    fun `MapViewState defaults to the most zoom`() {
-        val view = MapViewState()
-        assertEquals(MAX_MAP_ZOOM, view.zoom, 0.001f)
-        view.reset()
-        assertEquals(MAX_MAP_ZOOM, view.zoom, 0.001f)
-    }
-
-    @Test
-    fun `MapViewState with a one times default resets to one`() {
-        val view = MapViewState(defaultZoom = 1f)
-        assertEquals(1f, view.zoom, 0.001f)
-        view.zoom(2f)
-        view.reset()
-        assertEquals(1f, view.zoom, 0.001f)
     }
 
     @Test

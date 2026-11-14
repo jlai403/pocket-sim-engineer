@@ -54,9 +54,4 @@ class UpdateManifestTest {
         assertFalse(manifest.isNewerThan(13))
     }
 
-    @Test
-    fun `round trips`() {
-        val manifest = UpdateManifest(versionCode = 42, versionName = "1.0.0", notes = "notes")
-        assertEquals(manifest, UpdateJsonCodec.decode(UpdateJsonCodec.encode(manifest)))
-    }
 }

@@ -284,29 +284,6 @@ class FrameRulerTest {
     }
 
     @Test
-    fun `ruler renders progress and event markers`() {
-        compose.setContent {
-            LapCraftTheme {
-                FrameRuler(
-                    valueMs = 5_000,
-                    startMs = 0,
-                    endMs = 10_000,
-                    frameStepMs = 33,
-                    enabled = true,
-                    onScrubStart = {},
-                    onScrub = {},
-                    events = listOf(LapEvent(LapEventType.Brake, 2_000)),
-                    showProgress = true,
-                    hapticsEnabled = false,
-                    modifier = Modifier.testTag("ruler"),
-                )
-            }
-        }
-
-        compose.onNodeWithTag("ruler").assertExists()
-    }
-
-    @Test
     fun `the ruler exposes a seek progress action`() {
         var fraction: Float? = null
 

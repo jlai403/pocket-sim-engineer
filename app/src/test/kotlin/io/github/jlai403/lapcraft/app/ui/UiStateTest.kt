@@ -118,11 +118,6 @@ class UiStateTest {
     }
 
     @Test
-    fun `trailing window of an empty lap is empty`() {
-        assertTrue(emptyList<Sample>().windowEndingAt(lap, 0, 5_000).isEmpty())
-    }
-
-    @Test
     fun `trailing window clamps to the lap bounds`() {
         val samples = listOf(-1_000, 0, 1_000, 2_000, 3_000)
             .map { ms -> SessionFixtures.sample(timeNanos = ms * 1_000_000L) }

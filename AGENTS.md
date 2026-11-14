@@ -59,6 +59,9 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
   temporaries and preview directories; `deleteReplayArtifacts` also removes the clip.
 - Typography: `labelSmall` is defined in `Theme.kt` (Geist Sans 11 sp); `NumericText` is mono with
   zero tracking. Do not use an undefined Material label style on Compose screens.
+- Build: `org.gradle.caching` and configuration cache are on; app unit tests run with 2 forks and a
+  1 GB heap (`app/build.gradle.kts`). Inner loop is `:app:assembleDebug` (~3 s) plus targeted
+  `--tests`; `:app:lintDebug` (~25 s) is CI/pre-merge only. TrackMap's root carries `testTag("track-map")`.
 
 ## Library transfer
 
@@ -89,12 +92,12 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
   path broken by a GT7 reset, and the screen then falls back to `timeAtPercent`. The video seek, the
   reference chart axis, the map dot and `Δ` all read this one alignment.
 - Compare charts are one per metric (`BRK/THR/SPD/RPM/GEAR`) with the primary in `AccentCyan` and
-  the reference solid `GhostSlate`; each chart shows a ±5 s window around the cursor (centred,
+  the reference solid `AccentAmber`; each chart shows a ±5 s window around the cursor (centred,
   clamped at the lap ends) instead of the whole lap. The map keeps pedal colouring on the primary
-  and uses solid slate for the reference, both drawn as 1.5 dp lines. Cyan/slate are
+  and uses solid amber for the reference, both drawn as 1.5 dp lines. Cyan/amber are
   Telemetry-tab only.
 - A single `Speed`/`Gear` row sits above the charts on both the lap player (primary only) and the
-  compare Telemetry tab (lap 1 / reference, in cyan and slate), driven by the cursor sample.
+  compare Telemetry tab (lap 1 / reference, in cyan and amber), driven by the cursor sample.
 - The Telemetry tab has no video surface, so its cursor reads the player clock (`positionMs`) at
   60 fps instead of the last rendered frame; the Video tab keeps frame-exact scrubbing.
 - The track map supports pinch zoom and two-finger pan on both screens, with a double-tap reset

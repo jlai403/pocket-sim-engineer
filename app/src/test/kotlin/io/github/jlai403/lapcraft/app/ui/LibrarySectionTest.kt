@@ -2,6 +2,7 @@ package io.github.jlai403.lapcraft.app.ui
 
 import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.onNodeWithTag
 import io.github.jlai403.lapcraft.core.profile.DriverProfile
 import io.github.jlai403.lapcraft.core.session.ExportReport
@@ -27,7 +28,7 @@ class LibrarySectionTest {
             LapCraftTheme { LibrarySection() }
         }
 
-        compose.onNodeWithTag("settings-library-summary").assertExists()
+        compose.onNodeWithTag("settings-library-summary").assertTextContains("0 laps · 0 B")
         compose.onNodeWithTag("settings-library-export").assertExists()
         compose.onNodeWithTag("settings-library-import").assertExists()
     }

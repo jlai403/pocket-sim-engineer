@@ -228,14 +228,4 @@ class EditLapSheetTest {
         compose.onNodeWithText("Replace replay").assertExists()
     }
 
-    @Test
-    fun `offers to replace a saved replay`() {
-        compose.setContent {
-            LapCraftTheme {
-                EditLapSheet(lap.copy(hasReplay = true), null, null, emptyList(), null, {}, {}, {}, {}, {}, {})
-            }
-        }
-
-        compose.onNodeWithText("Replace replay").assertExists()
-    }
 }

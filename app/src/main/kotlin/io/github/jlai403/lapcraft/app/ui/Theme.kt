@@ -17,10 +17,10 @@ import io.github.jlai403.lapcraft.R
 
 val AccentMint = Color(0xFF34D399)
 val AccentCyan = Color(0xFF38BDF8)
-val AccentAmber = Color(0xFFFBBF24)
+val AccentAmber = Color(0xFFFBBF24)  // reference lap in comparison charts/map, gear trace
 val AccentRed = Color(0xFFF43F5E)
 
-/** Reference lap in a comparison (charts and track map); also muted text. */
+/** Muted text colour (secondary text, icons, map line). */
 val GhostSlate = Color(0xFF94A3B8)
 val CrispWhite = Color(0xFFF8FAFC)
 val Ink = Color(0xFF0D1114)

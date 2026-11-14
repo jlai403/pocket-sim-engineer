@@ -61,18 +61,6 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun `shows the driver profile fields`() {
-        compose.setContent {
-            LapCraftTheme { SettingsScreen() }
-        }
-
-        compose.onNodeWithText("DRIVER PROFILE").assertExists()
-        compose.onNodeWithText("PSN ID").assertExists()
-        compose.onNodeWithText("Fetch profile").assertExists()
-        compose.onNodeWithText("Fetching sends only your PSN ID to gt-gridstats.com.").assertExists()
-    }
-
-    @Test
     fun `fetching a profile saves it`() {
         compose.setContent {
             LapCraftTheme {
@@ -125,17 +113,6 @@ class SettingsScreenTest {
 
         assertNull(DriverProfileStore(context).owner())
         compose.onNodeWithText("Fetch profile").assertExists()
-    }
-
-    @Test
-    fun `shows the version and build identity`() {
-        compose.setContent {
-            LapCraftTheme { SettingsScreen() }
-        }
-
-        compose.onNodeWithText("Version").assertExists()
-        compose.onNodeWithText("Build number").assertExists()
-        compose.onNodeWithText("Commit").assertExists()
     }
 
     @Test

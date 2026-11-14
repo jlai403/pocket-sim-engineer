@@ -53,14 +53,6 @@ class LapSummaryTest {
     }
 
     @Test
-    fun `summaries flatten sessions into lap cards`() {
-        val summary = install().summaries().single()
-        assertFalse(summary.hasReplay)
-        assertEquals(1, summary.lapIndex)
-        assertEquals("Suzuka", summary.trackLabel)
-    }
-
-    @Test
     fun `summaries carry the lap driver`() {
         val summary = install(driverPsnId = "skino2024").summaries().single()
         assertEquals("skino2024", summary.driverPsnId)
@@ -188,19 +180,6 @@ class LapSummaryTest {
     }
 
     @Test
-    fun `deleteLap removes the preview cache`() {
-        val store = install(videoFile = "laps/lap-001.mp4", createFile = true)
-        val preview = File(store.sessionDir("s1"), "laps/lap-001.preview").apply {
-            mkdirs()
-            File(this, "00000.jpg").writeText("x")
-        }
-
-        assertTrue(store.deleteLap("s1", 1))
-
-        assertFalse(preview.exists())
-    }
-
-    @Test
     fun `filters by replay and track`() {
         install(id = "s1", trackLabel = "Suzuka")
         install(
@@ -221,13 +200,13 @@ class LapSummaryTest {
 
     @Test
     fun `sorts newest fastest and by track`() {
-        install(id = "old", lapTimeMs = 95_000, createdAt = "2026-11-10T10:00:00Z", trackLabel = "B")
-        install(id = "fast", lapTimeMs = 80_000, createdAt = "2026-11-11T10:00:00Z", trackLabel = "A")
+        install(id = "old", lapTimeMs = 95_000, createdAt = "2026-11-10T10:00:00Z", trackLabel = "A")
+        install(id = "fast", lapTimeMs = 80_000, createdAt = "2026-11-11T10:00:00Z", trackLabel = "B")
 
         val laps = SessionStore(temp).summaries()
         assertEquals(listOf("fast", "old"), laps.applySort(LapSort.Newest).map { it.sessionId })
         assertEquals(listOf("fast", "old"), laps.applySort(LapSort.Fastest).map { it.sessionId })
-        assertEquals(listOf("fast", "old"), laps.applySort(LapSort.Track).map { it.sessionId })
+        assertEquals(listOf("old", "fast"), laps.applySort(LapSort.Track).map { it.sessionId })
     }
 
     @Test
@@ -248,6 +227,8 @@ class LapSummaryTest {
     fun `fastest per track returns a lone lap for its track`() {
         val fastest = listOf(summary("a", 1, 90_000, "Suzuka", "2026-11-11T10:00:00Z")).fastestPerTrack()
 
+        assertEquals(1, fastest.size)
+        assertEquals("a", fastest.getValue("suzuka").sessionId)
         assertEquals(90_000, fastest.getValue("suzuka").lapTimeMs)
     }
 

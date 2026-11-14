@@ -30,7 +30,7 @@ All tokens live in `ui/Theme.kt`. Screens must use `MaterialTheme.colorScheme.*`
 | `surface` | `#12181C` | cards, bottom bar |
 | `surfaceVariant` | `#1A2226` | chips, segmented tracks, back button, inputs |
 | `onSurface` | `#F8FAFC` | primary text |
-| `onSurfaceVariant` | `#94A3B8` | secondary text, icons, map line, reference lap |
+| `onSurfaceVariant` | `#94A3B8` | secondary text, icons, map line |
 | `outline` | `#2B3540` | inactive dots, borders |
 | `Hairline` | `#2C3944` | library row dividers |
 | `RowPressed` | `#12191E` | pressed lap row |
@@ -38,7 +38,8 @@ All tokens live in `ui/Theme.kt`. Screens must use `MaterialTheme.colorScheme.*`
 | `error` | `#F43F5E` | errors, brake trace, destructive actions |
 | `errorContainer` | `#3B0E1B` | warning banners |
 | `onErrorContainer` | `#FFD7E0` | warning text |
-| `GhostSlate` | `#94A3B8` | reference lap in comparison charts and map |
+| `GhostSlate` | `#94A3B8` | muted text (secondary text, icons, map line) |
+| `AccentAmber` | `#FBBF24` | reference lap in comparison charts and map, gear trace |
 | `CrispWhite` | `#F8FAFC` | car body, map marker dot, highlights |
 | `onBackground` | `#F4F7FA` | text over background |
 
@@ -213,10 +214,10 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - RPM chart removed; RPM remains a value bar.
 - X axis: a ±5 s window around the cursor, centred and clamped at the lap ends, labelled `±5 s`; time and progress interpolate between samples. Laps with no track positions still plot by lap time.
 - A reference lap (when present) overlays the same traces as solid lines; maxima cover both laps.
-- Compare charts (`CompareCharts`) use one chart per metric (`BRK`, `THR`, `SPD`, `RPM`, `GEAR`): primary solid cyan (`AccentCyan`), reference solid slate (`GhostSlate`), shared cursor.
+- Compare charts (`CompareCharts`) use one chart per metric (`BRK`, `THR`, `SPD`, `RPM`, `GEAR`): primary solid cyan (`AccentCyan`), reference solid amber (`AccentAmber`), shared cursor.
 - Axis: 1 px `outlineVariant`; cursor: 3 px `onSurface`.
 - Trace stroke: 2 px. Chart heights: 52 dp.
-- Map: coloured 1.5 px segments by pedal state, intensity lerped from muted grey to mint (throttle) or red (brake) by pedal strength; 12 px crisp-white dot at the cursor, 200 dp tall. A dashed grey ghost lap overlays the fastest lap on the same track; compare replaces it with a solid slate (`GhostSlate`) reference line drawn at 1.5 px and an open ring at its cursor.
+- Map: coloured 1.5 px segments by pedal state, intensity lerped from muted grey to mint (throttle) or red (brake) by pedal strength; 12 px crisp-white dot at the cursor, 200 dp tall. A dashed grey ghost lap overlays the fastest lap on the same track; compare replaces it with a solid amber (`AccentAmber`) reference line drawn at 1.5 px and an open ring at its cursor.
 - Turn markers: the ruler marks brake, throttle, apex, and exit events. The map colours segments by pedal strength but draws no turn-in dots.
 - Map chips: `Follow` is on by default and centres on the car, puts the heading up, anchors the car near the bottom, squashes the vertical axis 0.35× for a driver's-perspective tilt, and zooms to the next ~2 s; `Ghost` toggles the reference lap; `Reset` returns to fit-all. The legend is a vertical list of brake, throttle, and ghost under the title, above the map.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.

@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
@@ -406,7 +407,7 @@ internal fun TrackMap(
     val brakeColor = MaterialTheme.colorScheme.error
     val throttleColor = MaterialTheme.colorScheme.primary
     val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-    val referenceColor = GhostSlate
+    val referenceColor = AccentAmber
     val anchor = if (follow) current else null
     val heading = remember(anchor, window, lap, cursorMs) {
         if (anchor == null) {
@@ -419,7 +420,7 @@ internal fun TrackMap(
         }
     }
 
-    Column(modifier) {
+    Column(modifier.testTag("track-map")) {
         Canvas(
             modifier = Modifier
                 .clipToBounds()
@@ -546,7 +547,7 @@ internal fun TrackMapLegend(
         LegendItem("Brake", MaterialTheme.colorScheme.error)
         LegendItem("Throttle", MaterialTheme.colorScheme.primary)
         if (showReference) {
-            LegendItem("Reference", GhostSlate)
+            LegendItem("Reference", AccentAmber)
         } else {
             LegendItem("Ghost", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
         }
@@ -615,7 +616,7 @@ internal fun SpeedGearRow(
                 NumericText(
                     text = speedText(reference.speedMps, imperial),
                     style = MaterialTheme.typography.labelSmall,
-                    color = GhostSlate,
+                    color = AccentAmber,
                 )
                 NumericText(
                     text = speedDeltaText(primary.speedMps, reference.speedMps, imperial),
@@ -655,7 +656,7 @@ internal fun SpeedGearRow(
                 NumericText(
                     text = reference.gear.toString(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = GhostSlate,
+                    color = AccentAmber,
                 )
                 NumericText(
                     text = gearDeltaText(primary.gear, reference.gear),
@@ -795,7 +796,7 @@ private fun CompareLegend() {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         LegendLine("lap 1", AccentCyan)
-        LegendLine("lap 2 (reference)", GhostSlate)
+        LegendLine("lap 2 (reference)", AccentAmber)
     }
 }
 
@@ -835,7 +836,7 @@ private fun MetricChart(
     val axisColor = MaterialTheme.colorScheme.outlineVariant
     val cursorColor = MaterialTheme.colorScheme.onSurface
     val primary = remember(metric) { TraceSeries(AccentCyan, metric.valueOf, metric.maxValue) }
-    val reference = remember(metric) { TraceSeries(GhostSlate, metric.valueOf, metric.maxValue) }
+    val reference = remember(metric) { TraceSeries(AccentAmber, metric.valueOf, metric.maxValue) }
     Row(
         modifier = modifier.fillMaxWidth().heightIn(min = 32.dp),
         verticalAlignment = Alignment.CenterVertically,

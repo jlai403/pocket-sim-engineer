@@ -55,7 +55,7 @@ class RecordScreenTest {
     }
 
     @Test
-    fun `capture is enabled only after a line has been observed`() {
+    fun `capture is enabled once a line has been observed`() {
         var captures = 0
         content(
             state = CaptureUiState(

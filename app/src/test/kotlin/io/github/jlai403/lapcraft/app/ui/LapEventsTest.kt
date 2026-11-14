@@ -34,15 +34,10 @@ class LapEventsTest {
             1_300 to 0.2f,
             1_400 to 0f,
         )
-        val types = lapEvents(window, lap).map { it.type }.filter { it in TURN_TYPES }.toSet()
+        val events = lapEvents(window, lap)
+        val types = events.map { it.type }.filter { it in TURN_TYPES }.toSet()
         assertEquals(TURN_TYPES, types)
-    }
-
-    @Test
-    fun `events are sorted by time`() {
-        val window = steeringSamples(1_000 to 0.6f, 2_000 to 0f)
-        val times = lapEvents(window, lap).map { it.timeMs }
-        assertEquals(times.sorted(), times)
+        assertEquals(events.map { it.timeMs }.sorted(), events.map { it.timeMs })
     }
 
     @Test

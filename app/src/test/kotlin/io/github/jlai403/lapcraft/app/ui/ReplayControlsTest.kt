@@ -24,7 +24,7 @@ class ReplayControlsTest {
     fun `reset drops a partial frame`() {
         val steps = FrameSteps(pxPerFrame = 10f)
 
-        assertEquals(0, steps.framesFor(9f))
+        assertEquals(1, steps.framesFor(19f))
         steps.reset()
         assertEquals(0, steps.framesFor(9f))
     }

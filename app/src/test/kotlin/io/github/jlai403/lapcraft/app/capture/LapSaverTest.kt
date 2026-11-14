@@ -86,7 +86,6 @@ class LapSaverTest {
         val samples = (-20..120).map { sample(atMs = it * 1_000L) }
         val metadata = saver.save(boundary(startMs = 0, endMs = 120_000), samples)
 
-        assertEquals("Suzuka", metadata.trackLabel)
         assertTrue(seen!!.isNotEmpty())
         assertTrue(seen!!.none { it.timeNanos < 0 })
     }

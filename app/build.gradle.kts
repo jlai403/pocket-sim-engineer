@@ -78,6 +78,11 @@ android {
     }
 }
 
+tasks.withType<Test>().configureEach {
+    maxParallelForks = 2
+    maxHeapSize = "1g"
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)

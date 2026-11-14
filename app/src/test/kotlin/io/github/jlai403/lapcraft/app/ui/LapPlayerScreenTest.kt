@@ -248,6 +248,7 @@ class LapPlayerScreenTest {
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithText("Resume sync").fetchSemanticsNodes().isNotEmpty()
         }
+        compose.onNodeWithText("Replace replay").assertExists()
     }
 
     @Test
@@ -283,7 +284,6 @@ class LapPlayerScreenTest {
 
     @Test
     fun `the telemetry hud shows over the replay by default`() {
-        SettingsStore(context).telemetryHud = true
         SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
 
         compose.setContent {

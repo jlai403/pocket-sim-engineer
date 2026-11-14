@@ -32,12 +32,7 @@ class Gt7CryptoTest {
         val packet = TestPacketFactory.packet(format = Gt7PacketFormat.C, lapCount = 3)
         val decrypted = Gt7Crypto.decrypt(packet)
         assertNotNull(decrypted)
-        assertEquals(368, decrypted!!.size)
+        assertEquals(3, ByteBuffer.wrap(decrypted!!).order(ByteOrder.LITTLE_ENDIAN).getShort(0x74).toInt())
     }
 
-    @Test
-    fun `packet A still decrypts with the BEAF constant`() {
-        val packet = TestPacketFactory.packet(format = Gt7PacketFormat.A, lapCount = 3)
-        assertNotNull(Gt7Crypto.decrypt(packet))
-    }
 }

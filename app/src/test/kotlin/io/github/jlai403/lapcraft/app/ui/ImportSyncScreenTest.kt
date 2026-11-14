@@ -69,8 +69,6 @@ class ImportSyncScreenTest {
             compose.onAllNodesWithText("Saving replaces the current replay. Discard keeps it.")
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Saving replaces the current replay. Discard keeps it.")
-            .assertExists()
     }
 
     @Test

@@ -21,6 +21,4 @@ object UpdateJsonCodec {
 
     fun decode(text: String): UpdateManifest? =
         runCatching { json.decodeFromString<UpdateManifest>(text) }.getOrNull()
-
-    fun encode(manifest: UpdateManifest): String = json.encodeToString(manifest)
 }
