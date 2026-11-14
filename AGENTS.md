@@ -76,8 +76,10 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 - The primary lap (first opened or first picked) owns the clock. Only its player calls `play()`;
   the reference is muted and seeked frame-exactly to the primary's track progress via `ScrubSeeker`.
 - The screen is two tabs under a 44 dp chrome row (back, `Video`/`Telemetry`, delta). `Video` shows
-  both panes, each with `TelemetryHud` at the top centre and `CompareReadoutRow` underneath;
-  `Telemetry` shows the map at 40 % and `CompareCharts` at 60 %, with no readout strip.
+  both panes, each with `TelemetryHud` at the top centre and `CompareReadoutRow` underneath; the
+  panes carry no text overlay — GT7's own HUD is in the frame, so the lap and cursor times live in
+  the pane's accessibility label (`compare-cursor-<tag>`). `Telemetry` shows the map at 40 % and
+  `CompareCharts` at 60 %, with no readout strip.
 - `TrackProgress.Table` caches cumulative distance per lap and interpolates both ways:
   `percentAt(timeMs)` brackets by time, `timeAtPercent(percent, lapTimeMs)` brackets by distance.
   Never snap to the nearest sample.

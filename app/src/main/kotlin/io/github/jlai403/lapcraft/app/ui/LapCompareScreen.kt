@@ -48,6 +48,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -609,7 +612,18 @@ private fun ComparePane(
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(18.dp))
-                .background(Color.Black),
+                .background(Color.Black)
+                .then(
+                    lap?.let { loaded ->
+                        Modifier
+                            .testTag("compare-cursor-$tag")
+                            .semantics {
+                                contentDescription =
+                                    "$title replay, ${lapTimeLabel(loaded.lap.lapTimeMs)}"
+                                stateDescription = formatMillis(cursorMs.toLong())
+                            }
+                    } ?: Modifier,
+                ),
             contentAlignment = Alignment.Center,
         ) {
             when {
@@ -651,28 +665,6 @@ private fun ComparePane(
                         lap = loaded.lap,
                         cursorMs = cursorMs,
                         modifier = Modifier.align(Alignment.TopCenter).padding(8.dp),
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "$title · ${lapTimeLabel(loaded.lap.lapTimeMs)}",
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.9f),
-                        maxLines = 1,
-                    )
-                    NumericText(
-                        formatMillis(cursorMs.toLong()),
-                        modifier = Modifier.testTag("compare-cursor-$tag"),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.9f),
                     )
                 }
             }

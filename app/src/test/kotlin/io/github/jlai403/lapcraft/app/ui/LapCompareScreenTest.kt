@@ -72,14 +72,15 @@ class LapCompareScreenTest {
         installLaps()
         setCompareScreen()
 
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithText("Ref · Lap 1 · 1:32.000").assertExists()
+        waitForPanes()
+        compose.onNodeWithTag("compare-cursor-primary").assertExists()
+        compose.onNodeWithTag("compare-cursor-reference").assertExists()
         assertEquals(2, compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().size)
         assertEquals(2, compose.onAllNodesWithTag("compare-readout").fetchSemanticsNodes().size)
         compose.onNodeWithText("Track %").assertDoesNotExist()
         compose.onNodeWithTag("compare-delta").assertExists()
+        compose.onNodeWithText("1:30.000").assertDoesNotExist()
+        compose.onNodeWithText("1:32.000").assertDoesNotExist()
     }
 
     @Test
@@ -88,9 +89,7 @@ class LapCompareScreenTest {
         installLaps()
         setCompareScreen()
 
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
-        }
+        waitForPanes()
         assertEquals(0, compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().size)
         assertEquals(2, compose.onAllNodesWithTag("compare-readout").fetchSemanticsNodes().size)
     }
@@ -100,9 +99,7 @@ class LapCompareScreenTest {
         installLaps()
         setCompareScreen()
 
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
-        }
+        waitForPanes()
         compose.onNodeWithTag("compare-tab-telemetry").performClick()
 
         compose.waitUntil(TIMEOUT) {
@@ -145,9 +142,7 @@ class LapCompareScreenTest {
         installLaps()
         setCompareScreen()
 
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Lap 1 · 1:30.000").fetchSemanticsNodes().isNotEmpty()
-        }
+        waitForPanes()
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodesWithTag("frame-forward").fetchSemanticsNodes()
                 .any { !it.config.contains(SemanticsProperties.Disabled) }
@@ -171,11 +166,16 @@ class LapCompareScreenTest {
         assertEquals(2_000, referenceCursor(primary, 1_000, reference, 2_000))
     }
 
+    private fun waitForPanes() {
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithTag("compare-readout").fetchSemanticsNodes().size == 2
+        }
+    }
+
     private fun referenceCursorText(): String =
         compose.onNodeWithTag("compare-cursor-reference")
             .fetchSemanticsNode()
-            .config[SemanticsProperties.Text]
-            .joinToString(" ") { it.text }
+            .config[SemanticsProperties.StateDescription]
 
     private fun lineSamples(lapTimeMs: Int): List<io.github.jlai403.lapcraft.core.model.Sample> =
         (0..10).map { step ->
