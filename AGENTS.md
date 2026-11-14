@@ -69,6 +69,24 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 - SAF plumbing lives in `app/.../share/LibraryTransfer.kt`; the UI is `LibrarySection` (Settings) and `ExportLapsSheet`; the empty library has its own import action.
 - Changing `applicationId` loses `filesDir`: export from the old package before renaming, then import into the new one.
 
+## Compare
+
+- `LapCompareScreen` is landscape-only: it requests `SCREEN_ORIENTATION_LANDSCAPE` on entry and
+  restores the previous value in `onDispose`; portrait pauses playback behind a rotate prompt.
+- The primary lap (first opened or first picked) owns the clock. Only its player calls `play()`;
+  the reference is muted and seeked frame-exactly to the primary's track progress via `ScrubSeeker`.
+- `TrackProgress.Table` caches cumulative distance per lap and interpolates both ways:
+  `percentAt(timeMs)` brackets by time, `timeAtPercent(percent, lapTimeMs)` brackets by distance.
+  Never snap to the nearest sample.
+- Charts plot against track progress (`Track %`), so corners line up across laps; laps with no
+  positions fall back to lap time. `ChartColumn(reference = GhostLap(...))` draws dashed traces.
+- The consolidated `TrackMap` takes `reference = GhostLap(...)` and `referenceCursorMs`, drawing the
+  reference line and an open cursor ring; `TrackMapLegend(showReference = true)` labels it Reference.
+- Library compare mode lives in `LibraryScreen`: header pill, row checkboxes, the first pick labelled
+  `Primary`, same-track picks only, and a third pick replaces the reference.
+- Entry points are `Screen.Compare(...)`; the player's `Compare` pill and the library's compare action
+  both route there, and `Add clip` returns through `ImportSync(returnToCompare = ...)`.
+
 ## Release
 
 - Work in a branch, merge to `main`, push. Pushing `main` triggers CI and preview publish.

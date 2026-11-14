@@ -56,8 +56,13 @@ internal fun lapStatsLine(stats: LapStats, imperial: Boolean): String {
     )
 }
 
-internal fun lapStatsComparison(current: LapStats, ghost: LapStats?, imperial: Boolean): String {
-    if (ghost == null) return "No ghost lap on this track yet."
+internal fun lapStatsComparison(
+    current: LapStats,
+    ghost: LapStats?,
+    imperial: Boolean,
+    label: String = "ghost",
+): String {
+    if (ghost == null) return "No $label lap on this track yet."
     val factor = if (imperial) 2.23694f else 3.6f
     val unit = if (imperial) "mph" else "km/h"
     val top = (current.topSpeedMps - ghost.topSpeedMps) * factor
@@ -67,7 +72,7 @@ internal fun lapStatsComparison(current: LapStats, ghost: LapStats?, imperial: B
     val full = percent(current.fullThrottleMs, current.lapTimeMs) -
         percent(ghost.fullThrottleMs, ghost.lapTimeMs)
     val lap = (current.lapTimeMs - ghost.lapTimeMs) / 1_000.0
-    return "vs ghost: top %+.0f %s · avg %+.0f · brake %+d%% · full %+d%% · lap %+.3fs".format(
+    return "vs $label: top %+.0f %s · avg %+.0f · brake %+d%% · full %+d%% · lap %+.3fs".format(
         top,
         unit,
         avg,

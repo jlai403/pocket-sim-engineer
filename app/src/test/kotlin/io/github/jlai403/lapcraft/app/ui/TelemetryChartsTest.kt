@@ -113,6 +113,60 @@ class TelemetryChartsTest {
         }
     }
 
+    @Test
+    fun `charts are labelled with track progress`() {
+        compose.setContent {
+            LapCraftTheme {
+                ChartColumn(samples = samples, lap = lap, cursorMs = 1_000)
+            }
+        }
+
+        compose.onNodeWithText("Track %").assertExists()
+    }
+
+    @Test
+    fun `a reference lap overlays its traces`() {
+        compose.setContent {
+            LapCraftTheme {
+                ChartColumn(
+                    samples = samples,
+                    lap = lap,
+                    cursorMs = 1_000,
+                    reference = GhostLap(lap, samples.reversed()),
+                )
+            }
+        }
+
+        compose.onNodeWithText("Throttle / Brake").assertExists()
+        compose.onNodeWithText("Speed / Gear").assertExists()
+    }
+
+    @Test
+    fun `track legend lists reference in compare mode`() {
+        compose.setContent {
+            LapCraftTheme { TrackMapLegend(showReference = true) }
+        }
+
+        compose.onNodeWithText("Reference").assertExists()
+        compose.onNodeWithText("Ghost").assertDoesNotExist()
+    }
+
+    @Test
+    fun `track map renders a reference line and cursor`() {
+        compose.setContent {
+            LapCraftTheme {
+                TrackMap(
+                    samples = samples,
+                    lap = lap,
+                    cursorMs = 1_000,
+                    reference = GhostLap(lap, samples),
+                    referenceCursorMs = 2_000,
+                    follow = true,
+                )
+            }
+        }
+    }
+
     private val lap = LapMetadata(
         index = 1,
         lapTimeMs = 90_000,

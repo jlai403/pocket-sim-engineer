@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,12 +16,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -28,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -70,6 +75,7 @@ import io.github.jlai403.lapcraft.core.playback.PlaybackCursor
 import io.github.jlai403.lapcraft.core.session.LapSummary
 import io.github.jlai403.lapcraft.core.session.SessionMetadata
 import io.github.jlai403.lapcraft.core.session.SessionStore
+import io.github.jlai403.lapcraft.core.session.trackKey
 import io.github.jlai403.lapcraft.core.track.TrackCandidate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -86,6 +92,7 @@ fun LapPlayerScreen(
     lapIndex: Int,
     onBack: () -> Unit,
     onImportSync: (String?) -> Unit,
+    onCompare: (String, Int, String, Int) -> Unit = { _, _, _, _ -> },
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -141,6 +148,28 @@ fun LapPlayerScreen(
         }
     }
 
+    val compareCandidates by produceState<List<LapSummary>>(
+        emptyList(),
+        sessionId,
+        lapIndex,
+        sessionReload,
+    ) {
+        value = withContext(Dispatchers.IO) {
+            val laps = store.summaries()
+            val current = laps.firstOrNull {
+                it.sessionId == sessionId && it.lapIndex == lapIndex
+            } ?: return@withContext emptyList()
+            laps.filter {
+                it.trackKey == current.trackKey &&
+                    !(it.sessionId == sessionId && it.lapIndex == lapIndex)
+            }.sortedBy { it.lapTimeMs }
+        }
+    }
+    val candidateDrivers = remember(compareCandidates, sessionReload) {
+        compareCandidates.mapNotNull { it.driverPsnId }.distinct()
+            .associateWith { profileStore.profile(it) }
+    }
+
     val videoFile = lap
         ?.takeIf { !it.needsCut && it.videoFile != session?.rawFile }
         ?.let { File(store.sessionDir(sessionId), it.videoFile) }
@@ -175,6 +204,7 @@ fun LapPlayerScreen(
     var showGhost by remember { mutableStateOf(true) }
     var followMap by remember { mutableStateOf(true) }
     var looping by remember { mutableStateOf(false) }
+    var compareOpen by remember { mutableStateOf(false) }
 
     fun applySeek(targetMs: Long) {
         val clamped = targetMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
@@ -320,7 +350,7 @@ fun LapPlayerScreen(
     fun stepFrames(frames: Int) {
         val target = frameStepTargetMs(displayedUs, frames, frameDurationUs)
             .coerceIn(0L, durationMs.coerceAtLeast(0L))
-        scrubTargetMs = target / 1_000
+        scrubTargetMs = target
         scrubSeeker.submit(target)
     }
 
@@ -379,6 +409,12 @@ fun LapPlayerScreen(
             onTitleClick = { headerExpanded = !headerExpanded },
             titleExpanded = headerExpanded,
             actions = {
+                GhostPill(
+                    text = "Compare",
+                    onClick = { compareOpen = true },
+                    enabled = compareCandidates.isNotEmpty(),
+                    modifier = Modifier.testTag("lap-compare"),
+                )
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
                         Icon(Icons.Filled.MoreVert, contentDescription = "More")
@@ -709,6 +745,63 @@ fun LapPlayerScreen(
                 },
             )
         }
+    }
+
+    if (compareOpen) {
+        AlertDialog(
+            onDismissRequest = { compareOpen = false },
+            title = { Text("Compare with") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    compareCandidates.forEach { candidate ->
+                        val profile = candidate.driverPsnId?.let { candidateDrivers[it] }
+                        val driver = profile?.let {
+                            listOfNotNull(countryFlagEmoji(it.countryCode), it.nickname)
+                                .joinToString(" ")
+                        } ?: candidate.driverPsnId
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    compareOpen = false
+                                    onCompare(
+                                        sessionId,
+                                        lapIndex,
+                                        candidate.sessionId,
+                                        candidate.lapIndex,
+                                    )
+                                }
+                                .padding(vertical = 10.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                NumericText(
+                                    lapTimeLabel(candidate.lapTimeMs),
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    shortDateLabel(candidate.createdAt),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Text(
+                                listOfNotNull(driver, candidate.trackLabel).joinToString(" · "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { compareOpen = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 

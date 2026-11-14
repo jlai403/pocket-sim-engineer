@@ -311,6 +311,36 @@ class LibraryScreenTest {
         )
     }
 
+    @Test
+    fun `compare picks the first lap as primary and the second as reference`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(id = "session-2", lapTimesMs = listOf(91_000)),
+        )
+        var compared: List<Any>? = null
+
+        compose.setContent {
+            LapCraftTheme {
+                LibraryScreen(
+                    onOpenLap = { _, _ -> },
+                    onCompare = { a, b, c, d -> compared = listOf(a, b, c, d) },
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithText("1:31.000").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("library-compare").performClick()
+        compose.onNodeWithText("1:30.000").performClick()
+        compose.onNodeWithText("Primary").assertExists()
+        compose.onNodeWithText("1:31.000").performClick()
+        compose.onNodeWithTag("library-compare-go").performClick()
+
+        assertEquals(listOf<Any>("session-1", 1, "session-2", 1), compared)
+    }
+
     private companion object {
         const val TIMEOUT = 10_000L
     }

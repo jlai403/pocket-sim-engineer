@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.core.app.ApplicationProvider
 import io.github.jlai403.lapcraft.core.profile.DriverProfile
 import io.github.jlai403.lapcraft.app.profile.DriverProfileStore
@@ -355,6 +356,38 @@ class LapPlayerScreenTest {
         }
         compose.onNodeWithContentDescription("More").performClick()
         compose.onNodeWithText("Share video").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `compare offers other laps on the same track`() {
+        SessionFixtures.install(context, SessionFixtures.session(lapTimesMs = listOf(90_000)))
+        SessionFixtures.install(
+            context,
+            SessionFixtures.session(id = "session-2", lapTimesMs = listOf(91_000)),
+        )
+        var compared: List<Any>? = null
+
+        compose.setContent {
+            LapCraftTheme {
+                LapPlayerScreen(
+                    sessionId = "session-1",
+                    lapIndex = 1,
+                    onBack = {},
+                    onImportSync = {},
+                    onCompare = { a, b, c, d -> compared = listOf(a, b, c, d) },
+                )
+            }
+        }
+
+        compose.waitUntil(TIMEOUT) {
+            compose.onAllNodesWithTag("lap-compare").fetchSemanticsNodes()
+                .any { !it.config.contains(SemanticsProperties.Disabled) }
+        }
+        compose.onNodeWithTag("lap-compare").performClick()
+        compose.onNodeWithText("Compare with").assertExists()
+        compose.onNodeWithText("1:31.000").performClick()
+
+        assertEquals(listOf<Any>("session-1", 1, "session-2", 1), compared)
     }
 
     private companion object {

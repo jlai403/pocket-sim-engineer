@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -53,6 +54,12 @@ import io.github.jlai403.lapcraft.app.profile.countryFlagEmoji
 import io.github.jlai403.lapcraft.core.session.LapSummary
 import kotlin.math.roundToInt
 
+/** Compare-mode selection shown on a library row. */
+internal enum class LapPick(val label: String) {
+    Primary("Primary"),
+    Reference("Reference"),
+}
+
 /** One lap. Tap opens it, right swipe edits, left swipe asks to delete. Long press and the accessibility actions expose the same two edits. */
 @Composable
 internal fun LapCard(
@@ -64,6 +71,8 @@ internal fun LapCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    compareMode: Boolean = false,
+    pick: LapPick? = null,
 ) {
     var width by remember { mutableIntStateOf(0) }
     var menuOpen by remember { mutableStateOf(false) }
@@ -134,23 +143,29 @@ internal fun LapCard(
                 .fillMaxWidth()
                 .offset { IntOffset(offset.roundToInt(), 0) }
                 .background(if (pressed) RowPressed else MaterialTheme.colorScheme.background)
-                .draggable(
-                    state = rememberDraggableState { delta ->
-                        val limit = width * 0.6f
-                        dragOffset = (dragOffset + delta).coerceIn(-limit, limit)
-                    },
-                    orientation = Orientation.Horizontal,
-                    onDragStarted = { dragging = true },
-                    onDragStopped = {
-                        val threshold = width * 0.35f
-                        val edit = dragOffset > threshold
-                        val delete = dragOffset < -threshold
-                        dragging = false
-                        dragOffset = 0f
-                        when {
-                            edit -> onEdit()
-                            delete -> onDelete()
-                        }
+                .then(
+                    if (compareMode) {
+                        Modifier
+                    } else {
+                        Modifier.draggable(
+                            state = rememberDraggableState { delta ->
+                                val limit = width * 0.6f
+                                dragOffset = (dragOffset + delta).coerceIn(-limit, limit)
+                            },
+                            orientation = Orientation.Horizontal,
+                            onDragStarted = { dragging = true },
+                            onDragStopped = {
+                                val threshold = width * 0.35f
+                                val edit = dragOffset > threshold
+                                val delete = dragOffset < -threshold
+                                dragging = false
+                                dragOffset = 0f
+                                when {
+                                    edit -> onEdit()
+                                    delete -> onDelete()
+                                }
+                            },
+                        )
                     },
                 )
                 .semantics {
@@ -168,9 +183,9 @@ internal fun LapCard(
                 .combinedClickable(
                     interactionSource = interaction,
                     indication = LocalIndication.current,
-                    onClickLabel = "Open lap",
+                    onClickLabel = if (compareMode) "Pick lap" else "Open lap",
                     onLongClickLabel = "Lap actions",
-                    onLongClick = { menuOpen = true },
+                    onLongClick = { if (!compareMode) menuOpen = true },
                     onClick = onOpen,
                 )
                 .padding(horizontal = 20.dp, vertical = 14.dp),
@@ -233,6 +248,13 @@ internal fun LapCard(
                             )
                         }
                     }
+                    pick?.let {
+                        Text(
+                            it.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             lap.carName,
@@ -247,6 +269,13 @@ internal fun LapCard(
                             lap.replayPending -> ReplayState("Sync pending", MaterialTheme.colorScheme.tertiary)
                         }
                     }
+                }
+                if (compareMode) {
+                    Checkbox(
+                        checked = pick != null,
+                        onCheckedChange = null,
+                        modifier = Modifier.testTag("lap-pick"),
+                    )
                 }
             }
 

@@ -172,7 +172,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 
 ### Player
 
-- Header: `Lap N · M:SS.mmm` with a chevron. Collapsed shows only the title; tapping expands track, driver flag/name, car, lap stats (top/min/avg), and the vs-ghost comparison. One overflow menu: `Share video`, `Share screenshot`, `Export CSV`, `Edit lap`.
+- Header: `Lap N · M:SS.mmm` with a chevron. Collapsed shows only the title; tapping expands track, driver flag/name, car, lap stats (top/min/avg), and the vs-ghost comparison. A `Compare` pill opens a picker of other laps on the same track; it is disabled when there is nothing to compare. One overflow menu: `Share video`, `Share screenshot`, `Export CSV`, `Edit lap`.
 - Video: 16:9, black, clipped to 22 dp; the stock Media3 controller is hidden. The lap player uses a `TextureView`-backed `PlayerView` so the telemetry HUD can draw over the video. A telemetry HUD overlays the top centre with the last 2 s of throttle/brake traces when enabled in Settings.
 - Replay management lives in the `Edit lap` sheet: track, driver, add/replace replay, resume a pending sync, and the lap's data volume (replay + telemetry). The main screen keeps only `Add replay` when no clip exists. With Developer tools on, the sheet adds `Re-encode clip`, which rebuilds the clip with a 0.1 s keyframe interval for frame-exact scrubbing and deletes the old clip, its temporaries and any scrub cache. The sheet stays open while the transcode runs, showing a spinner and `Re-encoding…`, then `Re-encoded with 0.1 s keyframes.` (or a failure line, with the clip unchanged).
 - New imports are trimmed and then compacted with the Settings replay profile (default 1080p HEVC, ~5 Mbps, 0.1 s keyframes, stereo; ~35% larger than 0.5 s keyframes). If compaction fails the trimmed clip is kept and a `Compaction failed` toast appears.
@@ -180,6 +180,16 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Playback footer (sticky): `current / lap` in mono, the frame ruler, then centred compact transport (skip-previous/next jump to the previous/next brake point, with a Loop toggle and a `− / +` speed stepper at the right). The ruler is the only scrubber and shows a progress track, event dots, and pinch zoom. A press jumps to the timestamp under the finger; drags and the release seek the exact frame, with at most one seek in flight. The readout and telemetry follow the requested frame immediately.
 - Scrolling content above the footer: video, telemetry card with trace toggles, track-map card. The rendered frame drives the charts and map, including while paused.
 - Speed changes last until you leave the lap screen; the default comes from Settings.
+
+### Compare
+
+- Landscape only. Entering the screen requests landscape; leaving restores the previous orientation. Portrait hides the content behind a `Rotate to landscape` prompt and pauses playback.
+- Header: `Compare`, subtitle `track · primary time vs reference time`, back button. Primary = the lap that was open or picked first.
+- Two panes side by side, 16:9, black, clipped to 18 dp, each headed `Primary · Lap N` / `Reference · Lap N` with its current time in mono. A pane without a replay shows `No clip yet` (or `No track data`) and an `Add clip` primary pill.
+- Lap 1 owns the clock. Lap 2 is muted, never plays, and is seeked frame-exactly to the primary's track progress on every rendered frame.
+- One delta line: `Δ −0.342 s ahead` (or `behind`) with the progress and the reference time at that point, plus the one-liner comparison (`vs reference: top … · avg … · brake … · full … · lap …`).
+- One consolidated track map in follow mode: both lines (reference dashed, tertiary; primary coloured by pedal state) and both cursors (primary filled, reference ring).
+- One telemetry card with both laps on a track-progress axis, then the primary's playback footer (ruler, frame steps, transport, loop, speed).
 
 ### Settings
 
@@ -199,9 +209,11 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Throttle/brake: green and red on one 0–255 chart (top).
 - Speed: blue trace with gear overlaid as an amber step trace, each scaled to its own peak (second).
 - RPM chart removed; RPM remains a value bar.
+- X axis: cumulative distance along the lap normalised to 0–100%, labelled `Track %`; time and progress interpolate between samples, so a corner sits at the same x on every lap. Laps with no track positions fall back to lap time.
+- A reference lap overlays the same traces as dashed, muted lines; maxima cover both laps.
 - Axis: 1 px `outlineVariant`; cursor: 3 px `onSurface`.
 - Trace stroke: 2 px. Chart heights: 52 dp.
-- Map: coloured 3 px segments by pedal state, intensity lerped from muted grey to green (throttle) or red (brake) by pedal strength; 12 px blue dot at the cursor, 200 dp tall. A dashed grey ghost lap overlays the fastest lap on the same track.
+- Map: coloured 3 px segments by pedal state, intensity lerped from muted grey to green (throttle) or red (brake) by pedal strength; 12 px blue dot at the cursor, 200 dp tall. A dashed grey ghost lap overlays the fastest lap on the same track; compare replaces it with a dashed tertiary reference line and an open ring at its cursor.
 - Turn markers: the ruler marks brake, throttle, apex, and exit events. The map colours segments by pedal strength but draws no turn-in dots.
 - Map chips: `Follow` is on by default and centres on the car, puts the heading up, anchors the car near the bottom, squashes the vertical axis 0.35× for a driver's-perspective tilt, and zooms to the next ~2 s; `Ghost` toggles the reference lap; `Reset` returns to fit-all. The legend is a vertical list of brake, throttle, and ghost under the title, above the map.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.
@@ -255,6 +267,7 @@ While Chiaki-Up is fullscreen the Record tab is not visible, and v0.1 has no ove
 | `ui/CaptureScreen.kt` | telemetry + arm controls |
 | `ui/SessionScreen.kt` | lap list and actions |
 | `ui/LapPlayerScreen.kt` | video, sync, charts, map |
+| `ui/LapCompareScreen.kt` | landscape two-lap comparison, track-progress sync |
 | `ui/SettingsScreen.kt` | capture and unit settings |
 | `ui/TelemetryCharts.kt` | traces and track map |
 | `res/font/` | bundled Geist Sans and Geist Mono TTF files |

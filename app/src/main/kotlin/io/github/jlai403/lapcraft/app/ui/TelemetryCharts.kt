@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -30,6 +29,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
+import io.github.jlai403.lapcraft.core.clip.TrackProgress
 import io.github.jlai403.lapcraft.core.model.Sample
 import io.github.jlai403.lapcraft.core.session.LapMetadata
 import kotlin.math.PI
@@ -46,13 +46,14 @@ private data class TraceSeries(
 )
 
 @Composable
-fun ChartColumn(
+internal fun ChartColumn(
     samples: List<Sample>,
     lap: LapMetadata,
     cursorMs: Int,
     imperial: Boolean = false,
     showSpeed: Boolean = true,
     showPedals: Boolean = true,
+    reference: GhostLap? = null,
     modifier: Modifier = Modifier,
 ) {
     val speedFactor = if (imperial) 2.23694f else 3.6f
@@ -61,6 +62,13 @@ fun ChartColumn(
         Text("No telemetry for this lap", modifier = modifier)
         return
     }
+    val table = remember(window, lap) { TrackProgress.table(window, lap.startNanos) }
+    val referenceWindow = remember(reference) {
+        reference?.let { it.samples.lapWindow(it.lap) } ?: emptyList()
+    }
+    val referenceTable = remember(referenceWindow, reference) {
+        reference?.let { TrackProgress.table(referenceWindow, it.lap.startNanos) }
+    }
     val hasSteering = remember(window) { window.any { abs(it.steering) > 0.001f } }
     val current = remember(window, lap, cursorMs) { window.sampleAt(lap, cursorMs) }
     val speedColor = MaterialTheme.colorScheme.secondary
@@ -68,11 +76,15 @@ fun ChartColumn(
     val brakeColor = MaterialTheme.colorScheme.error
     val rpmColor = MaterialTheme.colorScheme.tertiary
     val gearColor = MaterialTheme.colorScheme.tertiary
-    val rpmMax = remember(window) { window.maxOf { it.rpm }.coerceAtLeast(1f) }
-    val speedMax = remember(window, speedFactor) {
-        window.maxOf { it.speedMps * speedFactor }.coerceAtLeast(1f)
+    val rpmMax = remember(window, referenceWindow) {
+        (window + referenceWindow).maxOf { it.rpm }.coerceAtLeast(1f)
     }
-    val gearMax = remember(window) { window.maxOf { it.gear }.coerceAtLeast(1) }
+    val speedMax = remember(window, referenceWindow, speedFactor) {
+        (window + referenceWindow).maxOf { it.speedMps * speedFactor }.coerceAtLeast(1f)
+    }
+    val gearMax = remember(window, referenceWindow) {
+        (window + referenceWindow).maxOf { it.gear }.coerceAtLeast(1)
+    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         current?.let { sample ->
             Row(
@@ -128,26 +140,40 @@ fun ChartColumn(
             TraceChart(
                 window = window,
                 lap = lap,
+                table = table,
                 cursorMs = cursorMs,
                 label = "Throttle / Brake",
                 series = listOf(
                     TraceSeries(throttleColor, { it.throttle.toFloat() }, 255f),
                     TraceSeries(brakeColor, { it.brake.toFloat() }, 255f),
                 ),
+                referenceWindow = referenceWindow,
+                referenceLap = reference?.lap,
+                referenceTable = referenceTable,
             )
         }
         if (showSpeed) {
             TraceChart(
                 window = window,
                 lap = lap,
+                table = table,
                 cursorMs = cursorMs,
                 label = "Speed / Gear",
                 series = listOf(
                     TraceSeries(speedColor, { it.speedMps * speedFactor }, speedMax),
                     TraceSeries(gearColor, { it.gear.toFloat() }, gearMax.toFloat()),
                 ),
+                referenceWindow = referenceWindow,
+                referenceLap = reference?.lap,
+                referenceTable = referenceTable,
             )
         }
+        Text(
+            "Track %",
+            modifier = Modifier.align(Alignment.End),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -198,9 +224,13 @@ private fun ValueBar(fraction: Float, color: Color, modifier: Modifier = Modifie
 private fun TraceChart(
     window: List<Sample>,
     lap: LapMetadata,
+    table: TrackProgress.Table?,
     cursorMs: Int,
     label: String,
     series: List<TraceSeries>,
+    referenceWindow: List<Sample>,
+    referenceLap: LapMetadata?,
+    referenceTable: TrackProgress.Table?,
 ) {
     val axisColor = MaterialTheme.colorScheme.outlineVariant
     val cursorColor = MaterialTheme.colorScheme.onSurface
@@ -222,27 +252,68 @@ private fun TraceChart(
                 end = Offset(size.width, size.height),
                 strokeWidth = 1f,
             )
-            val step = ceil(window.size / size.width.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
-            series.forEach { line ->
-                val path = Path()
-                var first = true
-                for (index in window.indices step step) {
-                    val sample = window[index]
-                    val x = timeToX(sample.lapTimeMs(lap), lap.lapTimeMs, size.width)
-                    val y = size.height -
-                        (line.valueOf(sample) / line.maxValue).coerceIn(0f, 1f) * size.height
-                    if (first) {
-                        path.moveTo(x, y)
-                        first = false
-                    } else {
-                        path.lineTo(x, y)
-                    }
+            if (referenceLap != null) {
+                series.forEach { line ->
+                    drawTrace(referenceWindow, referenceTable, referenceLap, line, dashed = true)
                 }
-                drawPath(path, color = line.color, style = Stroke(width = 2f))
             }
-            drawCursor(cursorMs, lap.lapTimeMs, size, cursorColor)
+            series.forEach { line ->
+                drawTrace(window, table, lap, line, dashed = false)
+            }
+            val cursorX = if (table != null) {
+                size.width * table.percentAt(cursorMs) / 100f
+            } else {
+                timeToX(cursorMs, lap.lapTimeMs, size.width)
+            }
+            drawLine(
+                color = cursorColor,
+                start = Offset(cursorX, 0f),
+                end = Offset(cursorX, size.height),
+                strokeWidth = 3f,
+            )
         }
     }
+}
+
+private fun DrawScope.drawTrace(
+    points: List<Sample>,
+    table: TrackProgress.Table?,
+    lap: LapMetadata,
+    line: TraceSeries,
+    dashed: Boolean,
+) {
+    if (points.isEmpty()) return
+    val step = ceil(points.size / size.width.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
+    val path = Path()
+    var first = true
+    for (index in points.indices step step) {
+        val sample = points[index]
+        val x = if (table != null) {
+            size.width * table.percentOfSample(index) / 100f
+        } else {
+            timeToX(sample.lapTimeMs(lap), lap.lapTimeMs, size.width)
+        }
+        val y = size.height -
+            (line.valueOf(sample) / line.maxValue).coerceIn(0f, 1f) * size.height
+        if (first) {
+            path.moveTo(x, y)
+            first = false
+        } else {
+            path.lineTo(x, y)
+        }
+    }
+    drawPath(
+        path = path,
+        color = if (dashed) line.color.copy(alpha = 0.45f) else line.color,
+        style = Stroke(
+            width = if (dashed) 1.5f else 2f,
+            pathEffect = if (dashed) {
+                PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
+            } else {
+                null
+            },
+        ),
+    )
 }
 
 @Composable
@@ -253,6 +324,8 @@ internal fun TrackMap(
     ghost: GhostLap? = null,
     showGhost: Boolean = true,
     follow: Boolean = false,
+    reference: GhostLap? = null,
+    referenceCursorMs: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     val window = remember(samples, lap) { samples.lapWindow(lap) }
@@ -269,11 +342,18 @@ internal fun TrackMap(
     val ghostWindow = remember(ghost) {
         ghost?.let { it.samples.lapWindow(it.lap) } ?: emptyList()
     }
+    val referenceWindow = remember(reference) {
+        reference?.let { it.samples.lapWindow(it.lap) } ?: emptyList()
+    }
+    val referenceCurrent = remember(referenceWindow, reference, referenceCursorMs) {
+        reference?.let { referenceWindow.sampleAt(it.lap, referenceCursorMs) }
+    }
     val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
     val dotColor = MaterialTheme.colorScheme.secondary
     val brakeColor = MaterialTheme.colorScheme.error
     val throttleColor = MaterialTheme.colorScheme.primary
     val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+    val referenceColor = MaterialTheme.colorScheme.tertiary
     val anchor = if (follow) current else null
     val heading = remember(anchor, window, lap, cursorMs) {
         if (anchor == null) {
@@ -318,26 +398,43 @@ internal fun TrackMap(
                 )
             }
 
-            if (showGhost && ghostWindow.size >= 2) {
-                val ghostPath = Path()
-                val ghostStep = ceil(ghostWindow.size / 500f).toInt().coerceAtLeast(1)
+            fun pathOf(line: List<Sample>): Path {
+                val path = Path()
+                val step = ceil(line.size / 500f).toInt().coerceAtLeast(1)
                 var first = true
-                for (index in ghostWindow.indices step ghostStep) {
-                    val point = mapPoint(ghostWindow[index])
+                for (index in line.indices step step) {
+                    val point = mapPoint(line[index])
                     if (first) {
-                        ghostPath.moveTo(point.x, point.y)
+                        path.moveTo(point.x, point.y)
                         first = false
                     } else {
-                        ghostPath.lineTo(point.x, point.y)
+                        path.lineTo(point.x, point.y)
                     }
                 }
+                return path
+            }
+
+            if (showGhost && ghostWindow.size >= 2) {
                 drawPath(
-                    path = ghostPath,
+                    path = pathOf(ghostWindow),
                     color = ghostColor,
                     style = Stroke(
                         width = 2.dp.toPx(),
                         pathEffect = PathEffect.dashPathEffect(
                             floatArrayOf(6.dp.toPx(), 4.dp.toPx()),
+                        ),
+                    ),
+                )
+            }
+
+            if (referenceWindow.size >= 2) {
+                drawPath(
+                    path = pathOf(referenceWindow),
+                    color = referenceColor.copy(alpha = 0.55f),
+                    style = Stroke(
+                        width = 2.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(
+                            floatArrayOf(10.dp.toPx(), 5.dp.toPx()),
                         ),
                     ),
                 )
@@ -363,16 +460,28 @@ internal fun TrackMap(
             current?.let {
                 drawCircle(color = dotColor, radius = 12f, center = mapPoint(it))
             }
+            referenceCurrent?.let {
+                drawCircle(
+                    color = referenceColor,
+                    radius = 12f,
+                    center = mapPoint(it),
+                    style = Stroke(width = 3.dp.toPx()),
+                )
+            }
         }
     }
 }
 
 @Composable
-internal fun TrackMapLegend(modifier: Modifier = Modifier) {
+internal fun TrackMapLegend(showReference: Boolean = false, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         LegendItem("Brake", MaterialTheme.colorScheme.error)
         LegendItem("Throttle", MaterialTheme.colorScheme.primary)
-        LegendItem("Ghost", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
+        if (showReference) {
+            LegendItem("Reference", MaterialTheme.colorScheme.tertiary)
+        } else {
+            LegendItem("Ghost", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
+        }
     }
 }
 
@@ -398,18 +507,3 @@ private fun LegendItem(label: String, color: Color) {
 
 internal fun timeToX(timeMs: Int, lapTimeMs: Int, width: Float): Float =
     (timeMs.toFloat() / lapTimeMs.coerceAtLeast(1)).coerceIn(0f, 1f) * width
-
-private fun DrawScope.drawCursor(
-    cursorMs: Int,
-    lapTimeMs: Int,
-    size: Size,
-    color: Color,
-) {
-    val x = timeToX(cursorMs, lapTimeMs, size.width)
-    drawLine(
-        color = color,
-        start = Offset(x, 0f),
-        end = Offset(x, size.height),
-        strokeWidth = 3f,
-    )
-}
