@@ -584,6 +584,7 @@ fun LapPlayerScreen(
                     lap = currentLap,
                     cursorMs = cursorMs,
                     imperial = settings.imperialUnits,
+                    windowMs = settings.chartWindowSeconds * 2_000,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -623,6 +624,7 @@ fun LapPlayerScreen(
                     ghost = ghost,
                     showGhost = showGhost,
                     follow = followMap,
+                    view = remember { MapViewState() },
                 )
             }
 

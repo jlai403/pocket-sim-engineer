@@ -147,6 +147,7 @@ fun LapCompareScreen(
     var referenceDurationMs by remember { mutableLongStateOf(0L) }
     var message by remember { mutableStateOf<String?>(null) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    val mapView = remember { MapViewState() }
 
     fun seekPrimary(targetMs: Long) {
         val player = primaryPlayer ?: return
@@ -468,6 +469,7 @@ fun LapCompareScreen(
                                 reference = reference?.let { GhostLap(it.lap, it.samples) },
                                 referenceCursorMs = referenceCursorMs,
                                 fillHeight = true,
+                                view = mapView,
                                 modifier = Modifier.weight(1f),
                             )
                             TrackMapLegend(showReference = true, horizontal = true)
@@ -480,6 +482,7 @@ fun LapCompareScreen(
                             imperial = settings.imperialUnits,
                             alignment = alignment,
                             referenceCursorMs = referenceCursorMs,
+                            windowMs = settings.chartWindowSeconds * 2_000,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()

@@ -55,4 +55,15 @@ class SettingsStoreTest {
 
         assertEquals(ReplayKeyframes.Sparse, SettingsStore(context).replayKeyframes)
     }
+
+    @Test
+    fun `chart window defaults to five seconds and persists`() {
+        val store = SettingsStore(context)
+
+        assertEquals(5, store.chartWindowSeconds)
+
+        store.chartWindowSeconds = 10
+
+        assertEquals(10, SettingsStore(context).chartWindowSeconds)
+    }
 }

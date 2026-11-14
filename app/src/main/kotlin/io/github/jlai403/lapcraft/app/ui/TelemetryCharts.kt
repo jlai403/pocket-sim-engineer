@@ -2,6 +2,9 @@ package io.github.jlai403.lapcraft.app.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,22 +13,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -57,11 +63,13 @@ internal class ChartWindow(val startMs: Int, val windowMs: Int) {
         (timeMs - startMs).toFloat() / windowMs.coerceAtLeast(1) * width
 }
 
-internal fun chartWindow(cursorMs: Int, lapTimeMs: Int): ChartWindow {
-    val span = CHART_WINDOW_MS.coerceIn(1, lapTimeMs.coerceAtLeast(1))
+internal fun chartWindow(cursorMs: Int, lapTimeMs: Int, windowMs: Int = CHART_WINDOW_MS): ChartWindow {
+    val span = windowMs.coerceIn(1, lapTimeMs.coerceAtLeast(1))
     val start = (cursorMs - span / 2).coerceIn(0, lapTimeMs - span)
     return ChartWindow(start, span)
 }
+
+internal fun chartWindowLabel(windowMs: Int): String = "\u00b1${windowMs / 2000} s"
 
 @Composable
 internal fun ChartColumn(
@@ -72,6 +80,7 @@ internal fun ChartColumn(
     showSpeed: Boolean = true,
     showPedals: Boolean = true,
     reference: GhostLap? = null,
+    windowMs: Int = CHART_WINDOW_MS,
     modifier: Modifier = Modifier,
 ) {
     val speedFactor = if (imperial) 2.23694f else 3.6f
@@ -81,7 +90,7 @@ internal fun ChartColumn(
         return
     }
     val windowTimes = remember(window, lap) { IntArray(window.size) { window[it].lapTimeMs(lap) } }
-    val axis = chartWindow(cursorMs, lap.lapTimeMs)
+    val axis = chartWindow(cursorMs, lap.lapTimeMs, windowMs)
     val referenceWindow = remember(reference) {
         reference?.let { it.samples.lapWindow(it.lap) } ?: emptyList()
     }
@@ -191,7 +200,7 @@ internal fun ChartColumn(
             )
         }
         Text(
-            "\u00b15 s",
+            chartWindowLabel(windowMs),
             modifier = Modifier.align(Alignment.End),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -287,7 +296,7 @@ private fun TraceChart(
                 color = cursorColor,
                 start = Offset(cursorX, 0f),
                 end = Offset(cursorX, size.height),
-                strokeWidth = 3f,
+                strokeWidth = 1.5.dp.toPx(),
             )
         }
     }
@@ -332,7 +341,7 @@ private fun DrawScope.drawTrace(
     drawPath(
         path = path,
         color = line.color,
-        style = Stroke(width = 2f),
+        style = Stroke(width = 1.5.dp.toPx()),
     )
 }
 
@@ -368,6 +377,7 @@ internal fun TrackMap(
     reference: GhostLap? = null,
     referenceCursorMs: Int = 0,
     fillHeight: Boolean = false,
+    view: MapViewState = remember { MapViewState() },
     modifier: Modifier = Modifier,
 ) {
     val window = remember(samples, lap) { samples.lapWindow(lap) }
@@ -413,20 +423,30 @@ internal fun TrackMap(
             modifier = Modifier
                 .clipToBounds()
                 .fillMaxWidth()
-                .then(if (fillHeight) Modifier.weight(1f) else Modifier.height(200.dp)),
+                .then(if (fillHeight) Modifier.weight(1f) else Modifier.height(200.dp))
+                .pointerInput(view) { detectTapGestures(onDoubleTap = { view.reset() }) }
+                .transformable(rememberTransformableState { zoomChange, panChange, _ ->
+                    view.zoom(zoomChange)
+                    view.pan(panChange)
+                }),
         ) {
             val spanX = (maxX - minX).coerceAtLeast(0.001f)
             val spanZ = (maxZ - minZ).coerceAtLeast(0.001f)
             val fitScale = minOf(size.width / spanX, size.height / spanZ) * 0.9f
+            val userZoom = view.zoom.coerceIn(0.6f, 4f)
             val scale = if (anchor != null) {
                 val distance = anchor.speedMps.coerceAtLeast(0f) * 2f + 10f
                 (minOf(size.width, size.height) / distance * 0.9f)
-                    .coerceIn(fitScale * 1.5f, fitScale * 6f)
+                    .coerceIn(fitScale * 1.5f, fitScale * 6f) * userZoom
             } else {
-                fitScale
+                fitScale * userZoom
             }
-            val offsetX = (size.width - spanX * fitScale) / 2f
-            val offsetY = (size.height - spanZ * fitScale) / 2f
+            val pan = Offset(
+                view.pan.x.coerceIn(-size.width, size.width),
+                view.pan.y.coerceIn(-size.height, size.height),
+            )
+            val offsetX = (size.width - spanX * scale) / 2f
+            val offsetY = (size.height - spanZ * scale) / 2f
             val rotation = -heading - PI.toFloat() / 2f
             val cosR = cos(rotation)
             val sinR = sin(rotation)
@@ -434,15 +454,15 @@ internal fun TrackMap(
 
             fun mapPoint(sample: Sample): Offset = if (anchor == null) {
                 Offset(
-                    offsetX + (sample.positionX - minX) * scale,
-                    offsetY + (sample.positionZ - minZ) * scale,
+                    offsetX + (sample.positionX - minX) * scale + pan.x,
+                    offsetY + (sample.positionZ - minZ) * scale + pan.y,
                 )
             } else {
                 val dx = sample.positionX - anchor.positionX
                 val dz = sample.positionZ - anchor.positionZ
                 Offset(
-                    anchorPx.x + (dx * cosR - dz * sinR) * scale,
-                    anchorPx.y + (dx * sinR + dz * cosR) * scale * 0.35f,
+                    anchorPx.x + (dx * cosR - dz * sinR) * scale + pan.x,
+                    anchorPx.y + (dx * sinR + dz * cosR) * scale * 0.35f + pan.y,
                 )
             }
 
@@ -655,6 +675,7 @@ internal fun CompareCharts(
     imperial: Boolean,
     alignment: TrackProgress.Alignment? = null,
     referenceCursorMs: Int = cursorMs,
+    windowMs: Int = CHART_WINDOW_MS,
     modifier: Modifier = Modifier,
 ) {
     val window = remember(samples, lap) { samples.lapWindow(lap) }
@@ -677,7 +698,7 @@ internal fun CompareCharts(
             table.timeAtPercent(percent, lap.lapTimeMs)
         }
     }
-    val axis = chartWindow(cursorMs, lap.lapTimeMs)
+    val axis = chartWindow(cursorMs, lap.lapTimeMs, windowMs)
     val primarySample = remember(window, cursorMs) { window.sampleAt(lap, cursorMs) }
     val referenceSample = remember(referenceWindow, reference, referenceCursorMs) {
         reference?.let { referenceWindow.sampleAt(it.lap, referenceCursorMs) }
@@ -700,10 +721,8 @@ internal fun CompareCharts(
         CompareLegend()
         SpeedGearRow(primary = primarySample, reference = referenceSample, imperial = imperial)
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             metrics.forEach { metric ->
                 MetricChart(
@@ -714,10 +733,11 @@ internal fun CompareCharts(
                     cursorMs = cursorMs,
                     referenceWindow = referenceWindow,
                     referenceTimes = referenceTimes,
+                    modifier = Modifier.weight(1f),
                 )
             }
             Text(
-                "\u00b15 s",
+                chartWindowLabel(windowMs),
                 modifier = Modifier.align(Alignment.End),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -768,13 +788,14 @@ private fun MetricChart(
     cursorMs: Int,
     referenceWindow: List<Sample> = emptyList(),
     referenceTimes: IntArray? = null,
+    modifier: Modifier = Modifier,
 ) {
     val axisColor = MaterialTheme.colorScheme.outlineVariant
     val cursorColor = MaterialTheme.colorScheme.onSurface
     val primary = remember(metric) { TraceSeries(AccentBlue, metric.valueOf, metric.maxValue) }
     val reference = remember(metric) { TraceSeries(AccentYellow, metric.valueOf, metric.maxValue) }
     Row(
-        modifier = Modifier.fillMaxWidth().height(40.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = 32.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -806,7 +827,7 @@ private fun MetricChart(
                 color = cursorColor,
                 start = Offset(cursorX, 0f),
                 end = Offset(cursorX, size.height),
-                strokeWidth = 2f,
+                strokeWidth = 1.5.dp.toPx(),
             )
         }
     }
@@ -816,3 +837,11 @@ private fun MetricChart(
 
 internal fun followAnchor(size: Size, centred: Boolean): Offset =
     Offset(size.width / 2f, size.height * if (centred) 0.5f else 0.78f)
+
+internal class MapViewState {
+    var zoom: Float by mutableStateOf(1f)
+    var pan: Offset by mutableStateOf(Offset.Zero)
+    fun zoom(factor: Float) { zoom = (zoom * factor).coerceIn(0.6f, 4f) }
+    fun pan(delta: Offset) { pan = pan + delta }
+    fun reset() { zoom = 1f; pan = Offset.Zero }
+}
