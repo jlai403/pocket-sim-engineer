@@ -19,25 +19,27 @@ All tokens live in `ui/Theme.kt`. Screens must use `MaterialTheme.colorScheme.*`
 
 | Token | Hex | Use |
 |---|---|---|
-| `primary` | `#3DDC84` | active tab, primary buttons, best lap, live status, track-map dot |
-| `onPrimary` | `#03130A` | text/icons on green |
-| `primaryContainer` | `#123A24` | reserved for tonal fills |
-| `secondary` | `#5AC8FA` | speed values and speed trace |
-| `onSecondary` | `#00131C` | text/icons on blue |
-| `tertiary` | `#FFC857` | RPM, gear, tertiary stat chips |
+| `primary` | `#34D399` | active tab, primary buttons, best lap, live status, throttle |
+| `onPrimary` | `#04130D` | text/icons on mint |
+| `primaryContainer` | `#0B3B2C` | reserved for tonal fills |
+| `secondary` | `#38BDF8` | speed values and speed trace, tires |
+| `onSecondary` | `#04131C` | text/icons on cyan |
+| `tertiary` | `#FBBF24` | RPM, gear, tertiary stat chips |
 | `onTertiary` | `#241800` | text/icons on amber |
-| `background` | `#080C11` | app background |
-| `surface` | `#111821` | cards, bottom bar |
-| `surfaceVariant` | `#1A2431` | chips, segmented tracks, back button, inputs |
-| `onSurface` | `#EAF0F5` | primary text |
-| `onSurfaceVariant` | `#93A4B5` | secondary text, icons, map line |
-| `outline` | `#2B3846` | inactive dots, borders |
-| `Hairline` | `#33414F` | library row dividers |
-| `RowPressed` | `#10171F` | pressed lap row |
-| `outlineVariant` | `#1F2A35` | dividers, chart axis |
-| `error` | `#FF6B6B` | errors, brake trace, destructive actions |
-| `errorContainer` | `#3A1414` | warning banners |
-| `onErrorContainer` | `#FFD5D5` | warning text |
+| `background` | `#0D1114` | app background |
+| `surface` | `#12181C` | cards, bottom bar |
+| `surfaceVariant` | `#1A2226` | chips, segmented tracks, back button, inputs |
+| `onSurface` | `#F8FAFC` | primary text |
+| `onSurfaceVariant` | `#94A3B8` | secondary text, icons, map line, reference lap |
+| `outline` | `#2B3540` | inactive dots, borders |
+| `Hairline` | `#2C3944` | library row dividers |
+| `RowPressed` | `#12191E` | pressed lap row |
+| `outlineVariant` | `#1E262B` | dividers, chart axis |
+| `error` | `#F43F5E` | errors, brake trace, destructive actions |
+| `errorContainer` | `#3B0E1B` | warning banners |
+| `onErrorContainer` | `#FFD7E0` | warning text |
+| `GhostSlate` | `#94A3B8` | reference lap in comparison charts and map |
+| `CrispWhite` | `#F8FAFC` | car body, map marker dot, highlights |
 | `onBackground` | `#F4F7FA` | text over background |
 
 System bars are transparent with light icons (`enableEdgeToEdge` + `SystemBarStyle.dark`).
@@ -186,7 +188,7 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - Landscape only. Entering the screen requests landscape; leaving restores the previous orientation. Portrait hides the content behind a `Rotate to landscape` prompt and pauses playback.
 - Chrome: one 44 dp row, no title — back button left, `Video` / `Telemetry` tabs centre, `Δ ±0.342 s` right (green ahead, red behind). Primary = the lap that was open or picked first.
 - **Video tab:** two panes side by side, black, clipped to 18 dp, filling their 16:9 boxes (445 × 250 dp on a Pixel 10). The panes carry no text: GT7's own HUD is recorded into the frame, so the only overlay is the 2 s throttle/brake HUD at the top centre when `Telemetry HUD` is on, and the 30 dp readout strip sits underneath: `THR`/`BRK`/`RPM` mini bars, a 13 dp 2×2 tyre heatmap (corner letters in the content descriptions), and a 26 dp steering wheel. Each pane's accessibility label names the lap, its lap time, and the cursor time. A pane without a replay shows `No clip yet` and an `Add clip` pill.
-- **Telemetry tab:** no readout strip. The track map sits in a fixed 320 dp pane (capped at 42 % of the width), clipped to its bounds, with lap 1's marker pinned to the pane centre (follow mode, pedal-coloured primary, solid yellow reference, both cursors, horizontal legend); both driving lines are drawn at 1.5 dp. The map supports pinch zoom and two-finger pan (0.6×–8×) with a double-tap reset and opens at maximum zoom in follow mode. Five charts take the rest: each with the primary in blue and the reference solid yellow, a shared ±N s time axis centred on the cursor (clamped at the lap ends) and one cursor line. The `Speed`/`Gear` row sits above the charts, showing lap 1 / reference values plus a signed delta (speed delta green when lap 1 is faster, red when slower; gear delta green in a higher gear, red in a lower one, muted when equal). All five charts are always visible (no scroll); the legend sits above them. The window is configurable in Settings (±2/±3/±5/±10 s, default ±5).
+- **Telemetry tab:** no readout strip. The track map sits in a fixed 320 dp pane (capped at 42 % of the width), clipped to its bounds, with lap 1's marker pinned to the pane centre (follow mode, pedal-coloured primary, solid slate reference, both cursors, horizontal legend); both driving lines are drawn at 1.5 dp. The map supports pinch zoom and two-finger pan (0.6×–8×) with a double-tap reset and opens at maximum zoom in follow mode. Five charts take the rest: each with the primary in cyan and the reference solid slate, a shared ±N s time axis centred on the cursor (clamped at the lap ends) and one cursor line. The `Speed`/`Gear` row sits above the charts, showing lap 1 / reference values plus a signed delta (speed delta mint when lap 1 is faster, red when slower; gear delta mint in a higher gear, red in a lower one, muted when equal). All five charts are always visible (no scroll); the legend sits above them. The window is configurable in Settings (±2/±3/±5/±10 s, default ±5).
 - Lap 1 owns the clock. Lap 2 is muted, never plays, and is seeked frame-exactly to the primary's **place on track** on every rendered frame.
 - Place alignment: the reference's samples are projected onto lap 1's driven path, resampled every 2.5 m, searching only 10 m behind to 30 m ahead of the previous answer so a track that crosses itself cannot capture the wrong branch. The axis never runs backwards. Video seek, chart traces, map dots and `Δ` all read that one axis, so a corner is compared with the same corner even when the two lines differ; when the path cannot be built the screen falls back to percent of each lap's own distance.
 - Footer: one 48 dp row — `⏮ −1 ▶ +1 ⏭`, a compact frame ruler, a `1×` button that cycles the rate, and a loop icon. Switching tabs never pauses or seeks.
@@ -211,10 +213,10 @@ Dialogs use Material 3 `AlertDialog`. Destructive confirmation labels are red; c
 - RPM chart removed; RPM remains a value bar.
 - X axis: a ±5 s window around the cursor, centred and clamped at the lap ends, labelled `±5 s`; time and progress interpolate between samples. Laps with no track positions still plot by lap time.
 - A reference lap (when present) overlays the same traces as solid lines; maxima cover both laps.
-- Compare charts (`CompareCharts`) use one chart per metric (`BRK`, `THR`, `SPD`, `RPM`, `GEAR`): primary solid blue (`AccentBlue`), reference solid yellow (`AccentYellow`), shared cursor.
+- Compare charts (`CompareCharts`) use one chart per metric (`BRK`, `THR`, `SPD`, `RPM`, `GEAR`): primary solid cyan (`AccentCyan`), reference solid slate (`GhostSlate`), shared cursor.
 - Axis: 1 px `outlineVariant`; cursor: 3 px `onSurface`.
 - Trace stroke: 2 px. Chart heights: 52 dp.
-- Map: coloured 1.5 px segments by pedal state, intensity lerped from muted grey to green (throttle) or red (brake) by pedal strength; 12 px blue dot at the cursor, 200 dp tall. A dashed grey ghost lap overlays the fastest lap on the same track; compare replaces it with a solid yellow (`AccentYellow`) reference line drawn at 1.5 px and an open ring at its cursor.
+- Map: coloured 1.5 px segments by pedal state, intensity lerped from muted grey to mint (throttle) or red (brake) by pedal strength; 12 px crisp-white dot at the cursor, 200 dp tall. A dashed grey ghost lap overlays the fastest lap on the same track; compare replaces it with a solid slate (`GhostSlate`) reference line drawn at 1.5 px and an open ring at its cursor.
 - Turn markers: the ruler marks brake, throttle, apex, and exit events. The map colours segments by pedal strength but draws no turn-in dots.
 - Map chips: `Follow` is on by default and centres on the car, puts the heading up, anchors the car near the bottom, squashes the vertical axis 0.35× for a driver's-perspective tilt, and zooms to the next ~2 s; `Ghost` toggles the reference lap; `Reset` returns to fit-all. The legend is a vertical list of brake, throttle, and ghost under the title, above the map.
 - Downsample traces to roughly one point per horizontal pixel; map to about 400 points.

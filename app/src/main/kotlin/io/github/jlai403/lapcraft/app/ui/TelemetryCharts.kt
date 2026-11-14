@@ -402,11 +402,11 @@ internal fun TrackMap(
         reference?.let { referenceWindow.sampleAt(it.lap, referenceCursorMs) }
     }
     val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-    val dotColor = MaterialTheme.colorScheme.secondary
+    val dotColor = CrispWhite
     val brakeColor = MaterialTheme.colorScheme.error
     val throttleColor = MaterialTheme.colorScheme.primary
     val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-    val referenceColor = AccentYellow
+    val referenceColor = GhostSlate
     val anchor = if (follow) current else null
     val heading = remember(anchor, window, lap, cursorMs) {
         if (anchor == null) {
@@ -546,7 +546,7 @@ internal fun TrackMapLegend(
         LegendItem("Brake", MaterialTheme.colorScheme.error)
         LegendItem("Throttle", MaterialTheme.colorScheme.primary)
         if (showReference) {
-            LegendItem("Reference", AccentYellow)
+            LegendItem("Reference", GhostSlate)
         } else {
             LegendItem("Ghost", MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
         }
@@ -604,7 +604,7 @@ internal fun SpeedGearRow(
             NumericText(
                 text = speedText(primary.speedMps, imperial),
                 style = MaterialTheme.typography.labelSmall,
-                color = if (reference != null) AccentBlue else Color.Unspecified,
+                color = if (reference != null) AccentCyan else Color.Unspecified,
             )
             if (reference != null) {
                 Text(
@@ -615,7 +615,7 @@ internal fun SpeedGearRow(
                 NumericText(
                     text = speedText(reference.speedMps, imperial),
                     style = MaterialTheme.typography.labelSmall,
-                    color = AccentYellow,
+                    color = GhostSlate,
                 )
                 NumericText(
                     text = speedDeltaText(primary.speedMps, reference.speedMps, imperial),
@@ -644,7 +644,7 @@ internal fun SpeedGearRow(
             NumericText(
                 text = primary.gear.toString(),
                 style = MaterialTheme.typography.labelSmall,
-                color = if (reference != null) AccentBlue else Color.Unspecified,
+                color = if (reference != null) AccentCyan else Color.Unspecified,
             )
             if (reference != null) {
                 Text(
@@ -655,7 +655,7 @@ internal fun SpeedGearRow(
                 NumericText(
                     text = reference.gear.toString(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = AccentYellow,
+                    color = GhostSlate,
                 )
                 NumericText(
                     text = gearDeltaText(primary.gear, reference.gear),
@@ -689,14 +689,14 @@ internal fun gearDeltaText(primaryGear: Int, referenceGear: Int): String {
 
 @Composable
 internal fun speedDeltaColor(delta: Int): Color = when {
-    delta > 0 -> AccentGreen
+    delta > 0 -> AccentMint
     delta < 0 -> MaterialTheme.colorScheme.error
     else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 @Composable
 internal fun gearDeltaColor(delta: Int): Color = when {
-    delta > 0 -> AccentGreen
+    delta > 0 -> AccentMint
     delta < 0 -> MaterialTheme.colorScheme.error
     else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
@@ -794,8 +794,8 @@ private fun CompareLegend() {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        LegendLine("lap 1", AccentBlue)
-        LegendLine("lap 2 (reference)", AccentYellow)
+        LegendLine("lap 1", AccentCyan)
+        LegendLine("lap 2 (reference)", GhostSlate)
     }
 }
 
@@ -834,8 +834,8 @@ private fun MetricChart(
 ) {
     val axisColor = MaterialTheme.colorScheme.outlineVariant
     val cursorColor = MaterialTheme.colorScheme.onSurface
-    val primary = remember(metric) { TraceSeries(AccentBlue, metric.valueOf, metric.maxValue) }
-    val reference = remember(metric) { TraceSeries(AccentYellow, metric.valueOf, metric.maxValue) }
+    val primary = remember(metric) { TraceSeries(AccentCyan, metric.valueOf, metric.maxValue) }
+    val reference = remember(metric) { TraceSeries(GhostSlate, metric.valueOf, metric.maxValue) }
     Row(
         modifier = modifier.fillMaxWidth().heightIn(min = 32.dp),
         verticalAlignment = Alignment.CenterVertically,

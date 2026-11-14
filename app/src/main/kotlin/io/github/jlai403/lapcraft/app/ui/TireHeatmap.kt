@@ -19,14 +19,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
-private val TireHot = Color(0xFFFF6B6B)
+private val TireHot = AccentRed
 
 /** Cold blue at 60 °C, optimal green at 90 °C, hot red at 120 °C. */
 internal fun tireTemperatureColor(celsius: Float): Color = when {
-    celsius <= 60f -> AccentBlue
+    celsius <= 60f -> AccentCyan
     celsius >= 120f -> TireHot
-    celsius < 90f -> lerp(AccentBlue, AccentGreen, (celsius - 60f) / 30f)
-    else -> lerp(AccentGreen, TireHot, (celsius - 90f) / 30f)
+    celsius < 90f -> lerp(AccentCyan, AccentMint, (celsius - 60f) / 30f)
+    else -> lerp(AccentMint, TireHot, (celsius - 90f) / 30f)
 }
 
 @Composable
