@@ -125,7 +125,7 @@ class TelemetryChartsTest {
             }
         }
 
-        compose.onNodeWithText("Track %").assertExists()
+        compose.onNodeWithText("\u00b15 s").assertExists()
     }
 
     @Test
@@ -159,7 +159,7 @@ class TelemetryChartsTest {
             }
         }
 
-        listOf("BRK", "THR", "SPD", "RPM", "GEAR", "Track %").forEach { label ->
+        listOf("BRK", "THR", "SPD", "RPM", "GEAR", "\u00b15 s").forEach { label ->
             compose.onNodeWithText(label).assertExists()
         }
         compose.onNodeWithText("lap 1").assertExists()
@@ -183,7 +183,7 @@ class TelemetryChartsTest {
             }
         }
 
-        listOf("BRK", "THR", "SPD", "RPM", "GEAR", "Track %").forEach { label ->
+        listOf("BRK", "THR", "SPD", "RPM", "GEAR", "\u00b15 s").forEach { label ->
             compose.onNodeWithText(label).assertExists()
         }
     }
@@ -234,5 +234,29 @@ class TelemetryChartsTest {
         val size = Size(320f, 230f)
         assertEquals(Offset(160f, 115f), followAnchor(size, centred = true))
         assertEquals(Offset(160f, 230f * 0.78f), followAnchor(size, centred = false))
+    }
+
+    @Test
+    fun `chartWindow centres the cursor in the middle of the lap`() {
+        val w = chartWindow(cursorMs = 60_000, lapTimeMs = 90_000)
+        assertEquals(55_000, w.startMs)
+        assertEquals(CHART_WINDOW_MS, w.windowMs)
+    }
+
+    @Test
+    fun `chartWindow clamps to the lap start`() {
+        assertEquals(0, chartWindow(cursorMs = 1_000, lapTimeMs = 90_000).startMs)
+    }
+
+    @Test
+    fun `chartWindow clamps to the lap end`() {
+        assertEquals(80_000, chartWindow(cursorMs = 89_000, lapTimeMs = 90_000).startMs)
+    }
+
+    @Test
+    fun `chartWindow shrinks for a short lap`() {
+        val w = chartWindow(cursorMs = 2_000, lapTimeMs = 4_000)
+        assertEquals(0, w.startMs)
+        assertEquals(4_000, w.windowMs)
     }
 }

@@ -318,7 +318,7 @@ fun LapPlayerScreen(
             player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
             player.seekTo(ready)
             player.prepare()
-            player.playWhenReady = true
+            player.playWhenReady = false
             positionMs = ready
         }
     }
