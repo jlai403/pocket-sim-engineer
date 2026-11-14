@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +48,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.onClick
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
@@ -190,6 +195,7 @@ internal fun PlaybackFooter(
     onForward: () -> Unit,
     onToggleLoop: () -> Unit,
     onSpeedChange: (Float) -> Unit,
+    onStep: (Int) -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -225,6 +231,11 @@ internal fun PlaybackFooter(
                 events = events,
                 showProgress = true,
                 onSeekFraction = onSeekFraction,
+                hapticsEnabled = hapticsEnabled,
+            )
+            FrameStepRow(
+                enabled = enabled,
+                onStep = onStep,
                 hapticsEnabled = hapticsEnabled,
             )
             Box(modifier = Modifier.fillMaxWidth()) {
@@ -313,11 +324,44 @@ internal fun StepButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    hapticsEnabled: Boolean = true,
 ) {
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
     OutlinedButton(
-        onClick = onClick,
+        onClick = {},
         enabled = enabled,
-        modifier = modifier.height(42.dp),
+        modifier = modifier
+            .height(42.dp)
+            .semantics { onClick(label = text) { onClick(); true } }
+            .pointerInput(enabled) {
+                if (!enabled) return@pointerInput
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    onClick()
+                    if (hapticsEnabled) {
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                    val repeat = scope.launch {
+                        delay(400)
+                        while (isActive) {
+                            onClick()
+                            if (hapticsEnabled) {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                            delay(80)
+                        }
+                    }
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            if (event.changes.none { it.pressed }) break
+                        }
+                    } finally {
+                        repeat.cancel()
+                    }
+                }
+            },
         shape = CircleShape,
         contentPadding = PaddingValues(horizontal = 6.dp),
         colors = ButtonDefaults.outlinedButtonColors(
@@ -332,14 +376,15 @@ internal fun StepButton(
 internal fun FrameStepRow(
     enabled: Boolean,
     onStep: (Int) -> Unit,
+    hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        StepButton("−1 frame", { onStep(-1) }, Modifier.weight(1f), enabled)
-        StepButton("+1 frame", { onStep(1) }, Modifier.weight(1f), enabled)
+        StepButton("−1 frame", { onStep(-1) }, Modifier.weight(1f), enabled, hapticsEnabled)
+        StepButton("+1 frame", { onStep(1) }, Modifier.weight(1f), enabled, hapticsEnabled)
     }
 }
 
