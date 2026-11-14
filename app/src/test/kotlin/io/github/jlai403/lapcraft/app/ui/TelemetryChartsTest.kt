@@ -230,6 +230,12 @@ class TelemetryChartsTest {
     )
 
     @Test
+    fun `speedText formats in kmh and mph`() {
+        assertEquals("45", speedText(12.5f, imperial = false))
+        assertEquals("28", speedText(12.5f, imperial = true))
+    }
+
+    @Test
     fun `followAnchor centres the driver when requested`() {
         val size = Size(320f, 230f)
         assertEquals(Offset(160f, 115f), followAnchor(size, centred = true))

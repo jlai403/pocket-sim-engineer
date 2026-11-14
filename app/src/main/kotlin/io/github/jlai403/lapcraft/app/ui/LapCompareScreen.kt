@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -254,8 +255,13 @@ fun LapCompareScreen(
         val player = primaryPlayer ?: return@LaunchedEffect
         while (true) {
             if (player.duration > 0) durationMs = maxOf(durationMs, player.duration)
-            if (player.isPlaying) positionMs = player.currentPosition
+            positionMs = player.currentPosition
             delay(50)
+        }
+    }
+    LaunchedEffect(playing) {
+        while (playing) {
+            withFrameNanos { primaryPlayer?.let { positionMs = it.currentPosition } }
         }
     }
 
@@ -273,10 +279,9 @@ fun LapCompareScreen(
     val primaryLap = primary?.lap
     // While the ruler is under a finger, show the requested frame rather than the
     // last one the decoder managed to render.
-    val displayedUs = scrubTargetMs?.times(1_000)
-        ?: if (renderedUs >= 0) renderedUs else positionMs * 1_000
-    val displayedMs = scrubTargetMs
-        ?: if (renderedUs >= 0) renderedUs / 1_000 else positionMs
+    val framesLive = tab == 0
+    val displayedUs = displayedFrameUs(framesLive, scrubTargetMs, renderedUs, positionMs)
+    val displayedMs = displayedUs / 1_000
     val primaryCursorMs = primaryLap?.let {
         PlaybackCursor.telemetryMs(displayedMs, it.leadInMs, it.syncOffsetMs, it.lapTimeMs)
     } ?: 0
@@ -309,7 +314,8 @@ fun LapCompareScreen(
     } ?: 0L
 
     // One seek per rendered primary frame, coalesced so a scrub cannot queue a storm.
-    LaunchedEffect(referenceSeeker, referenceClipMs) {
+    LaunchedEffect(referenceSeeker, referenceClipMs, tab) {
+        if (tab != 0) return@LaunchedEffect
         if (referencePlayer == null || primaryPlayer == null) return@LaunchedEffect
         referenceSeeker.submit(referenceClipMs)
     }
@@ -473,6 +479,7 @@ fun LapCompareScreen(
                             cursorMs = primaryCursorMs,
                             imperial = settings.imperialUnits,
                             alignment = alignment,
+                            referenceCursorMs = referenceCursorMs,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
@@ -713,6 +720,15 @@ internal fun referenceCursor(
         ?: referenceTable?.timeAtPercent(percent, referenceLapTimeMs)
         ?: 0
 }
+
+/** Which timestamp drives the cursor: the rendered frame on Video, the media clock otherwise. */
+internal fun displayedFrameUs(
+    framesLive: Boolean,
+    scrubTargetMs: Long?,
+    renderedUs: Long,
+    positionMs: Long,
+): Long = scrubTargetMs?.times(1_000)
+    ?: if (framesLive && renderedUs >= 0) renderedUs else positionMs * 1_000
 
 private fun deltaLabel(deltaMs: Int): String =
     if (deltaMs == 0) "Δ 0.000 s" else "Δ %+.3f s".format(deltaMs / 1000.0)

@@ -105,6 +105,7 @@ internal fun ChartColumn(
         (window + referenceWindow).maxOf { it.gear }.coerceAtLeast(1)
     }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        SpeedGearRow(primary = current, imperial = imperial)
         current?.let { sample ->
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -556,6 +557,88 @@ private fun LegendItem(label: String, color: Color) {
     }
 }
 
+@Composable
+internal fun SpeedGearRow(
+    primary: Sample?,
+    reference: Sample? = null,
+    imperial: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    if (primary == null) return
+    val factor = if (imperial) 2.23694f else 3.6f
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                "Speed",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            NumericText(
+                text = speedText(primary.speedMps, imperial),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (reference != null) AccentBlue else Color.Unspecified,
+            )
+            if (reference != null) {
+                Text(
+                    "/",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                NumericText(
+                    text = speedText(reference.speedMps, imperial),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AccentYellow,
+                )
+            }
+            Text(
+                if (imperial) "mph" else "km/h",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                "Gear",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            NumericText(
+                text = primary.gear.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (reference != null) AccentBlue else Color.Unspecified,
+            )
+            if (reference != null) {
+                Text(
+                    "/",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                NumericText(
+                    text = reference.gear.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AccentYellow,
+                )
+            }
+        }
+    }
+}
+
+internal fun speedText(speedMps: Float, imperial: Boolean): String {
+    val factor = if (imperial) 2.23694f else 3.6f
+    return "%.0f".format(speedMps * factor)
+}
+
 private data class CompareMetric(
     val label: String,
     val valueOf: (Sample) -> Float,
@@ -571,6 +654,7 @@ internal fun CompareCharts(
     cursorMs: Int,
     imperial: Boolean,
     alignment: TrackProgress.Alignment? = null,
+    referenceCursorMs: Int = cursorMs,
     modifier: Modifier = Modifier,
 ) {
     val window = remember(samples, lap) { samples.lapWindow(lap) }
@@ -594,6 +678,10 @@ internal fun CompareCharts(
         }
     }
     val axis = chartWindow(cursorMs, lap.lapTimeMs)
+    val primarySample = remember(window, cursorMs) { window.sampleAt(lap, cursorMs) }
+    val referenceSample = remember(referenceWindow, reference, referenceCursorMs) {
+        reference?.let { referenceWindow.sampleAt(it.lap, referenceCursorMs) }
+    }
     val speedFactor = if (imperial) 2.23694f else 3.6f
     val all = window + referenceWindow
     val speedMax = remember(all, speedFactor) {
@@ -610,6 +698,7 @@ internal fun CompareCharts(
     )
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         CompareLegend()
+        SpeedGearRow(primary = primarySample, reference = referenceSample, imperial = imperial)
         Column(
             modifier = Modifier
                 .weight(1f)

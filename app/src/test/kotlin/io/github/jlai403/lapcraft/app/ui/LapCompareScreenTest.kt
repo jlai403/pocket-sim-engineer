@@ -215,6 +215,14 @@ class LapCompareScreenTest {
             )
         }
 
+    @Test
+    fun `displayedFrameUs ignores a stale frame on the telemetry tab`() {
+        assertEquals(5_000_000L, displayedFrameUs(false, null, 9_000_000L, 5_000L))
+        assertEquals(9_000_000L, displayedFrameUs(true, null, 9_000_000L, 5_000L))
+        assertEquals(3_000_000L, displayedFrameUs(true, 3_000L, 9_000_000L, 5_000L))
+        assertEquals(5_000_000L, displayedFrameUs(false, null, -1L, 5_000L))
+    }
+
     private companion object {
         const val TIMEOUT = 10_000L
     }

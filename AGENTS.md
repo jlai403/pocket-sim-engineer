@@ -84,8 +84,8 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
 - `TrackProgress.Table` caches cumulative distance per lap and interpolates both ways:
   `percentAt(timeMs)` brackets by time, `timeAtPercent(percent, lapTimeMs)` brackets by distance.
   Never snap to the nearest sample.
-- `TrackProgress.align` puts the reference on lap 1's driven path (2.5 m polyline, 5 m behind to
-  10 m ahead of the previous answer, monotone, full-path search past 50 m). It returns null on a
+- `TrackProgress.align` puts the reference on lap 1's driven path (2.5 m polyline, 10 m behind to
+  30 m ahead of the previous answer, monotone, full-path search past 50 m). It returns null on a
   path broken by a GT7 reset, and the screen then falls back to `timeAtPercent`. The video seek, the
   reference chart axis, the map dot and `Δ` all read this one alignment.
 - Compare charts are one per metric (`BRK/THR/SPD/RPM/GEAR`) with the primary in `AccentBlue` and
@@ -93,6 +93,10 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
   clamped at the lap ends) instead of the whole lap. The map keeps pedal colouring on the primary
   and uses solid yellow for the reference, both drawn as 1.5 dp lines. Blue/yellow are
   Telemetry-tab only.
+- A single `Speed`/`Gear` row sits above the charts on both the lap player (primary only) and the
+  compare Telemetry tab (lap 1 / reference, in blue and yellow), driven by the cursor sample.
+- The Telemetry tab has no video surface, so its cursor reads the player clock (`positionMs`) at
+  60 fps instead of the last rendered frame; the Video tab keeps frame-exact scrubbing.
 - `PlaybackFooter(compact = true)` is the compare footer: one 48 dp row with the frame steps beside
   Play, a 40 dp ruler, a `1×` rate cycle, and a loop icon. The single-lap player keeps the taller
   layout (time/speed row, ruler, transport); `FrameStepRow` remains only on the sync screen.
