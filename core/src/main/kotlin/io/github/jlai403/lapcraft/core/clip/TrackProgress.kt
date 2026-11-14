@@ -12,8 +12,8 @@ import kotlin.math.roundToInt
 object TrackProgress {
     private const val MAX_STEP_M = 200.0
     private const val PATH_STEP_M = 2.5
-    private const val WINDOW_BEHIND_M = 5.0
-    private const val WINDOW_AHEAD_M = 10.0
+    private const val WINDOW_BEHIND_M = 10.0
+    private const val WINDOW_AHEAD_M = 30.0
     private const val OFF_PATH_M = 50.0
 
     /** A lap's distance table, built once and reused for every cursor move. */
