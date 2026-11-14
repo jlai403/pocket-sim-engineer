@@ -470,6 +470,7 @@ fun LapCompareScreen(
                     speed = playbackSpeed,
                     events = events,
                     hapticsEnabled = settings.hapticsEnabled,
+                    compact = true,
                     onScrubStart = {
                         scrubBaseUs = displayedUs
                         scrubTargetMs = null

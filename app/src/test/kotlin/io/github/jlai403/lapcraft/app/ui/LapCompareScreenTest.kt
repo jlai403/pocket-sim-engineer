@@ -24,7 +24,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "w800dp-h360dp-land")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class LapCompareScreenTest {
     @get:Rule
@@ -131,6 +131,7 @@ class LapCompareScreenTest {
     }
 
     @Test
+    @Config(qualifiers = "w360dp-h640dp-port")
     fun `portrait shows the rotate prompt`() {
         installLaps()
         setCompareScreen()

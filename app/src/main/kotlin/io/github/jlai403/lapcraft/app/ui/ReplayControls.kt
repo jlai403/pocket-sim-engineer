@@ -84,6 +84,13 @@ internal fun steppedPlaybackSpeed(speed: Float, direction: Int): Float {
     return PLAYBACK_SPEEDS[(current + direction).coerceIn(0, PLAYBACK_SPEEDS.lastIndex)]
 }
 
+/** The next rate in [PLAYBACK_SPEEDS], wrapping at the end. */
+internal fun nextPlaybackSpeed(speed: Float): Float {
+    val current = PLAYBACK_SPEEDS.indexOf(speed).takeIf { it >= 0 }
+        ?: PLAYBACK_SPEEDS.indexOf(1f)
+    return PLAYBACK_SPEEDS[(current + 1) % PLAYBACK_SPEEDS.size]
+}
+
 private val FrameStepWidth = 6.dp
 
 /** Turns horizontal drag pixels into whole frames, carrying the remainder and the drag total. */
@@ -196,6 +203,7 @@ internal fun PlaybackFooter(
     onToggleLoop: () -> Unit,
     onSpeedChange: (Float) -> Unit,
     onStep: (Int) -> Unit = {},
+    compact: Boolean = false,
 ) {
     Column(
         modifier = Modifier
@@ -203,89 +211,193 @@ internal fun PlaybackFooter(
             .background(MaterialTheme.colorScheme.background),
     ) {
         HorizontalDivider(thickness = 1.dp, color = Hairline)
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                NumericText(
-                    "%s / %s".format(formatMillis(cursorMs.toLong()), lapTimeLabel(lapTimeMs)),
+        if (compact) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                TransportControls(
+                    playing = playing,
+                    enabled = enabled,
+                    hapticsEnabled = hapticsEnabled,
+                    onRewind = onRewind,
+                    onPlayPause = onPlayPause,
+                    onForward = onForward,
+                    onStep = onStep,
+                )
+                FrameRuler(
+                    valueMs = cursorMs.toLong(),
+                    startMs = 0,
+                    endMs = lapTimeMs.toLong(),
+                    frameStepMs = frameStepMs,
+                    enabled = enabled,
+                    onScrubStart = onScrubStart,
+                    onScrub = onScrub,
+                    onScrubEnd = onScrubEnd,
+                    events = events,
+                    showProgress = true,
+                    onSeekFraction = onSeekFraction,
+                    hapticsEnabled = hapticsEnabled,
+                    compact = true,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelMedium,
                 )
-                FilterChip(
-                    selected = looping,
-                    onClick = onToggleLoop,
-                    label = { Text("Loop") },
-                )
-                SpeedStepper(speed = speed, onSpeedChange = onSpeedChange)
+                SpeedCycle(speed = speed, enabled = enabled, onSpeedChange = onSpeedChange)
+                LoopButton(looping = looping, enabled = enabled, onToggle = onToggleLoop)
             }
-            FrameRuler(
-                valueMs = cursorMs.toLong(),
-                startMs = 0,
-                endMs = lapTimeMs.toLong(),
-                frameStepMs = frameStepMs,
-                enabled = enabled,
-                onScrubStart = onScrubStart,
-                onScrub = onScrub,
-                onScrubEnd = onScrubEnd,
-                events = events,
-                showProgress = true,
-                onSeekFraction = onSeekFraction,
-                hapticsEnabled = hapticsEnabled,
-            )
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.align(Alignment.Center),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TransportButton(
-                        icon = TransportIcons.SkipPrevious,
-                        description = "Previous brake point",
-                        enabled = enabled,
-                        onClick = onRewind,
-                        size = 36.dp,
-                        iconSize = 20.dp,
+        } else {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    NumericText(
+                        "%s / %s".format(formatMillis(cursorMs.toLong()), lapTimeLabel(lapTimeMs)),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelMedium,
                     )
-                    StepButton(
-                        text = "−1",
-                        onClick = { onStep(-1) },
+                    FilterChip(
+                        selected = looping,
+                        onClick = onToggleLoop,
+                        label = { Text("Loop") },
+                    )
+                    SpeedStepper(speed = speed, onSpeedChange = onSpeedChange)
+                }
+                FrameRuler(
+                    valueMs = cursorMs.toLong(),
+                    startMs = 0,
+                    endMs = lapTimeMs.toLong(),
+                    frameStepMs = frameStepMs,
+                    enabled = enabled,
+                    onScrubStart = onScrubStart,
+                    onScrub = onScrub,
+                    onScrubEnd = onScrubEnd,
+                    events = events,
+                    showProgress = true,
+                    onSeekFraction = onSeekFraction,
+                    hapticsEnabled = hapticsEnabled,
+                )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    TransportControls(
+                        modifier = Modifier.align(Alignment.Center),
+                        playing = playing,
                         enabled = enabled,
                         hapticsEnabled = hapticsEnabled,
-                        compact = true,
-                        description = "Step back one frame",
-                        modifier = Modifier.testTag("frame-back"),
-                    )
-                    TransportButton(
-                        icon = if (playing) TransportIcons.Pause else Icons.Filled.PlayArrow,
-                        description = if (playing) "Pause" else "Play",
-                        enabled = enabled,
-                        onClick = onPlayPause,
-                        primary = true,
-                        size = 44.dp,
-                        iconSize = 24.dp,
-                    )
-                    StepButton(
-                        text = "+1",
-                        onClick = { onStep(1) },
-                        enabled = enabled,
-                        hapticsEnabled = hapticsEnabled,
-                        compact = true,
-                        description = "Step forward one frame",
-                        modifier = Modifier.testTag("frame-forward"),
-                    )
-                    TransportButton(
-                        icon = TransportIcons.SkipNext,
-                        description = "Next brake point",
-                        enabled = enabled,
-                        onClick = onForward,
-                        size = 36.dp,
-                        iconSize = 20.dp,
+                        onRewind = onRewind,
+                        onPlayPause = onPlayPause,
+                        onForward = onForward,
+                        onStep = onStep,
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TransportControls(
+    playing: Boolean,
+    enabled: Boolean,
+    hapticsEnabled: Boolean,
+    onRewind: () -> Unit,
+    onPlayPause: () -> Unit,
+    onForward: () -> Unit,
+    onStep: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TransportButton(
+            icon = TransportIcons.SkipPrevious,
+            description = "Previous brake point",
+            enabled = enabled,
+            onClick = onRewind,
+            size = 36.dp,
+            iconSize = 20.dp,
+        )
+        StepButton(
+            text = "−1",
+            onClick = { onStep(-1) },
+            enabled = enabled,
+            hapticsEnabled = hapticsEnabled,
+            compact = true,
+            description = "Step back one frame",
+            modifier = Modifier.testTag("frame-back"),
+        )
+        TransportButton(
+            icon = if (playing) TransportIcons.Pause else Icons.Filled.PlayArrow,
+            description = if (playing) "Pause" else "Play",
+            enabled = enabled,
+            onClick = onPlayPause,
+            primary = true,
+            size = 44.dp,
+            iconSize = 24.dp,
+        )
+        StepButton(
+            text = "+1",
+            onClick = { onStep(1) },
+            enabled = enabled,
+            hapticsEnabled = hapticsEnabled,
+            compact = true,
+            description = "Step forward one frame",
+            modifier = Modifier.testTag("frame-forward"),
+        )
+        TransportButton(
+            icon = TransportIcons.SkipNext,
+            description = "Next brake point",
+            enabled = enabled,
+            onClick = onForward,
+            size = 36.dp,
+            iconSize = 20.dp,
+        )
+    }
+}
+
+@Composable
+private fun SpeedCycle(speed: Float, enabled: Boolean, onSpeedChange: (Float) -> Unit) {
+    TextButton(
+        onClick = { onSpeedChange(nextPlaybackSpeed(speed)) },
+        enabled = enabled,
+        modifier = Modifier.size(38.dp).testTag("speed-cycle"),
+        contentPadding = PaddingValues(0.dp),
+    ) {
+        NumericText(playbackSpeedLabel(speed), style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+private fun LoopButton(looping: Boolean, enabled: Boolean, onToggle: () -> Unit) {
+    IconButton(
+        onClick = onToggle,
+        enabled = enabled,
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .then(
+                if (looping) {
+                    Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
+                } else {
+                    Modifier
+                },
+            )
+            .testTag("loop-toggle"),
+    ) {
+        Icon(
+            imageVector = TransportIcons.Loop,
+            contentDescription = if (looping) "Loop on" else "Loop lap",
+            tint = if (looping) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
@@ -430,6 +542,7 @@ internal fun FrameRuler(
     showProgress: Boolean = false,
     onSeekFraction: (Float) -> Unit = {},
     hapticsEnabled: Boolean = true,
+    compact: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -462,6 +575,7 @@ internal fun FrameRuler(
         fontFamily = GeistMonoFamily,
         color = labelColor,
         letterSpacing = 0.sp,
+        fontSize = if (compact) 9.sp else MaterialTheme.typography.labelSmall.fontSize,
     )
     val step = frameStepMs.coerceAtLeast(1L)
     val labelEvery = (500L / step).coerceAtLeast(1L)
@@ -471,7 +585,7 @@ internal fun FrameRuler(
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height(if (compact) 40.dp else 52.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(trackColor)
             .alpha(if (enabled) 1f else 0.5f)
@@ -534,7 +648,8 @@ internal fun FrameRuler(
     ) {
         if (size.width <= 0f || size.height <= 0f) return@Canvas
         val centerX = size.width / 2f
-        val baseline = size.height - 24.dp.toPx()
+        val baseline = size.height - (if (compact) 20.dp else 24.dp).toPx()
+        val needleTop = (if (compact) 4.dp else 6.dp).toPx()
         val pxPerMs = pxPerFrame / step.toFloat()
         val halfSpan = centerX / pxPerMs
         val firstFrame = floor((valueMs - halfSpan) / step).toLong()
@@ -547,9 +662,9 @@ internal fun FrameRuler(
             if (x < 0f || x > size.width) continue
             val major = frame % labelEvery == 0L
             val tick = when {
-                major -> 26.dp.toPx()
-                frame % 5 == 0L -> 18.dp.toPx()
-                else -> 12.dp.toPx()
+                major -> (if (compact) 18.dp else 26.dp).toPx()
+                frame % 5 == 0L -> (if (compact) 13.dp else 18.dp).toPx()
+                else -> (if (compact) 9.dp else 12.dp).toPx()
             }
             drawLine(
                 color = tickColor,
@@ -579,15 +694,15 @@ internal fun FrameRuler(
         )
         drawLine(
             color = needleColor,
-            start = Offset(centerX, 6.dp.toPx()),
+            start = Offset(centerX, needleTop),
             end = Offset(centerX, baseline),
             strokeWidth = 2.dp.toPx(),
         )
         drawPath(
             path = Path().apply {
-                moveTo(centerX - 5.dp.toPx(), 6.dp.toPx())
-                lineTo(centerX + 5.dp.toPx(), 6.dp.toPx())
-                lineTo(centerX, 12.dp.toPx())
+                moveTo(centerX - 5.dp.toPx(), needleTop)
+                lineTo(centerX + 5.dp.toPx(), needleTop)
+                lineTo(centerX, needleTop + 6.dp.toPx())
                 close()
             },
             color = needleColor,
@@ -605,9 +720,10 @@ internal fun FrameRuler(
         if (showProgress) {
             val span = (endMs - startMs).coerceAtLeast(1L)
             val fraction = ((valueMs - startMs).toFloat() / span).coerceIn(0f, 1f)
-            val trackTop = size.height - 4.dp.toPx()
-            val trackSize = Size(size.width, 4.dp.toPx())
-            val corner = CornerRadius(2.dp.toPx())
+            val progressHeight = if (compact) 3.dp else 4.dp
+            val trackTop = size.height - progressHeight.toPx()
+            val trackSize = Size(size.width, progressHeight.toPx())
+            val corner = CornerRadius(progressHeight.toPx() / 2f)
             drawRoundRect(
                 color = tickColor.copy(alpha = 0.25f),
                 topLeft = Offset(0f, trackTop),
@@ -617,7 +733,7 @@ internal fun FrameRuler(
             drawRoundRect(
                 color = needleColor.copy(alpha = 0.75f),
                 topLeft = Offset(0f, trackTop),
-                size = Size(size.width * fraction, 4.dp.toPx()),
+                size = Size(size.width * fraction, progressHeight.toPx()),
                 cornerRadius = corner,
             )
         }
