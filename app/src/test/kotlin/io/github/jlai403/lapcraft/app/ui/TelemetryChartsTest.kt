@@ -236,6 +236,26 @@ class TelemetryChartsTest {
     }
 
     @Test
+    fun `MapViewState zooms, pans and resets`() {
+        val view = MapViewState()
+        view.zoom(2f)
+        assertEquals(2f, view.zoom, 0.001f)
+        view.zoom(10f)
+        assertEquals(4f, view.zoom, 0.001f)
+        view.pan(Offset(5f, 3f))
+        assertEquals(Offset(5f, 3f), view.pan)
+        view.reset()
+        assertEquals(1f, view.zoom, 0.001f)
+        assertEquals(Offset.Zero, view.pan)
+    }
+
+    @Test
+    fun `chartWindowLabel formats the half window`() {
+        assertEquals("\u00b15 s", chartWindowLabel(10_000))
+        assertEquals("\u00b12 s", chartWindowLabel(4_000))
+    }
+
+    @Test
     fun `followAnchor centres the driver when requested`() {
         val size = Size(320f, 230f)
         assertEquals(Offset(160f, 115f), followAnchor(size, centred = true))

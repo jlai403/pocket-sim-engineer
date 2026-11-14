@@ -36,6 +36,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_TELEMETRY_HUD, true)
         set(value) = prefs.edit().putBoolean(KEY_TELEMETRY_HUD, value).apply()
 
+    /** Time shown either side of the cursor on the telemetry charts, in seconds. */
+    var chartWindowSeconds: Int
+        get() = prefs.getInt(KEY_CHART_WINDOW, 5).coerceIn(2, 10)
+        set(value) = prefs.edit().putInt(KEY_CHART_WINDOW, value.coerceIn(2, 10)).apply()
+
     /** How new replay clips are compressed; defaults to the balanced profile. */
     var replayPreset: ReplayPreset
         get() = enumPref(KEY_REPLAY_PRESET, ReplayPreset.Balanced)
@@ -92,6 +97,7 @@ class SettingsStore(context: Context) {
         const val KEY_HAPTICS = "frame_ruler_haptics"
         const val KEY_PLAYBACK_SPEED = "default_playback_speed"
         const val KEY_TELEMETRY_HUD = "telemetry_hud"
+    const val KEY_CHART_WINDOW = "chart_window_seconds"
         const val KEY_REPLAY_PRESET = "replay_preset"
         const val KEY_REPLAY_KEYFRAMES = "replay_keyframes"
         const val KEY_REPLAY_AUDIO = "replay_audio"

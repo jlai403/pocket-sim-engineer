@@ -97,6 +97,9 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
   compare Telemetry tab (lap 1 / reference, in blue and yellow), driven by the cursor sample.
 - The Telemetry tab has no video surface, so its cursor reads the player clock (`positionMs`) at
   60 fps instead of the last rendered frame; the Video tab keeps frame-exact scrubbing.
+- The track map supports pinch zoom and two-finger pan on both screens, with a double-tap reset
+  (0.6×–4×). The five compare charts are always fully visible (no scroll).
+- The chart window (`±2/±3/±5/±10 s`) is configurable in Settings → Display; the default is ±5 s.
 - `PlaybackFooter(compact = true)` is the compare footer: one 48 dp row with the frame steps beside
   Play, a 40 dp ruler, a `1×` rate cycle, and a loop icon. The single-lap player keeps the taller
   layout (time/speed row, ruler, transport); `FrameStepRow` remains only on the sync screen.

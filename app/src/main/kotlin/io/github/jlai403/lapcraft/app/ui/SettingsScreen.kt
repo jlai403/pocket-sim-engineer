@@ -66,6 +66,8 @@ fun SettingsScreen(
     var defaultSpeed by remember { mutableStateOf(settings.defaultPlaybackSpeed) }
     var speedMenu by remember { mutableStateOf(false) }
     var hud by remember { mutableStateOf(settings.telemetryHud) }
+    var chartWindowSeconds by remember { mutableStateOf(settings.chartWindowSeconds) }
+    var chartWindowMenu by remember { mutableStateOf(false) }
     var previewEmpty by remember { mutableStateOf(settings.previewEmptyLibrary) }
     var developerTools by remember { mutableStateOf(settings.developerTools) }
     var replayPreset by remember { mutableStateOf(settings.replayPreset) }
@@ -185,6 +187,38 @@ fun SettingsScreen(
             }
             Text(
                 "Speed, gear, and pedal sparklines over the replay.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Chart window",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Box {
+                    GhostPill(
+                        text = "\u00b1${chartWindowSeconds}s",
+                        onClick = { chartWindowMenu = true },
+                        modifier = Modifier.testTag("chart-window"),
+                        trailingIcon = Icons.Filled.KeyboardArrowDown,
+                    )
+                    DropdownMenu(expanded = chartWindowMenu, onDismissRequest = { chartWindowMenu = false }) {
+                        listOf(2, 3, 5, 10).forEach { seconds ->
+                            DropdownMenuItem(
+                                text = { Text("\u00b1${seconds}s") },
+                                onClick = {
+                                    chartWindowSeconds = seconds
+                                    settings.chartWindowSeconds = seconds
+                                    chartWindowMenu = false
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            Text(
+                "Time shown either side of the cursor on the telemetry charts.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
