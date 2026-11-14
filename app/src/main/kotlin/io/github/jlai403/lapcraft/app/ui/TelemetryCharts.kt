@@ -44,11 +44,24 @@ import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.sin
 
+internal const val CHART_WINDOW_MS = 10_000
+
 private data class TraceSeries(
     val color: Color,
     val valueOf: (Sample) -> Float,
     val maxValue: Float,
 )
+
+internal class ChartWindow(val startMs: Int, val windowMs: Int) {
+    fun xOf(timeMs: Int, width: Float): Float =
+        (timeMs - startMs).toFloat() / windowMs.coerceAtLeast(1) * width
+}
+
+internal fun chartWindow(cursorMs: Int, lapTimeMs: Int): ChartWindow {
+    val span = CHART_WINDOW_MS.coerceIn(1, lapTimeMs.coerceAtLeast(1))
+    val start = (cursorMs - span / 2).coerceIn(0, lapTimeMs - span)
+    return ChartWindow(start, span)
+}
 
 @Composable
 internal fun ChartColumn(
@@ -67,7 +80,8 @@ internal fun ChartColumn(
         Text("No telemetry for this lap", modifier = modifier)
         return
     }
-    val table = remember(window, lap) { TrackProgress.table(window, lap.startNanos) }
+    val windowTimes = remember(window, lap) { IntArray(window.size) { window[it].lapTimeMs(lap) } }
+    val axis = chartWindow(cursorMs, lap.lapTimeMs)
     val referenceWindow = remember(reference) {
         reference?.let { it.samples.lapWindow(it.lap) } ?: emptyList()
     }
@@ -144,8 +158,8 @@ internal fun ChartColumn(
         if (showPedals) {
             TraceChart(
                 window = window,
-                lap = lap,
-                table = table,
+                times = windowTimes,
+                axis = axis,
                 cursorMs = cursorMs,
                 label = "Throttle / Brake",
                 series = listOf(
@@ -153,15 +167,16 @@ internal fun ChartColumn(
                     TraceSeries(brakeColor, { it.brake.toFloat() }, 255f),
                 ),
                 referenceWindow = referenceWindow,
-                referenceLap = reference?.lap,
-                referenceTable = referenceTable,
+                referenceTimes = if (referenceWindow.isNotEmpty()) IntArray(referenceWindow.size) {
+                    referenceWindow[it].lapTimeMs(reference?.lap ?: lap)
+                } else null,
             )
         }
         if (showSpeed) {
             TraceChart(
                 window = window,
-                lap = lap,
-                table = table,
+                times = windowTimes,
+                axis = axis,
                 cursorMs = cursorMs,
                 label = "Speed / Gear",
                 series = listOf(
@@ -169,12 +184,13 @@ internal fun ChartColumn(
                     TraceSeries(gearColor, { it.gear.toFloat() }, gearMax.toFloat()),
                 ),
                 referenceWindow = referenceWindow,
-                referenceLap = reference?.lap,
-                referenceTable = referenceTable,
+                referenceTimes = if (referenceWindow.isNotEmpty()) IntArray(referenceWindow.size) {
+                    referenceWindow[it].lapTimeMs(reference?.lap ?: lap)
+                } else null,
             )
         }
         Text(
-            "Track %",
+            "\u00b15 s",
             modifier = Modifier.align(Alignment.End),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -228,14 +244,13 @@ private fun ValueBar(fraction: Float, color: Color, modifier: Modifier = Modifie
 @Composable
 private fun TraceChart(
     window: List<Sample>,
-    lap: LapMetadata,
-    table: TrackProgress.Table?,
+    times: IntArray,
+    axis: ChartWindow,
     cursorMs: Int,
     label: String,
     series: List<TraceSeries>,
-    referenceWindow: List<Sample>,
-    referenceLap: LapMetadata?,
-    referenceTable: TrackProgress.Table?,
+    referenceWindow: List<Sample> = emptyList(),
+    referenceTimes: IntArray? = null,
 ) {
     val axisColor = MaterialTheme.colorScheme.outlineVariant
     val cursorColor = MaterialTheme.colorScheme.onSurface
@@ -247,6 +262,7 @@ private fun TraceChart(
         )
         Canvas(
             modifier = Modifier
+                .clipToBounds()
                 .fillMaxWidth()
                 .height(52.dp)
                 .padding(vertical = 2.dp),
@@ -257,19 +273,15 @@ private fun TraceChart(
                 end = Offset(size.width, size.height),
                 strokeWidth = 1f,
             )
-            if (referenceLap != null) {
+            if (referenceTimes != null && referenceWindow.isNotEmpty()) {
                 series.forEach { line ->
-                    drawTrace(referenceWindow, referenceTable, referenceLap, line, dashed = true)
+                    drawTrace(referenceWindow, referenceTimes, axis, line)
                 }
             }
             series.forEach { line ->
-                drawTrace(window, table, lap, line, dashed = false)
+                drawTrace(window, times, axis, line)
             }
-            val cursorX = if (table != null) {
-                size.width * table.percentAt(cursorMs) / 100f
-            } else {
-                timeToX(cursorMs, lap.lapTimeMs, size.width)
-            }
+            val cursorX = axis.xOf(cursorMs, size.width)
             drawLine(
                 color = cursorColor,
                 start = Offset(cursorX, 0f),
@@ -282,45 +294,65 @@ private fun TraceChart(
 
 private fun DrawScope.drawTrace(
     points: List<Sample>,
-    table: TrackProgress.Table?,
-    lap: LapMetadata,
+    times: IntArray,
+    axis: ChartWindow,
     line: TraceSeries,
-    dashed: Boolean,
-    muted: Boolean = dashed,
-    axisOfSample: ((Int) -> Float)? = null,
 ) {
-    if (points.isEmpty()) return
-    val step = ceil(points.size / size.width.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
+    if (points.isEmpty() || times.isEmpty()) return
+    // Keep only the samples that fall inside the visible window.
+    val first = lowerBound(times, axis.startMs)
+    val last = upperBound(times, axis.startMs + axis.windowMs) - 1
+    if (last - first < 1) return
+    val step = ceil((last - first + 1).toFloat() / size.width.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
     val path = Path()
-    var first = true
-    for (index in points.indices step step) {
+    var started = false
+    var index = first
+    while (index <= last) {
         val sample = points[index]
-        val x = when {
-            axisOfSample != null -> size.width * axisOfSample(index).coerceIn(0f, 100f) / 100f
-            table != null -> size.width * table.percentOfSample(index) / 100f
-            else -> timeToX(sample.lapTimeMs(lap), lap.lapTimeMs, size.width)
-        }
+        val x = axis.xOf(times[index], size.width)
         val y = size.height -
             (line.valueOf(sample) / line.maxValue).coerceIn(0f, 1f) * size.height
-        if (first) {
+        if (!started) {
             path.moveTo(x, y)
-            first = false
+            started = true
         } else {
             path.lineTo(x, y)
         }
+        index += step
+    }
+    // Always close the visible segment to its last sample.
+    if (started && index - step != last) {
+        val sample = points[last]
+        val x = axis.xOf(times[last], size.width)
+        val y = size.height -
+            (line.valueOf(sample) / line.maxValue).coerceIn(0f, 1f) * size.height
+        path.lineTo(x, y)
     }
     drawPath(
         path = path,
-        color = if (muted) line.color.copy(alpha = 0.45f) else line.color,
-        style = Stroke(
-            width = if (dashed) 1.5f else 2f,
-            pathEffect = if (dashed) {
-                PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
-            } else {
-                null
-            },
-        ),
+        color = line.color,
+        style = Stroke(width = 2f),
     )
+}
+
+private fun lowerBound(times: IntArray, value: Int): Int {
+    var low = 0
+    var high = times.size
+    while (low < high) {
+        val mid = (low + high) ushr 1
+        if (times[mid] < value) low = mid + 1 else high = mid
+    }
+    return low.coerceIn(0, times.lastIndex)
+}
+
+private fun upperBound(times: IntArray, value: Int): Int {
+    var low = 0
+    var high = times.size
+    while (low < high) {
+        val mid = (low + high) ushr 1
+        if (times[mid] <= value) low = mid + 1 else high = mid
+    }
+    return low
 }
 
 @Composable
@@ -445,13 +477,8 @@ internal fun TrackMap(
             if (referenceWindow.size >= 2) {
                 drawPath(
                     path = pathOf(referenceWindow),
-                    color = referenceColor.copy(alpha = 0.55f),
-                    style = Stroke(
-                        width = 2.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(
-                            floatArrayOf(10.dp.toPx(), 5.dp.toPx()),
-                        ),
-                    ),
+                    color = referenceColor.copy(alpha = 0.8f),
+                    style = Stroke(width = 1.5.dp.toPx()),
                 )
             }
 
@@ -468,7 +495,7 @@ internal fun TrackMap(
                     color = color,
                     start = mapPoint(previous),
                     end = mapPoint(sample),
-                    strokeWidth = 3.dp.toPx(),
+                    strokeWidth = 1.5.dp.toPx(),
                 )
             }
 
@@ -558,6 +585,15 @@ internal fun CompareCharts(
     val referenceTable = remember(referenceWindow, reference) {
         reference?.let { TrackProgress.table(referenceWindow, it.lap.startNanos) }
     }
+    val windowTimes = remember(window, lap) { IntArray(window.size) { window[it].lapTimeMs(lap) } }
+    val referenceTimes = remember(referenceWindow, referenceTable, table, alignment, lap, reference) {
+        if (referenceWindow.isEmpty() || referenceTable == null || table == null) null
+        else IntArray(referenceWindow.size) { index ->
+            val percent = alignment?.axisPercentOfSample(index) ?: referenceTable.percentOfSample(index)
+            table.timeAtPercent(percent, lap.lapTimeMs)
+        }
+    }
+    val axis = chartWindow(cursorMs, lap.lapTimeMs)
     val speedFactor = if (imperial) 2.23694f else 3.6f
     val all = window + referenceWindow
     val speedMax = remember(all, speedFactor) {
@@ -572,7 +608,6 @@ internal fun CompareCharts(
         CompareMetric("RPM", { it.rpm }, rpmMax),
         CompareMetric("GEAR", { it.gear.toFloat() }, gearMax),
     )
-    val progress = table?.percentAt(cursorMs) ?: 0f
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         CompareLegend()
         Column(
@@ -585,17 +620,15 @@ internal fun CompareCharts(
                 MetricChart(
                     metric = metric,
                     window = window,
-                    lap = lap,
-                    table = table,
+                    times = windowTimes,
+                    axis = axis,
+                    cursorMs = cursorMs,
                     referenceWindow = referenceWindow,
-                    referenceLap = reference?.lap,
-                    referenceTable = referenceTable,
-                    referenceAxis = alignment?.let { aligned -> { index: Int -> aligned.axisPercentOfSample(index) } },
-                    progress = progress,
+                    referenceTimes = referenceTimes,
                 )
             }
             Text(
-                "Track %",
+                "\u00b15 s",
                 modifier = Modifier.align(Alignment.End),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -610,13 +643,13 @@ private fun CompareLegend() {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        LegendLine("lap 1", AccentBlue, dashed = false)
-        LegendLine("lap 2 (reference)", AccentYellow, dashed = true)
+        LegendLine("lap 1", AccentBlue)
+        LegendLine("lap 2 (reference)", AccentYellow)
     }
 }
 
 @Composable
-private fun LegendLine(label: String, color: Color, dashed: Boolean) {
+private fun LegendLine(label: String, color: Color) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -627,11 +660,6 @@ private fun LegendLine(label: String, color: Color, dashed: Boolean) {
                 start = Offset(0f, size.height / 2f),
                 end = Offset(size.width, size.height / 2f),
                 strokeWidth = size.height,
-                pathEffect = if (dashed) {
-                    PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))
-                } else {
-                    null
-                },
             )
         }
         Text(
@@ -646,13 +674,11 @@ private fun LegendLine(label: String, color: Color, dashed: Boolean) {
 private fun MetricChart(
     metric: CompareMetric,
     window: List<Sample>,
-    lap: LapMetadata,
-    table: TrackProgress.Table?,
-    referenceWindow: List<Sample>,
-    referenceLap: LapMetadata?,
-    referenceTable: TrackProgress.Table?,
-    referenceAxis: ((Int) -> Float)?,
-    progress: Float,
+    times: IntArray,
+    axis: ChartWindow,
+    cursorMs: Int,
+    referenceWindow: List<Sample> = emptyList(),
+    referenceTimes: IntArray? = null,
 ) {
     val axisColor = MaterialTheme.colorScheme.outlineVariant
     val cursorColor = MaterialTheme.colorScheme.onSurface
@@ -669,26 +695,24 @@ private fun MetricChart(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Canvas(modifier = Modifier.weight(1f).fillMaxHeight().padding(vertical = 2.dp)) {
+        Canvas(
+            modifier = Modifier
+                .clipToBounds()
+                .weight(1f)
+                .fillMaxHeight()
+                .padding(vertical = 2.dp),
+        ) {
             drawLine(
                 color = axisColor,
                 start = Offset(0f, size.height),
                 end = Offset(size.width, size.height),
                 strokeWidth = 1f,
             )
-            if (referenceLap != null) {
-                drawTrace(
-                    points = referenceWindow,
-                    table = referenceTable,
-                    lap = referenceLap,
-                    line = reference,
-                    dashed = true,
-                    muted = false,
-                    axisOfSample = referenceAxis,
-                )
+            if (referenceTimes != null && referenceWindow.isNotEmpty()) {
+                drawTrace(referenceWindow, referenceTimes, axis, reference)
             }
-            drawTrace(window, table, lap, primary, dashed = false)
-            val cursorX = size.width * progress.coerceIn(0f, 100f) / 100f
+            drawTrace(window, times, axis, primary)
+            val cursorX = axis.xOf(cursorMs, size.width)
             drawLine(
                 color = cursorColor,
                 start = Offset(cursorX, 0f),
@@ -699,8 +723,7 @@ private fun MetricChart(
     }
 }
 
-internal fun timeToX(timeMs: Int, lapTimeMs: Int, width: Float): Float =
-    (timeMs.toFloat() / lapTimeMs.coerceAtLeast(1)).coerceIn(0f, 1f) * width
+
 
 internal fun followAnchor(size: Size, centred: Boolean): Offset =
     Offset(size.width / 2f, size.height * if (centred) 0.5f else 0.78f)

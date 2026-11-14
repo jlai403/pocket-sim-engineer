@@ -88,9 +88,11 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
   10 m ahead of the previous answer, monotone, full-path search past 50 m). It returns null on a
   path broken by a GT7 reset, and the screen then falls back to `timeAtPercent`. The video seek, the
   reference chart axis, the map dot and `Δ` all read this one alignment.
-- Compare charts are one per metric (`BRK/THR/SPD/RPM/GEAR`) with the primary in `AccentBlue` and the
-  reference dashed `AccentYellow`; the map keeps pedal colouring on the primary and uses yellow for
-  the reference. Blue/yellow are Telemetry-tab only.
+- Compare charts are one per metric (`BRK/THR/SPD/RPM/GEAR`) with the primary in `AccentBlue` and
+  the reference solid `AccentYellow`; each chart shows a ±5 s window around the cursor (centred,
+  clamped at the lap ends) instead of the whole lap. The map keeps pedal colouring on the primary
+  and uses solid yellow for the reference, both drawn as 1.5 dp lines. Blue/yellow are
+  Telemetry-tab only.
 - `PlaybackFooter(compact = true)` is the compare footer: one 48 dp row with the frame steps beside
   Play, a 40 dp ruler, a `1×` rate cycle, and a loop icon. The single-lap player keeps the taller
   layout (time/speed row, ruler, transport); `FrameStepRow` remains only on the sync screen.

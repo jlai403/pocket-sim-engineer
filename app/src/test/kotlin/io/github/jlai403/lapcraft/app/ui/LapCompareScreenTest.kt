@@ -79,7 +79,7 @@ class LapCompareScreenTest {
         compose.onNodeWithTag("compare-cursor-reference").assertExists()
         assertEquals(2, compose.onAllNodesWithTag("telemetry-hud").fetchSemanticsNodes().size)
         assertEquals(2, compose.onAllNodesWithTag("compare-readout").fetchSemanticsNodes().size)
-        compose.onNodeWithText("Track %").assertDoesNotExist()
+        compose.onNodeWithText("\u00b15 s").assertDoesNotExist()
         compose.onNodeWithTag("compare-delta").assertExists()
         compose.onNodeWithText("1:30.000").assertDoesNotExist()
         compose.onNodeWithText("1:32.000").assertDoesNotExist()
@@ -105,7 +105,7 @@ class LapCompareScreenTest {
         compose.onNodeWithTag("compare-tab-telemetry").performClick()
 
         compose.waitUntil(TIMEOUT) {
-            compose.onAllNodesWithText("Track %").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("\u00b15 s").fetchSemanticsNodes().isNotEmpty()
         }
         listOf("BRK", "THR", "SPD", "RPM", "GEAR").forEach { label ->
             compose.onNodeWithText(label).assertExists()

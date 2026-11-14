@@ -230,7 +230,7 @@ fun LapCompareScreen(
             player.seekTo(start)
             positionMs = start
             player.prepare()
-            player.playWhenReady = true
+            player.playWhenReady = false
         }
     }
 
