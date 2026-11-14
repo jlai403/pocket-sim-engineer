@@ -11,7 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
-import io.github.jlai403.lapcraft.app.profile.DriverProfile
+import io.github.jlai403.lapcraft.core.profile.DriverProfile
 import io.github.jlai403.lapcraft.core.session.LapSummary
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

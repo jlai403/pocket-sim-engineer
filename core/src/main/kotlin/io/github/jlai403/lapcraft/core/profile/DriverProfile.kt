@@ -1,4 +1,4 @@
-package io.github.jlai403.lapcraft.app.profile
+package io.github.jlai403.lapcraft.core.profile
 
 import kotlinx.serialization.Serializable
 
