@@ -48,12 +48,19 @@ fun formatEventTime(epochMs: Long): String =
 sealed interface Screen {
     data object Library : Screen
     data class Player(val sessionId: String, val lapIndex: Int) : Screen
+    data class Compare(
+        val primarySessionId: String,
+        val primaryLapIndex: Int,
+        val referenceSessionId: String,
+        val referenceLapIndex: Int,
+    ) : Screen
     data class ImportPick(val uri: String) : Screen
     data class ImportSync(
         val sessionId: String,
         val lapIndex: Int,
         val sourceUri: String?,
         val returnToLibrary: Boolean = false,
+        val returnToCompare: Compare? = null,
     ) : Screen
     data object Record : Screen
     data object Settings : Screen

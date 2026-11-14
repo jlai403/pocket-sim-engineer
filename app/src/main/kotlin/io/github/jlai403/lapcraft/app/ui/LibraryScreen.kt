@@ -71,6 +71,7 @@ fun LibraryScreen(
     onOpenRecord: () -> Unit = {},
     onOpenSync: (String, Int, String?) -> Unit = { _, _, _ -> },
     onOpenSettings: () -> Unit = {},
+    onCompare: (String, Int, String, Int) -> Unit = { _, _, _, _ -> },
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -98,6 +99,8 @@ fun LibraryScreen(
     var trackMenu by remember { mutableStateOf(false) }
     var sortMenu by remember { mutableStateOf(false) }
     var profileMenu by remember { mutableStateOf(false) }
+    var compareMode by remember { mutableStateOf(false) }
+    var picks by remember { mutableStateOf<List<LapSummary>>(emptyList()) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val target = syncTarget
@@ -201,6 +204,20 @@ fun LibraryScreen(
         }
     }
 
+    fun togglePick(lap: LapSummary) {
+        if (picks.any { it.sameLap(lap) }) {
+            picks = picks.filterNot { it.sameLap(lap) }
+            return
+        }
+        val primary = picks.firstOrNull()
+        if (primary != null && primary.trackKey != lap.trackKey) {
+            message = "Pick another lap on ${primary.trackLabel}."
+            return
+        }
+        picks = if (picks.size >= 2) listOf(picks[0], lap) else picks + lap
+        message = null
+    }
+
     val all = laps
     val visible = all?.applyFilter(filter)?.applySort(sort)
     val tracks = all?.distinctBy { it.trackKey }?.map { it.trackLabel }?.sorted().orEmpty()
@@ -219,25 +236,39 @@ fun LibraryScreen(
             subtitle = summaryLine(all, tracks, previewEmpty),
             modifier = Modifier.padding(horizontal = 20.dp),
             actions = {
-                DriverChip(
-                    profile = owner,
-                    menuOpen = profileMenu,
-                    onAdd = onOpenSettings,
-                    onOpenMenu = { profileMenu = true },
-                    onDismissMenu = { profileMenu = false },
-                    onGridStats = {
-                        profileMenu = false
-                        owner?.let { openLink(DriverProfileLinks.gridStats(it.psnId)) }
-                    },
-                    onGtshRank = {
-                        profileMenu = false
-                        owner?.let { openLink(DriverProfileLinks.gtshRank(it.psnId)) }
-                    },
-                    onEdit = {
-                        profileMenu = false
-                        onOpenSettings()
-                    },
-                )
+                if (compareMode) {
+                    TextButton(
+                        onClick = {
+                            compareMode = false
+                            picks = emptyList()
+                        },
+                    ) { Text("Cancel") }
+                } else {
+                    GhostPill(
+                        text = "Compare",
+                        onClick = { compareMode = true },
+                        modifier = Modifier.testTag("library-compare"),
+                    )
+                    DriverChip(
+                        profile = owner,
+                        menuOpen = profileMenu,
+                        onAdd = onOpenSettings,
+                        onOpenMenu = { profileMenu = true },
+                        onDismissMenu = { profileMenu = false },
+                        onGridStats = {
+                            profileMenu = false
+                            owner?.let { openLink(DriverProfileLinks.gridStats(it.psnId)) }
+                        },
+                        onGtshRank = {
+                            profileMenu = false
+                            owner?.let { openLink(DriverProfileLinks.gtshRank(it.psnId)) }
+                        },
+                        onEdit = {
+                            profileMenu = false
+                            onOpenSettings()
+                        },
+                    )
+                }
             },
         )
 
@@ -324,6 +355,36 @@ fun LibraryScreen(
             )
         }
 
+        if (compareMode) {
+            Row(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    compareHint(picks),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                PrimaryPill(
+                    text = "Compare (${picks.size})",
+                    enabled = picks.size == 2,
+                    onClick = {
+                        if (picks.size == 2) {
+                            onCompare(
+                                picks[0].sessionId,
+                                picks[0].lapIndex,
+                                picks[1].sessionId,
+                                picks[1].lapIndex,
+                            )
+                        }
+                    },
+                    modifier = Modifier.testTag("library-compare-go"),
+                )
+            }
+        }
+
         PullToRefreshBox(
             isRefreshing = refreshing,
             onRefresh = {
@@ -404,9 +465,21 @@ fun LibraryScreen(
                                 driver = driver,
                                 fastest = isFastest,
                                 deltaMs = deltaMs,
-                                onOpen = { onOpenLap(lap.sessionId, lap.lapIndex) },
+                                onOpen = {
+                                    if (compareMode) {
+                                        togglePick(lap)
+                                    } else {
+                                        onOpenLap(lap.sessionId, lap.lapIndex)
+                                    }
+                                },
                                 onEdit = { edit(lap) },
                                 onDelete = { deleting = lap },
+                                compareMode = compareMode,
+                                pick = when {
+                                    picks.getOrNull(0)?.sameLap(lap) == true -> LapPick.Primary
+                                    picks.getOrNull(1)?.sameLap(lap) == true -> LapPick.Reference
+                                    else -> null
+                                },
                             )
                             if (index != visible.lastIndex) {
                                 HorizontalDivider(
@@ -555,12 +628,18 @@ private fun DriverChip(
     }
 }
 
+private fun compareHint(picks: List<LapSummary>): String = when {
+    picks.isEmpty() -> "Pick the primary lap"
+    picks.size == 1 -> "Pick a reference lap on ${picks[0].trackLabel}"
+    else -> "Primary ${lapTimeLabel(picks[0].lapTimeMs)} · " +
+        "reference ${lapTimeLabel(picks[1].lapTimeMs)}"
+}
+
 private fun summaryLine(
     laps: List<LapSummary>?,
     tracks: List<String>,
     previewEmpty: Boolean,
-): String? {
-    if (laps.isNullOrEmpty() || previewEmpty) return null
+): String? {    if (laps.isNullOrEmpty() || previewEmpty) return null
     val best = laps.minOfOrNull { it.lapTimeMs }
     return buildString {
         append(laps.size)

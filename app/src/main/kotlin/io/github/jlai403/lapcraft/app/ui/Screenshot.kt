@@ -48,7 +48,7 @@ internal fun shareScreenshot(context: Context, title: String, onError: (String) 
     )
 }
 
-private fun Context.findActivity(): Activity? {
+internal fun Context.findActivity(): Activity? {
     var current = this
     while (current is ContextWrapper) {
         if (current is Activity) return current
