@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
@@ -67,7 +68,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.ceil
 import kotlin.math.floor
-import kotlin.math.roundToInt
 
 internal const val TRANSPORT_MS = 10_000L
 
@@ -521,12 +521,12 @@ internal fun FrameStepRow(
 
 /**
  * A fixed needle over a horizontally scrolling ruler. Each 6 dp of travel is one
- * video frame; the slider above handles distance. Pressing jumps to the timestamp
- * under the finger, then dragging steps frames from there. The strip follows the
- * finger, so dragging right rewinds and dragging left moves forward. The ruler
- * reports how far the drag has travelled in total, so callers can seek from the
- * playhead they held when the drag started, and reports the end of the drag so
- * callers can settle the playhead.
+ * video frame. The ruler only scrubs: a tap does nothing at all, and a horizontal
+ * drag past the touch slop steps frames from where the drag began. The strip
+ * follows the finger, so dragging right rewinds and dragging left moves forward.
+ * The ruler reports how far the drag has travelled in total, so callers can seek
+ * from the playhead they held when the drag started, and reports the end of the
+ * drag so callers can settle the playhead.
  */
 @Composable
 internal fun FrameRuler(
@@ -603,13 +603,16 @@ internal fun FrameRuler(
                 if (!enabled) return@pointerInput
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    // Press selects the timestamp under the finger; the drag then steps frames from it.
-                    val pressedFrames =
-                        ((down.position.x - size.width / 2f) / pxPerFrameState.floatValue)
-                            .roundToInt()
-                    accumulator.reset(pressedFrames)
+                    // A tap is inert: no seek, no pause, no haptic. Only a drag starts a scrub.
+                    val crossed = awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                        change.consume()
+                    } ?: return@awaitEachGesture
+
+                    accumulator.reset()
                     currentOnScrubStart()
-                    if (pressedFrames != 0) {
+                    // Count the travel up to the slop crossing, so the whole drag moves frames.
+                    val startFrames = accumulator.framesFor(-(crossed.position.x - down.position.x))
+                    if (startFrames != 0) {
                         if (currentHapticsEnabled) {
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }
