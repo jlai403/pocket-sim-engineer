@@ -5,9 +5,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -53,6 +57,7 @@ internal fun CompareReadoutRow(
         modifier = modifier
             .fillMaxWidth()
             .height(ReadoutHeight)
+            .padding(end = 4.dp)
             .testTag("compare-readout"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -61,20 +66,21 @@ internal fun CompareReadoutRow(
             label = "THR",
             fraction = sample.throttle / 255f,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.width(BarWidth),
         )
         MiniBar(
             label = "BRK",
             fraction = sample.brake / 255f,
             color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.width(BarWidth),
         )
         MiniBar(
             label = "RPM",
             fraction = sample.rpm / rpmMax,
             color = MaterialTheme.colorScheme.tertiary,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.width(BarWidth),
         )
+        Spacer(Modifier.weight(1f))
         TireHeatmap(
             fl = sample.tyreTempFL,
             fr = sample.tyreTempFR,
@@ -84,7 +90,12 @@ internal fun CompareReadoutRow(
             compact = true,
         )
         if (hasSteering) {
-            SteeringWheel(steering = sample.steering, wheelSize = 26.dp)
+            Box(
+                modifier = Modifier.size(ReadoutHeight),
+                contentAlignment = Alignment.Center,
+            ) {
+                SteeringWheel(steering = sample.steering, wheelSize = 26.dp)
+            }
         }
     }
 }
@@ -121,3 +132,4 @@ private fun MiniBar(
 }
 
 private val ReadoutHeight = 30.dp
+private val BarWidth = 56.dp
