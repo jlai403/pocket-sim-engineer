@@ -2,7 +2,9 @@ package io.github.jlai403.lapcraft.core.clip
 
 import io.github.jlai403.lapcraft.core.model.Sample
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.math.abs
 
 class TrackProgressTest {
     private fun sample(x: Double, z: Double, timeNanos: Long) = Sample(
@@ -53,6 +55,18 @@ class TrackProgressTest {
     }
 
     @Test
+    fun `percent interpolates between sample times`() {
+        val samples = listOf(
+            sample(0.0, 0.0, 0),
+            sample(100.0, 0.0, 1_000_000_000L),
+        )
+        val start = samples.first().timeNanos
+
+        assertEquals(25f, TrackProgress.percentAt(samples, start, 250), 0.01f)
+        assertEquals(75f, TrackProgress.percentAt(samples, start, 750), 0.01f)
+    }
+
+    @Test
     fun `large teleports do not count as distance`() {
         val samples = listOf(
             sample(0.0, 0.0, 0),
@@ -62,5 +76,57 @@ class TrackProgressTest {
         )
         val percent = TrackProgress.percentAt(samples, 0, 2_000)
         assertEquals(100f, percent, 1f)
+    }
+
+    @Test
+    fun `timeAtPercent inverts percentAt`() {
+        val samples = squareLap()
+        val start = samples.first().timeNanos
+        for (ms in listOf(0, 25_000, 50_000, 75_000, 100_000)) {
+            val percent = TrackProgress.percentAt(samples, start, ms)
+            val back = TrackProgress.timeAtPercent(samples, start, percent, 100_000)
+            assertTrue(abs(back - ms) <= 40, "ms=$ms percent=$percent back=$back")
+        }
+    }
+
+    @Test
+    fun `timeAtPercent clamps to the lap ends`() {
+        val samples = squareLap()
+        val start = samples.first().timeNanos
+        assertEquals(0, TrackProgress.timeAtPercent(samples, start, -10f, 100_000))
+        assertEquals(100_000, TrackProgress.timeAtPercent(samples, start, 110f, 100_000))
+    }
+
+    @Test
+    fun `timeAtPercent honors a lap time longer than the samples`() {
+        val samples = listOf(
+            sample(0.0, 0.0, 0),
+            sample(100.0, 0.0, 1_000_000_000L),
+        )
+        assertEquals(500, TrackProgress.timeAtPercent(samples, 0, 50f, 90_000))
+        assertEquals(90_000, TrackProgress.timeAtPercent(samples, 0, 100f, 90_000))
+    }
+
+    @Test
+    fun `percentAt is continuous across sample times`() {
+        val samples = squareLap()
+        val start = samples.first().timeNanos
+        var previous = 0f
+        for (ms in 0..100_000 step 16) {
+            val percent = TrackProgress.percentAt(samples, start, ms)
+            assertTrue(percent >= previous, "percent went backwards at $ms ms")
+            assertTrue(percent - previous < 1f, "percent jumped ${percent - previous} at $ms ms")
+            previous = percent
+        }
+    }
+
+    @Test
+    fun `a lap with no movement has no table`() {
+        val samples = listOf(
+            sample(10.0, 10.0, 0),
+            sample(10.0, 10.0, 1_000_000_000L),
+        )
+        assertEquals(null, TrackProgress.table(samples, 0))
+        assertEquals(0f, TrackProgress.percentAt(samples, 0, 500))
     }
 }
