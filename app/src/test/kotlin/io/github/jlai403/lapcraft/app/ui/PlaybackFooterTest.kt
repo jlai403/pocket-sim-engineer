@@ -23,6 +23,7 @@ class PlaybackFooterTest {
     @Test
     fun `an enabled footer drives the transport`() {
         var plays = 0
+        val steps = mutableListOf<Int>()
 
         compose.setContent {
             LapCraftTheme {
@@ -45,13 +46,17 @@ class PlaybackFooterTest {
                     onForward = {},
                     onToggleLoop = {},
                     onSpeedChange = {},
+                    onStep = { steps += it },
                 )
             }
         }
 
         compose.onNodeWithContentDescription("Play").performClick()
+        compose.onNodeWithContentDescription("Step back one frame").performClick()
+        compose.onNodeWithContentDescription("Step forward one frame").performClick()
 
         assertEquals(1, plays)
+        assertEquals(listOf(-1, 1), steps)
         compose.onNodeWithContentDescription("Previous brake point").assertExists()
         compose.onNodeWithContentDescription("Next brake point").assertExists()
         compose.onNodeWithText("Loop").assertExists()

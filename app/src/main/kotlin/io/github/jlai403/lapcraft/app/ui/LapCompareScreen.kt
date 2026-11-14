@@ -11,13 +11,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,11 +33,13 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -129,6 +139,7 @@ fun LapCompareScreen(
     var playbackSpeed by remember { mutableFloatStateOf(settings.defaultPlaybackSpeed) }
     var referenceDurationMs by remember { mutableLongStateOf(0L) }
     var message by remember { mutableStateOf<String?>(null) }
+    var tab by rememberSaveable { mutableIntStateOf(0) }
 
     fun seekPrimary(targetMs: Long) {
         val player = primaryPlayer ?: return
@@ -276,7 +287,6 @@ fun LapCompareScreen(
     val referenceTable = remember(referenceWindow, reference) {
         reference?.let { TrackProgress.table(referenceWindow, it.lap.startNanos) }
     }
-    val progress = primaryTable?.percentAt(primaryCursorMs) ?: 0f
     val referenceCursorMs = referenceCursor(
         primaryTable = primaryTable,
         primaryCursorMs = primaryCursorMs,
@@ -300,11 +310,10 @@ fun LapCompareScreen(
     val brakeTimes = remember(events) {
         events.filter { it.type == LapEventType.Brake }.map { it.timeMs }
     }
-    val primaryStats = remember(primaryWindow, primaryLap) {
-        primaryLap?.let { lapStats(primaryWindow, it) }
-    }
-    val referenceStats = remember(referenceWindow, reference) {
-        reference?.let { lapStats(referenceWindow, it.lap) }
+    val deltaMs = if (primaryTable != null && referenceTable != null) {
+        primaryCursorMs - referenceCursorMs
+    } else {
+        null
     }
 
     fun seekLap(targetMs: Long) {
@@ -358,112 +367,94 @@ fun LapCompareScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            ScreenHeader(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                title = "Compare",
-                subtitle = primary?.let {
-                    "${it.trackLabel} · ${lapTimeLabel(it.lap.lapTimeMs)} vs " +
-                        lapTimeLabel(reference?.lap?.lapTimeMs ?: 0)
-                },
+            CompareChrome(
+                deltaMs = deltaMs,
+                tab = tab,
+                onTabChange = { tab = it },
                 onBack = onBack,
             )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 10.dp, bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            message?.let {
+                Text(
+                    it,
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            val active = primary
+            if (active == null) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "Loading lap…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else if (tab == 0) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     ComparePane(
                         lap = primary,
                         player = primaryPlayer,
-                        title = "Primary",
+                        title = "Lap ${active.lap.index}",
+                        tag = "primary",
                         cursorMs = primaryCursorMs,
+                        imperial = settings.imperialUnits,
+                        showHud = settings.telemetryHud,
                         onAddClip = { onAddClip(primarySessionId, primaryLapIndex) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
                     ComparePane(
                         lap = reference,
                         player = referencePlayer,
-                        title = "Reference",
+                        title = reference?.let { "Ref · Lap ${it.lap.index}" } ?: "Reference",
+                        tag = "reference",
                         cursorMs = referenceCursorMs,
+                        imperial = settings.imperialUnits,
+                        showHud = settings.telemetryHud,
                         onAddClip = { onAddClip(referenceSessionId, referenceLapIndex) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
                 }
-
-                message?.let {
-                    Text(
-                        it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-
-                if (primaryTable != null && referenceTable != null) {
-                    val deltaMs = primaryCursorMs - referenceCursorMs
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                deltaLabel(deltaMs),
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = if (deltaMs <= 0) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
-                            )
-                            NumericText(
-                                "%.1f%% · ref %s".format(progress, formatMillis(referenceCursorMs.toLong())),
-                                modifier = Modifier.testTag("compare-reference-time"),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        primaryStats?.let {
-                            Text(
-                                lapStatsComparison(
-                                    it,
-                                    referenceStats,
-                                    settings.imperialUnits,
-                                    label = "reference",
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-
-                SectionCard {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "Track map",
+            } else {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.weight(0.4f).fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        TrackMap(
+                            samples = active.samples,
+                            lap = active.lap,
+                            cursorMs = primaryCursorMs,
+                            follow = true,
+                            reference = reference?.let { GhostLap(it.lap, it.samples) },
+                            referenceCursorMs = referenceCursorMs,
+                            fillHeight = true,
                             modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.titleMedium,
                         )
-                        TrackMapLegend(showReference = true)
+                        TrackMapLegend(showReference = true, horizontal = true)
                     }
-                    TrackMap(
-                        samples = primary?.samples ?: emptyList(),
-                        lap = primaryLap ?: return@SectionCard,
-                        cursorMs = primaryCursorMs,
-                        follow = true,
+                    CompareCharts(
+                        samples = active.samples,
+                        lap = active.lap,
                         reference = reference?.let { GhostLap(it.lap, it.samples) },
-                        referenceCursorMs = referenceCursorMs,
-                    )
-                }
-
-                SectionCard {
-                    ChartColumn(
-                        samples = primary?.samples ?: emptyList(),
-                        lap = primaryLap ?: return@SectionCard,
                         cursorMs = primaryCursorMs,
                         imperial = settings.imperialUnits,
-                        reference = reference?.let { GhostLap(it.lap, it.samples) },
+                        modifier = Modifier.weight(0.6f).fillMaxHeight(),
                     )
                 }
             }
@@ -543,32 +534,79 @@ fun LapCompareScreen(
 }
 
 @Composable
+private fun CompareChrome(
+    deltaMs: Int?,
+    tab: Int,
+    onTabChange: (Int) -> Unit,
+    onBack: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .testTag("compare-back"),
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilterChip(
+                selected = tab == 0,
+                onClick = { onTabChange(0) },
+                label = { Text("Video") },
+            )
+            Spacer(Modifier.width(6.dp))
+            FilterChip(
+                selected = tab == 1,
+                onClick = { onTabChange(1) },
+                label = { Text("Telemetry") },
+                modifier = Modifier.testTag("compare-tab-telemetry"),
+            )
+        }
+        Text(
+            deltaMs?.let(::deltaLabel) ?: "Δ —",
+            modifier = Modifier.testTag("compare-delta").padding(end = 8.dp),
+            style = MaterialTheme.typography.labelLarge,
+            color = when {
+                deltaMs == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                deltaMs <= 0 -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.error
+            },
+        )
+    }
+}
+
+@Composable
 private fun ComparePane(
     lap: CompareLap?,
     player: ExoPlayer?,
     title: String,
+    tag: String,
     cursorMs: Int,
-    onAddClip: (() -> Unit)?,
+    imperial: Boolean,
+    showHud: Boolean,
+    onAddClip: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                lap?.let { "$title · Lap ${it.lap.index}" } ?: title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            NumericText(
-                formatMillis(cursorMs.toLong()),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(16f / 9f)
+                .weight(1f)
                 .clip(RoundedCornerShape(18.dp))
                 .background(Color.Black),
             contentAlignment = Alignment.Center,
@@ -593,13 +631,11 @@ private fun ComparePane(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    onAddClip?.let {
-                        PrimaryPill(
-                            text = "Add clip",
-                            onClick = it,
-                            modifier = Modifier.testTag("compare-add-clip-$title"),
-                        )
-                    }
+                    PrimaryPill(
+                        text = "Add clip",
+                        onClick = onAddClip,
+                        modifier = Modifier.testTag("compare-add-clip-$tag"),
+                    )
                 }
                 else -> Text(
                     "Loading…",
@@ -607,6 +643,46 @@ private fun ComparePane(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            lap?.let { loaded ->
+                if (showHud) {
+                    TelemetryHud(
+                        window = loaded.samples,
+                        lap = loaded.lap,
+                        cursorMs = cursorMs,
+                        modifier = Modifier.align(Alignment.TopCenter).padding(8.dp),
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "$title · ${lapTimeLabel(loaded.lap.lapTimeMs)}",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.9f),
+                        maxLines = 1,
+                    )
+                    NumericText(
+                        formatMillis(cursorMs.toLong()),
+                        modifier = Modifier.testTag("compare-cursor-$tag"),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.9f),
+                    )
+                }
+            }
+        }
+        lap?.let {
+            CompareReadoutRow(
+                samples = it.samples,
+                lap = it.lap,
+                cursorMs = cursorMs,
+                imperial = imperial,
+            )
         }
     }
 }
@@ -622,11 +698,8 @@ internal fun referenceCursor(
     referenceLapTimeMs,
 ) ?: 0
 
-private fun deltaLabel(deltaMs: Int): String = when {
-    deltaMs == 0 -> "Δ 0.000 s"
-    deltaMs < 0 -> "Δ −%.3f s ahead".format(-deltaMs / 1000.0)
-    else -> "Δ +%.3f s behind".format(deltaMs / 1000.0)
-}
+private fun deltaLabel(deltaMs: Int): String =
+    if (deltaMs == 0) "Δ 0.000 s" else "Δ %+.3f s".format(deltaMs / 1000.0)
 
 @OptIn(UnstableApi::class)
 private fun newPlayer(context: Context): ExoPlayer =

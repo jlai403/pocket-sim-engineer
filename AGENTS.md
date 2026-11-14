@@ -75,13 +75,17 @@ ANDROID_HOME=/opt/android-sdk ./gradlew :app:testDebugUnitTest --tests '*LapPlay
   restores the previous value in `onDispose`; portrait pauses playback behind a rotate prompt.
 - The primary lap (first opened or first picked) owns the clock. Only its player calls `play()`;
   the reference is muted and seeked frame-exactly to the primary's track progress via `ScrubSeeker`.
+- The screen is two tabs under a 44 dp chrome row (back, `Video`/`Telemetry`, delta). `Video` shows
+  both panes, each with `TelemetryHud` at the top centre and `CompareReadoutRow` underneath;
+  `Telemetry` shows the map at 40 % and `CompareCharts` at 60 %, with no readout strip.
 - `TrackProgress.Table` caches cumulative distance per lap and interpolates both ways:
   `percentAt(timeMs)` brackets by time, `timeAtPercent(percent, lapTimeMs)` brackets by distance.
   Never snap to the nearest sample.
-- Charts plot against track progress (`Track %`), so corners line up across laps; laps with no
-  positions fall back to lap time. `ChartColumn(reference = GhostLap(...))` draws dashed traces.
-- The consolidated `TrackMap` takes `reference = GhostLap(...)` and `referenceCursorMs`, drawing the
-  reference line and an open cursor ring; `TrackMapLegend(showReference = true)` labels it Reference.
+- Compare charts are one per metric (`BRK/THR/SPD/RPM/GEAR`) with the primary in `AccentBlue` and the
+  reference dashed `AccentYellow`; the map keeps pedal colouring on the primary and uses yellow for
+  the reference. Blue/yellow are Telemetry-tab only.
+- `PlaybackFooter` is compact everywhere (compare and the single-lap player): frame steps sit beside
+  Play in the transport row and repeat while held; `FrameStepRow` remains only on the sync screen.
 - Library compare mode lives in `LibraryScreen`: header pill, row checkboxes, the first pick labelled
   `Primary`, same-track picks only, and a third pick replaces the reference.
 - Entry points are `Screen.Compare(...)`; the player's `Compare` pill and the library's compare action

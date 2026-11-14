@@ -15,19 +15,24 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** F1-style wheel that turns with the recorded steering angle. */
 @Composable
-internal fun SteeringWheel(steering: Float, modifier: Modifier = Modifier) {
+internal fun SteeringWheel(
+    steering: Float,
+    modifier: Modifier = Modifier,
+    wheelSize: Dp = 40.dp,
+) {
     val rim = MaterialTheme.colorScheme.onSurfaceVariant
     val accent = MaterialTheme.colorScheme.primary
     val hub = MaterialTheme.colorScheme.surfaceVariant
     Canvas(
         modifier = modifier
-            .size(40.dp)
+            .size(wheelSize)
             .testTag("steering-wheel")
             .semantics { contentDescription = steeringDescription(steering) }
             .rotate(steeringWheelDegrees(steering)),
